@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Roomio</string>
+    <string name="btn_danh_sach_don">Danh sách đơn đăng ký</string>
+    <string name="btn_quan_ly_tai_khoan">Quản lý tài khoản</string>
+    <string name="btn_danh_sach_hotel">Danh sách khách sạn</string>
+    <string name="btn_logout">ĐĂNG XUẤT</string>
 </resources>
