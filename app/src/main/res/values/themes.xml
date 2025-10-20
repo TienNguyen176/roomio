@@ -1,9 +1,27 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.Roomio" parent="Theme.AppCompat.Light.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+
+    <!-- Base application theme (Material-compatible) -->
+    <style name="Base.Theme.Roomio" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <!-- Màu chính của ứng dụng -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryVariant">@color/colorPrimaryVariant</item>
+        <item name="colorOnPrimary">@color/white</item>
+
+        <!-- Màu nhấn phụ -->
+        <item name="colorSecondary">@color/colorSecondary</item>
+        <item name="colorSecondaryVariant">@color/colorSecondaryVariant</item>
+        <item name="colorOnSecondary">@color/white</item>
+
+        <!-- Màu nền và chữ -->
+        <item name="android:colorBackground">@color/white</item>
+        <item name="colorOnBackground">@color/black</item>
+        <item name="colorSurface">@color/white</item>
+        <item name="colorOnSurface">@color/black</item>
+
+        <!-- Giữ nguyên AppCompat compatibility -->
+        <item name="actionBarTheme">@style/ThemeOverlay.MaterialComponents.ActionBar</item>
     </style>
 
+    <!-- Theme chính -->
     <style name="Theme.Roomio" parent="Base.Theme.Roomio" />
 </resources>

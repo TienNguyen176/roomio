@@ -1,0 +1,600 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="#FFFFFF">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <include
+            android:id="@+id/appbar"
+            layout="@layout/app_bar" />
+
+        <TextView
+            android:layout_marginTop="10dp"
+            android:text="@string/title_thong_tin_chinh_chu"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:textSize="20sp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="8dp"/>
+
+        <LinearLayout
+            android:layout_marginTop="5dp"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center">
+
+            <TextView
+                android:text="@string/text_username"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="8dp"
+                tools:ignore="RtlSymmetry" />
+
+            <TextView
+                android:id="@+id/tvUsername"
+                android:layout_width="match_parent"
+                android:layout_height="55dp"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:background="@drawable/bg_input_box"
+                android:gravity="center"
+                android:padding="16dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="5dp" >
+
+            <TextView
+                android:text="@string/text_ngay_sinh"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="6dp"
+                tools:ignore="RtlSymmetry" />
+
+            <TextView
+                android:id="@+id/tvDob"
+                android:layout_width="0dp"
+                android:layout_height="55dp"
+                android:layout_weight="1.5"
+                android:textSize="20sp"
+                android:textColor="@color/black"
+                android:background="@drawable/bg_input_box"
+                android:paddingHorizontal="12dp"
+                android:gravity="center" />
+
+            <Space
+                android:layout_width="10dp"
+                android:layout_height="match_parent" />
+
+            <TextView
+                android:text="@string/text_gioi_tinh"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="6dp"
+                tools:ignore="RtlSymmetry" />
+
+            <TextView
+                android:id="@+id/tvGioiTinh"
+                android:layout_width="0dp"
+                android:layout_height="55dp"
+                android:layout_weight="1"
+                android:textSize="16sp"
+                android:textColor="@color/black"
+                android:background="@drawable/bg_input_box"
+                android:paddingHorizontal="12dp"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_marginTop="5dp"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center">
+
+            <TextView
+                android:text="@string/text_cccd_cmnd"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="8dp"
+                tools:ignore="RtlSymmetry" />
+
+            <TextView
+                android:id="@+id/tvCCCD"
+                android:layout_width="match_parent"
+                android:layout_height="55dp"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:background="@drawable/bg_input_box"
+                android:gravity="center"
+                android:padding="16dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_marginTop="10dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <LinearLayout
+                android:orientation="vertical"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center_horizontal">
+
+                <TextView
+                    android:text="@string/text_cccd_cmnd_mat_truoc"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="4dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <ImageView
+                    android:id="@+id/imgMatTruoc"
+                    android:layout_width="140dp"
+                    android:layout_height="90dp"
+                    android:src="@drawable/add_photo"
+                    android:scaleType="fitCenter"
+                    android:adjustViewBounds="true"
+                    android:background="@drawable/bg_image_border"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/cccd_mat_truoc"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </LinearLayout>
+
+            <Space
+                android:layout_width="16dp"
+                android:layout_height="match_parent" />
+
+            <LinearLayout
+                android:orientation="vertical"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center_horizontal">
+
+                <TextView
+                    android:text="@string/text_cccd_cmnd_mat_sau"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="4dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <ImageView
+                    android:id="@+id/imgMatSau"
+                    android:layout_width="140dp"
+                    android:layout_height="90dp"
+                    android:src="@drawable/add_photo"
+                    android:scaleType="fitCenter"
+                    android:adjustViewBounds="true"
+                    android:background="@drawable/bg_image_border"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/cccd_mat_sau"
+                    android:clickable="true"
+                    android:focusable="true" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_marginTop="5dp"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center">
+
+            <TextView
+                android:text="@string/text_sdt_lien_he"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="8dp"
+                tools:ignore="RtlSymmetry" />
+
+            <TextView
+                android:id="@+id/tvSoDienThoai"
+                android:layout_width="match_parent"
+                android:layout_height="55dp"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:background="@drawable/bg_input_box"
+                android:gravity="center"
+                android:padding="16dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_marginTop="5dp"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center">
+
+            <TextView
+                android:text="@string/text_email_lien_he"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="8dp"
+                tools:ignore="RtlSymmetry" />
+
+            <TextView
+                android:id="@+id/tvEmail"
+                android:layout_width="match_parent"
+                android:layout_height="55dp"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:background="@drawable/bg_input_box"
+                android:gravity="center"
+                android:padding="16dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_marginTop="10dp"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:text="@string/text_dia_chi_thuong_tru"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingBottom="4dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvDiaChiThuongTru"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="55dp"
+                    android:textSize="18sp"
+                    android:textColor="@color/black"
+                    android:ellipsize="none"
+                    android:scrollHorizontally="false"
+                    android:singleLine="false"
+                    android:background="@drawable/bg_input_box"
+                    android:padding="16dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:text="@string/title_thong_tin_khach_san"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:textSize="20sp"
+            android:layout_marginTop="16dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <LinearLayout
+            android:layout_marginTop="5dp"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center">
+
+            <TextView
+                android:text="@string/text_ten_khach_san"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="8dp"
+                tools:ignore="RtlSymmetry" />
+
+            <TextView
+                android:id="@+id/tvHotelName"
+                android:layout_width="match_parent"
+                android:layout_height="55dp"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:background="@drawable/bg_input_box"
+                android:gravity="center"
+                android:padding="16dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_marginTop="5dp"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:text="@string/text_dia_chi_khach_san"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingBottom="4dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvDiaChiHotel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="55dp"
+                    android:textSize="18sp"
+                    android:textColor="@color/black"
+                    android:ellipsize="none"
+                    android:scrollHorizontally="false"
+                    android:singleLine="false"
+                    android:background="@drawable/bg_input_box"
+                    android:padding="16dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_marginTop="5dp"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center">
+
+            <TextView
+                android:text="@string/text_quy_mo_khach_san"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="8dp"
+                tools:ignore="RtlSymmetry" />
+
+            <TextView
+                android:id="@+id/tvQuyMoHotel"
+                android:layout_width="match_parent"
+                android:layout_height="55dp"
+                android:textSize="16sp"
+                android:textColor="@color/black"
+                android:background="@drawable/bg_input_box"
+                android:gravity="center"
+                android:padding="16dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_marginTop="5dp"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center">
+
+            <TextView
+                android:text="@string/text_loai_hinh_khach_san"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="8dp"
+                tools:ignore="RtlSymmetry" />
+
+            <TextView
+                android:id="@+id/tvLoaiHinhHotel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="55dp"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:background="@drawable/bg_input_box"
+                android:gravity="center_vertical"
+                android:padding="16dp" />
+        </LinearLayout>
+
+        <TextView
+            android:text="@string/title_thong_tin_phap_ly"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:textSize="20sp"
+            android:layout_marginTop="16dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <LinearLayout
+            android:layout_marginTop="5dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingVertical="4dp">
+
+            <TextView
+                android:text="@string/text_giay_phep_kinh_doanh"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"/>
+
+            <ImageView
+                android:id="@+id/imgCheckGiayPhepKinhDoanh"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_check_circle_outline"
+                android:contentDescription="@string/text_trang_thai_anh" />
+
+            <ImageView
+                android:id="@+id/imgViewGiayPhepKinhDoanh"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/img_view_giay_phep"
+                android:contentDescription="@string/text_xem_anh"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="4dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingVertical="4dp">
+
+            <TextView
+                android:text="@string/text_giay_chung_nhan_PCCC"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"/>
+
+            <ImageView
+                android:id="@+id/imgCheckGiayPhepPCCC"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_check_circle_outline"
+                android:contentDescription="@string/text_trang_thai_anh" />
+
+            <ImageView
+                android:id="@+id/imgViewGiayPhepPCCC"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/img_view_giay_phep"
+                android:contentDescription="@string/text_xem_anh"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="4dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingVertical="4dp">
+
+            <TextView
+                android:text="@string/text_giay_chung_nhan_ANTT"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"/>
+
+            <ImageView
+                android:id="@+id/imgCheckGiayPhepANTT"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_check_circle_outline"
+                android:contentDescription="@string/text_trang_thai_anh" />
+
+            <ImageView
+                android:id="@+id/imgViewGiayPhepANTT"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/img_view_giay_phep"
+                android:contentDescription="@string/text_xem_anh"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="4dp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingVertical="4dp">
+
+            <TextView
+                android:text="@string/text_giay_chung_nhan_VSATTP"
+                android:textSize="18sp"
+                android:textColor="@color/black"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"/>
+
+            <ImageView
+                android:id="@+id/imgCheckGiayPhepVSATTP"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_marginEnd="8dp"
+                android:src="@drawable/ic_check_cancel"
+                android:contentDescription="@string/text_trang_thai_anh" />
+
+            <ImageView
+                android:id="@+id/imgViewGiayPhepVSATTP"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/img_view_giay_phep"
+                android:contentDescription="@string/text_xem_anh"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:padding="4dp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_gravity="center"
+            android:textSize="18sp"
+            android:textColor="#666"
+            android:layout_marginTop="15dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="12dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <Button
+                android:id="@+id/btnTuChoi"
+                android:text="Từ chối"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:backgroundTint="@color/red"
+                android:textColor="#FFFFFF"/>
+
+            <Button
+                android:id="@+id/btnDongY"
+                android:text="Đồng ý"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:backgroundTint="@color/green"
+                android:textColor="#FFFFFF"/>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

@@ -88,7 +88,7 @@
         android:layout_width="170dp"
         android:layout_height="48dp"
         android:layout_marginTop="216dp"
-        android:background="@drawable/rounded_button_logout_admin"
+        android:backgroundTint="@color/red"
         android:text="@string/btn_logout"
         android:textAllCaps="false"
         android:textColor="@android:color/white"

@@ -1,0 +1,17 @@
+package com.tdc.nhom6.roomio.models
+
+data class HotelModel(
+    val ownerId: String ="",
+    val hotelName: String = "",
+    val hotelAddress: String = "",
+    val hotelFloors: Int = 0,
+    val hotelTotalRooms: Int = 0,
+    val pricePerNight: Double = 0.0,
+    val images: List<String>? = listOf(),
+    val description: String = "",
+    val statusId: String = "",
+    val typeId: String ="",
+    val totalReviews: Int = 0,
+    val averageRating: Double = 0.0,
+    val createdAt: String = ""
+)
