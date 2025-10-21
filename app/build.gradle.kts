@@ -73,13 +73,6 @@ dependencies {
     implementation("at.favre.lib:bcrypt:0.9.0")
 
 
-    implementation("com.google.android.gms:play-services-auth:21.2.0")
-    implementation ("com.google.firebase:firebase-auth-ktx")
-
-    implementation("com.facebook.android:facebook-login:17.0.2")
-
-    implementation ("androidx.multidex:multidex:2.0.1")
-
 
 
 

@@ -12,5 +12,4 @@
         <item name="android:textColor">#FFFFFF</item>
     </style>
     <string name="default_web_client_id">YOUR_WEB_CLIENT_ID.apps.googleusercontent.com</string>
-
 </resources>

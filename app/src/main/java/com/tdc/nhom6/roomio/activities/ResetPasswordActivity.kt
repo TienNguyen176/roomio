@@ -23,7 +23,7 @@ class ResetPasswordActivity : AppCompatActivity() {
 
         binding.btnVerifyDone.setOnClickListener {
             // Sau khi người dùng xác minh xong qua email, chuyển sang màn hình đổi mật khẩu
-            val intent = Intent(this, ChangePasswordActivity::class.java)
+            val intent = Intent(this, LoginActivity::class.java)
             intent.putExtra("email", email)
             startActivity(intent)
             finish()
