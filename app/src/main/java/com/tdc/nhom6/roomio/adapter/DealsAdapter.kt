@@ -1,0 +1,81 @@
+package com.tdc.nhom6.roomio.adapter
+
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.model.DealItem
+
+
+class DealsAdapter(
+    private var hotelDeals: List<DealItem>
+) : RecyclerView.Adapter<DealsAdapter.DealsViewHolder>() {
+
+    /**
+     * Creates a new view holder for each item
+     * This is called when RecyclerView needs a new item to display
+     */
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DealsViewHolder {
+        // Inflate the layout for each item
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_deal, parent, false)
+        return DealsViewHolder(view)
+    }
+
+    /**
+     * Binds data to a view holder
+     * This is called when RecyclerView wants to show data in an item
+     */
+    override fun onBindViewHolder(holder: DealsViewHolder, position: Int) {
+        // Get the hotel deal at this position
+        val hotelDeal = hotelDeals[position]
+        
+        // Put the data into the view holder
+        holder.bind(hotelDeal)
+    }
+
+    /**
+     * Returns the number of items in the list
+     */
+    override fun getItemCount(): Int = hotelDeals.size
+
+    /**
+     * Updates the data and refreshes the display
+     * Call this when you have new data to show
+     */
+    fun updateData(newDeals: List<DealItem>) {
+        // Simple update without DiffUtil to prevent swap behavior issues
+        hotelDeals = newDeals
+        notifyDataSetChanged()
+    }
+
+    /**
+     * ViewHolder - Holds references to the views in each item
+     * This makes scrolling faster because we don't have to find views every time
+     */
+    class DealsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        
+        // Find the views in the layout
+        private val dealImage: ImageView = itemView.findViewById(R.id.img)
+        private val dealTitle: TextView = itemView.findViewById(R.id.tvTitle)
+        private val dealSubtitle: TextView = itemView.findViewById(R.id.tvSubtitle)
+
+        /**
+         * Binds hotel deal data to the views
+         * This is where we put the actual data into the UI elements
+         */
+        fun bind(hotelDeal: DealItem) {
+            // Set the hotel image
+            dealImage.setImageResource(hotelDeal.imageRes)
+            
+            // Set the hotel name
+            dealTitle.text = hotelDeal.title
+            
+            // Set the location
+            dealSubtitle.text = hotelDeal.subtitle
+        }
+    }
+}

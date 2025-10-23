@@ -55,9 +55,16 @@ class SearchResultsFragment : Fragment() {
         // Set up UI elements
         setupUI(view)
         
-        // Set up RecyclerView
+        // Set up RecyclerView with improved configuration
         val recyclerView = view.findViewById<RecyclerView>(R.id.rvSearchResults)
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        
+        // Configure RecyclerView to prevent swap behavior issues
+        val layoutManager = LinearLayoutManager(requireContext())
+        recyclerView.layoutManager = layoutManager
+        recyclerView.setHasFixedSize(true) // Improves performance and prevents layout issues
+        recyclerView.setItemViewCacheSize(10) // Cache more views to prevent recycling issues
+        recyclerView.itemAnimator = null // Disable animations to prevent swap behavior errors
+        
         searchResultsAdapter = SearchResultsAdapter(emptyList())
         recyclerView.adapter = searchResultsAdapter
         
@@ -206,59 +213,43 @@ class SearchResultsFragment : Fragment() {
             try {
                 ToastUtils.show(requireContext(), "Searching for: $searchQuery", Toast.LENGTH_SHORT)
                 
-                // Perform comprehensive search
+                // Perform search using Firebase repository
                 val searchResults = withContext(Dispatchers.IO) {
-                    firebaseRepository.searchAll(searchQuery)
+                    firebaseRepository.searchHotelsAndDeals(searchQuery)
                 }
                 
                 // Convert results to SearchResultItem list
                 val allResults = mutableListOf<SearchResultItem>()
                 
-                // Add hotels
-                @Suppress("UNCHECKED_CAST")
-                val hotels = searchResults["hotels"] as? List<Hotel> ?: emptyList()
-                hotels.forEach { hotel ->
-                    allResults.add(SearchResultItem(
-                        type = SearchResultType.HOTEL,
-                        hotel = hotel,
-                        deal = null,
-                        review = null
-                    ))
+                searchResults.forEach { result ->
+                    when (result) {
+                        is HotReview -> {
+                            allResults.add(SearchResultItem(
+                                type = SearchResultType.REVIEW,
+                                hotel = null,
+                                deal = null,
+                                review = result
+                            ))
+                        }
+                        is Deal -> {
+                            allResults.add(SearchResultItem(
+                                type = SearchResultType.DEAL,
+                                hotel = null,
+                                deal = result,
+                                review = null
+                            ))
+                        }
+                    }
                 }
                 
-                // Add deals
-                @Suppress("UNCHECKED_CAST")
-                val deals = searchResults["deals"] as? List<Deal> ?: emptyList()
-                deals.forEach { deal ->
-                    allResults.add(SearchResultItem(
-                        type = SearchResultType.DEAL,
-                        hotel = null,
-                        deal = deal,
-                        review = null
-                    ))
-                }
-                
-                // Add reviews
-                @Suppress("UNCHECKED_CAST")
-                val reviews = searchResults["reviews"] as? List<HotReview> ?: emptyList()
-                reviews.forEach { review ->
-                    allResults.add(SearchResultItem(
-                        type = SearchResultType.REVIEW,
-                        hotel = null,
-                        deal = null,
-                        review = review
-                    ))
-                }
-                
-                // Update adapter
+                // Update adapter with results
                 searchResultsAdapter.updateData(allResults)
                 
                 // Show results message
-                val totalResults = allResults.size
-                val message = if (totalResults > 0) {
-                    "Found $totalResults results for '$searchQuery'"
+                val message = if (allResults.isEmpty()) {
+                    "No results found for '$searchQuery'. Try: Ares, Vung Tau, Saigon, Sapa, or Nha Trang"
                 } else {
-                    "No results found for '$searchQuery'"
+                    "Found ${allResults.size} results for '$searchQuery'"
                 }
                 ToastUtils.show(requireContext(), message, Toast.LENGTH_LONG)
                 
@@ -268,6 +259,133 @@ class SearchResultsFragment : Fragment() {
                 e.printStackTrace()
             }
         }
+    }
+    
+    /**
+     * Perform offline search when Firebase is not available
+     * This provides basic search functionality without Firebase
+     */
+    private fun performOfflineSearch() {
+        // Sample data for offline search
+        val sampleHotels = listOf(
+            SearchResultItem(
+                type = SearchResultType.REVIEW,
+                hotel = null,
+                deal = null,
+                review = HotReview(
+                    hotelId = "sample_1",
+                    hotelName = "Ares Home",
+                    hotelImage = "hotel_64260231_1",
+                    rating = 4.5,
+                    totalReviews = 234,
+                    pricePerNight = 1500000.0,
+                    location = "Vung Tau",
+                    isHot = true
+                )
+            ),
+            SearchResultItem(
+                type = SearchResultType.DEAL,
+                hotel = null,
+                deal = Deal(
+                    hotelName = "Imperial Hotel",
+                    hotelLocation = "Vũng Tàu",
+                    description = "Elegant imperial-style hotel",
+                    imageUrl = "hotel_del_coronado_views_suite1600x900",
+                    originalPricePerNight = 1200000.0,
+                    discountPricePerNight = 800000.0,
+                    discountPercentage = 33,
+                    validFrom = System.currentTimeMillis(),
+                    validTo = System.currentTimeMillis() + (45 * 24 * 60 * 60 * 1000L),
+                    isActive = true,
+                    hotelId = "sample_2",
+                    roomType = "Executive Suite",
+                    amenities = listOf("Free WiFi", "Swimming Pool", "Restaurant"),
+                    rating = 4.5,
+                    totalReviews = 189
+                ),
+                review = null
+            ),
+            SearchResultItem(
+                type = SearchResultType.REVIEW,
+                hotel = null,
+                deal = null,
+                review = HotReview(
+                    hotelId = "sample_3",
+                    hotelName = "Saigon Central Hotel",
+                    hotelImage = "swimming_pool_1",
+                    rating = 4.8,
+                    totalReviews = 456,
+                    pricePerNight = 1200000.0,
+                    location = "Ho Chi Minh City",
+                    isHot = true
+                )
+            ),
+            SearchResultItem(
+                type = SearchResultType.REVIEW,
+                hotel = null,
+                deal = null,
+                review = HotReview(
+                    hotelId = "sample_4",
+                    hotelName = "Mountain Lodge",
+                    hotelImage = "room_640278495",
+                    rating = 4.6,
+                    totalReviews = 95,
+                    pricePerNight = 600000.0,
+                    location = "Sapa",
+                    isHot = true
+                )
+            ),
+            SearchResultItem(
+                type = SearchResultType.DEAL,
+                hotel = null,
+                deal = Deal(
+                    hotelName = "Beachfront Paradise",
+                    hotelLocation = "Nha Trang",
+                    description = "Luxury beachfront resort",
+                    imageUrl = "rectangle_copy_2",
+                    originalPricePerNight = 2000000.0,
+                    discountPricePerNight = 900000.0,
+                    discountPercentage = 55,
+                    validFrom = System.currentTimeMillis(),
+                    validTo = System.currentTimeMillis() + (30 * 24 * 60 * 60 * 1000L),
+                    isActive = true,
+                    hotelId = "sample_5",
+                    roomType = "Deluxe Ocean View",
+                    amenities = listOf("Free WiFi", "Swimming Pool", "Spa"),
+                    rating = 4.9,
+                    totalReviews = 210
+                ),
+                review = null
+            )
+        )
+        
+        // Filter sample data based on search query
+        val filteredResults = sampleHotels.filter { item ->
+            when (item.type) {
+                SearchResultType.REVIEW -> {
+                    item.review?.hotelName?.lowercase()?.contains(searchQuery.lowercase()) == true ||
+                    item.review?.location?.lowercase()?.contains(searchQuery.lowercase()) == true
+                }
+                SearchResultType.DEAL -> {
+                    item.deal?.hotelName?.lowercase()?.contains(searchQuery.lowercase()) == true ||
+                    item.deal?.hotelLocation?.lowercase()?.contains(searchQuery.lowercase()) == true
+                }
+                else -> false
+            }
+        }
+        
+        // Update adapter with filtered results
+        searchResultsAdapter.updateData(filteredResults)
+        
+        // Show result count
+        val resultCount = filteredResults.size
+        val message = if (resultCount > 0) {
+            "Found $resultCount results for '$searchQuery' (offline mode)"
+        } else {
+            "No results found for '$searchQuery'. Try: Ares, Vung Tau, Saigon, Sapa, or Nha Trang"
+        }
+        
+        ToastUtils.show(requireContext(), message, Toast.LENGTH_LONG)
     }
 }
 
@@ -298,6 +416,7 @@ class SearchResultsAdapter(var items: List<SearchResultItem>) : RecyclerView.Ada
     }
     
     fun updateData(newItems: List<SearchResultItem>) {
+        // Simple update without complex notifications to prevent swap behavior issues
         items = newItems
         notifyDataSetChanged()
     }

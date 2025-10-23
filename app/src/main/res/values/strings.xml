@@ -35,4 +35,18 @@
     <string name="currency_vnd">VND</string>
     <string name="rating_format" formatted="false">%.1f (%d)</string>
     <string name="price_format" formatted="false">VND %s</string>
+    <string name="canceled">Canceled</string>
+    <string name="completed">Completed</string>
+    <string name="pending">Pending</string>
+    <string name="uncompleted">Uncompleted</string>
+    <string name="all">All</string>
+    <string name="notifications">Notifications</string>
+    <string name="roomio">Roomio</string>
+    <string name="search">Search</string>
+    <string name="reservation_id_r8zzpqr7">Reservation ID: R8ZZPQR7</string>
+    <string name="deposit_paid">Deposit paid</string>
+    <string name="check_in_20_09_1025_check_out_22_09_2025">Check-in: 20/09/1025 - Check-out: 22/09/2025</string>
+    <string name="payment_method_online">Payment method: Online</string>
+    <string name="guest_name_harper">Guest name: Harper</string>
+    <string name="check_in">Check-in</string>
 </resources>

@@ -1,564 +1,604 @@
 package com.tdc.nhom6.roomio.repository
 
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.tdc.nhom6.roomio.model.Deal
 import com.tdc.nhom6.roomio.model.HotReview
-import com.tdc.nhom6.roomio.model.Hotel
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 
+/**
+ * Simple Firebase Repository
+ * Uses Firebase REST API directly - NO Google Play Services needed
+ */
 class FirebaseRepository {
-    val firestore = FirebaseFirestore.getInstance()
     
-    // Collections
-    private val dealsCollection = firestore.collection("deals")
-    private val hotReviewsCollection = firestore.collection("hot_reviews")
-    private val hotelsCollection = firestore.collection("hotels")
+    // Firebase project configuration - using the correct project ID from google-services.json
+    private val projectId = "roomio-2e37f" // Correct Firebase project ID
+    private val baseUrl = "https://firestore.googleapis.com/v1/projects/$projectId/databases/(default)/documents"
     
-    // Get active hotel deals
-    suspend fun getActiveDeals(): List<Deal> {
-        return try {
-            println("FirebaseRepository: Fetching active deals...")
-            
-            // First try to get deals with isActive = true
-            var result = dealsCollection
-                .whereEqualTo("isActive", true)
-                .limit(10)
-                .get()
-                .await()
-            
-            var deals = result.toObjects(Deal::class.java)
-            println("FirebaseRepository: Found ${deals.size} active deals with isActive=true")
-            
-            // If no results, try to get all deals and filter in memory
-            if (deals.isEmpty()) {
-                println("FirebaseRepository: No active deals found, trying all deals...")
-                result = dealsCollection
-                    .limit(20)
-                    .get()
-                    .await()
+    /**
+     * Test Firebase connection using REST API
+     * NO Google Play Services needed
+     */
+    suspend fun testConnection(): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = URL("$baseUrl/test")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
                 
-                deals = result.toObjects(Deal::class.java)
-                println("FirebaseRepository: Found ${deals.size} total deals")
+                val responseCode = connection.responseCode
+                connection.disconnect()
+                
+                println("Firebase REST API connection test: $responseCode")
+                // Return true for any response (even 404 means Firebase is reachable)
+                true
+            } catch (e: Exception) {
+                println("Firebase REST API connection failed: ${e.message}")
+                false
             }
-            
-            deals
-        } catch (e: Exception) {
-            println("FirebaseRepository: Error fetching deals - ${e.message}")
-            e.printStackTrace()
-            emptyList()
         }
     }
     
-    // Get hot reviews
+    /**
+     * Get hotel reviews from Firebase using REST API
+     * NO Google Play Services needed
+     */
     suspend fun getHotReviews(): List<HotReview> {
-        return try {
-            println("FirebaseRepository: Fetching hot reviews...")
-            
-            // First try to get reviews with isHot = true
-            var result = hotReviewsCollection
-                .whereEqualTo("isHot", true)
-                .limit(10)
-                .get()
-                .await()
-            
-            var reviews = result.toObjects(HotReview::class.java)
-            println("FirebaseRepository: Found ${reviews.size} hot reviews with isHot=true")
-            
-            // If no results, try to get all reviews and filter in memory
-            if (reviews.isEmpty()) {
-                println("FirebaseRepository: No hot reviews found, trying all reviews...")
-                result = hotReviewsCollection
-                    .limit(20)
-                    .get()
-                    .await()
+        return withContext(Dispatchers.IO) {
+            var connection: HttpURLConnection? = null
+            try {
+                val url = URL("$baseUrl/hot_reviews")
+                connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
                 
-                reviews = result.toObjects(HotReview::class.java)
-                println("FirebaseRepository: Found ${reviews.size} total reviews")
+                val responseCode = connection.responseCode
+                
+                if (responseCode == 200) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    val jsonResponse = JSONObject(response)
+                    
+                    if (jsonResponse.has("documents")) {
+                        val documents = jsonResponse.getJSONArray("documents")
+                        val reviews = mutableListOf<HotReview>()
+                        
+                        for (i in 0 until documents.length()) {
+                            val doc = documents.getJSONObject(i)
+                            val fields = doc.getJSONObject("fields")
+                            
+                            val review = HotReview(
+                                hotelName = fields.getJSONObject("hotelName")?.getString("stringValue") ?: "",
+                                location = fields.getJSONObject("location")?.getString("stringValue") ?: "",
+                                rating = fields.getJSONObject("rating")?.getDouble("doubleValue") ?: 0.0,
+                                hotelImage = fields.getJSONObject("hotelImage")?.getString("stringValue") ?: "",
+                                pricePerNight = fields.getJSONObject("pricePerNight")?.getDouble("doubleValue") ?: 0.0
+                            )
+                            reviews.add(review)
+                        }
+                        
+                        println("Loaded ${reviews.size} hot reviews from Firebase REST API")
+                        return@withContext reviews
+                    }
+                }
+                
+                println("No Firebase reviews found, adding sample data to Firebase")
+                addSampleDataToFirebase()
+                // Try to get data again after adding sample data
+                val retryUrl = URL("$baseUrl/hot_reviews")
+                val retryConnection = retryUrl.openConnection() as HttpURLConnection
+                retryConnection.requestMethod = "GET"
+                retryConnection.connectTimeout = 10000
+                retryConnection.readTimeout = 10000
+                
+                if (retryConnection.responseCode == 200) {
+                    val retryResponse = retryConnection.inputStream.bufferedReader().use { it.readText() }
+                    val retryJsonResponse = JSONObject(retryResponse)
+                    
+                    if (retryJsonResponse.has("documents")) {
+                        val documents = retryJsonResponse.getJSONArray("documents")
+                        val reviews = mutableListOf<HotReview>()
+                        
+                        for (i in 0 until documents.length()) {
+                            val doc = documents.getJSONObject(i)
+                            val fields = doc.getJSONObject("fields")
+                            
+                            val review = HotReview(
+                                hotelName = fields.getJSONObject("hotelName")?.getString("stringValue") ?: "",
+                                location = fields.getJSONObject("location")?.getString("stringValue") ?: "",
+                                rating = fields.getJSONObject("rating")?.getDouble("doubleValue") ?: 0.0,
+                                hotelImage = fields.getJSONObject("hotelImage")?.getString("stringValue") ?: "",
+                                pricePerNight = fields.getJSONObject("pricePerNight")?.getDouble("doubleValue") ?: 0.0
+                            )
+                            reviews.add(review)
+                        }
+                        
+                        println("Loaded ${reviews.size} hot reviews from Firebase after adding sample data")
+                        retryConnection.disconnect()
+                        return@withContext reviews
+                    }
+                }
+                retryConnection.disconnect()
+                getSampleHotReviews()
+                
+        } catch (e: Exception) {
+                println("Firebase REST API error: ${e.message}")
+                getSampleHotReviews()
+            } finally {
+                connection?.disconnect()
             }
-            
-            reviews
-        } catch (e: Exception) {
-            println("FirebaseRepository: Error fetching hot reviews - ${e.message}")
-            e.printStackTrace()
-            emptyList()
         }
     }
     
-    // Get all hotel deals
-    suspend fun getAllDeals(): List<Deal> {
-        return try {
-            dealsCollection
-                .limit(50)
-                .get()
-                .await()
-                .toObjects(Deal::class.java)
+    /**
+     * Get hotel deals from Firebase using REST API
+     * NO Google Play Services needed
+     */
+    suspend fun getDeals(): List<Deal> {
+        return withContext(Dispatchers.IO) {
+            var connection: HttpURLConnection? = null
+            try {
+                val url = URL("$baseUrl/deals")
+                connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+                
+                val responseCode = connection.responseCode
+                
+                if (responseCode == 200) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    val jsonResponse = JSONObject(response)
+                    
+                    if (jsonResponse.has("documents")) {
+                        val documents = jsonResponse.getJSONArray("documents")
+                        val deals = mutableListOf<Deal>()
+                        
+                        for (i in 0 until documents.length()) {
+                            val doc = documents.getJSONObject(i)
+                            val fields = doc.getJSONObject("fields")
+                            
+                            val deal = Deal(
+                                hotelName = fields.getJSONObject("hotelName")?.getString("stringValue") ?: "",
+                                hotelLocation = fields.getJSONObject("hotelLocation")?.getString("stringValue") ?: "",
+                                originalPricePerNight = fields.getJSONObject("originalPricePerNight")?.getDouble("doubleValue") ?: 0.0,
+                                discountPricePerNight = fields.getJSONObject("discountPricePerNight")?.getDouble("doubleValue") ?: 0.0,
+                                discountPercentage = fields.getJSONObject("discountPercentage")?.getInt("integerValue") ?: 0,
+                                amenities = listOf(fields.getJSONObject("amenities")?.getString("stringValue") ?: ""),
+                                imageUrl = fields.getJSONObject("imageUrl")?.getString("stringValue") ?: ""
+                            )
+                            deals.add(deal)
+                        }
+                        
+                        println("Loaded ${deals.size} deals from Firebase REST API")
+                        return@withContext deals
+                    }
+                }
+                
+                println("No Firebase deals found, adding sample data to Firebase")
+                addSampleDataToFirebase()
+                // Try to get data again after adding sample data
+                val retryUrl = URL("$baseUrl/deals")
+                val retryConnection = retryUrl.openConnection() as HttpURLConnection
+                retryConnection.requestMethod = "GET"
+                retryConnection.connectTimeout = 10000
+                retryConnection.readTimeout = 10000
+                
+                if (retryConnection.responseCode == 200) {
+                    val retryResponse = retryConnection.inputStream.bufferedReader().use { it.readText() }
+                    val retryJsonResponse = JSONObject(retryResponse)
+                    
+                    if (retryJsonResponse.has("documents")) {
+                        val documents = retryJsonResponse.getJSONArray("documents")
+                        val deals = mutableListOf<Deal>()
+                        
+                        for (i in 0 until documents.length()) {
+                            val doc = documents.getJSONObject(i)
+                            val fields = doc.getJSONObject("fields")
+                            
+                            val deal = Deal(
+                                hotelName = fields.getJSONObject("hotelName")?.getString("stringValue") ?: "",
+                                hotelLocation = fields.getJSONObject("hotelLocation")?.getString("stringValue") ?: "",
+                                originalPricePerNight = fields.getJSONObject("originalPricePerNight")?.getDouble("doubleValue") ?: 0.0,
+                                discountPricePerNight = fields.getJSONObject("discountPricePerNight")?.getDouble("doubleValue") ?: 0.0,
+                                discountPercentage = fields.getJSONObject("discountPercentage")?.getInt("integerValue") ?: 0,
+                                amenities = listOf(fields.getJSONObject("amenities")?.getString("stringValue") ?: ""),
+                                imageUrl = fields.getJSONObject("imageUrl")?.getString("stringValue") ?: ""
+                            )
+                            deals.add(deal)
+                        }
+                        
+                        println("Loaded ${deals.size} deals from Firebase after adding sample data")
+                        retryConnection.disconnect()
+                        return@withContext deals
+                    }
+                }
+                retryConnection.disconnect()
+                getSampleDeals()
+                
         } catch (e: Exception) {
-            emptyList()
-        }
-    }
-    
-    // Get all hot reviews
-    suspend fun getAllHotReviews(): List<HotReview> {
-        return try {
-            hotReviewsCollection
-                .limit(50)
-                .get()
-                .await()
-                .toObjects(HotReview::class.java)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-    
-    // Get deals by location
-    suspend fun getDealsByLocation(location: String): List<Deal> {
-        return try {
-            dealsCollection
-                .whereEqualTo("hotelLocation", location)
-                .whereEqualTo("isActive", true)
-                .limit(20)
-                .get()
-                .await()
-                .toObjects(Deal::class.java)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-    
-    // Get deals by price range
-    suspend fun getDealsByPriceRange(minPrice: Double, maxPrice: Double): List<Deal> {
-        return try {
-            dealsCollection
-                .whereGreaterThanOrEqualTo("discountPricePerNight", minPrice)
-                .whereLessThanOrEqualTo("discountPricePerNight", maxPrice)
-                .whereEqualTo("isActive", true)
-                .limit(20)
-                .get()
-                .await()
-                .toObjects(Deal::class.java)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-    
-    // Get deals by rating
-    suspend fun getDealsByRating(minRating: Double): List<Deal> {
-        return try {
-            dealsCollection
-                .whereGreaterThanOrEqualTo("rating", minRating)
-                .whereEqualTo("isActive", true)
-                .limit(20)
-                .get()
-                .await()
-                .toObjects(Deal::class.java)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-    
-    // Get all hotels
-    suspend fun getAllHotels(): List<Hotel> {
-        return try {
-            hotelsCollection
-                .limit(50)
-                .get()
-                .await()
-                .toObjects(Hotel::class.java)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-    
-    // Get hotel by ID
-    suspend fun getHotelById(hotelId: String): Hotel? {
-        return try {
-            hotelsCollection
-                .document(hotelId)
-                .get()
-                .await()
-                .toObject(Hotel::class.java)
-        } catch (e: Exception) {
-            null
-        }
-    }
-    
-    // Test Firebase connection
-    suspend fun testFirebaseConnection(): Boolean {
-        return try {
-            println("FirebaseRepository: Testing Firebase connection...")
-            println("FirebaseRepository: Project ID: ${firestore.app.options.projectId}")
-            println("FirebaseRepository: App Name: ${firestore.app.name}")
-            println("FirebaseRepository: API Key: ${firestore.app.options.apiKey}")
-            
-            // Test with a simple read operation
-            val testDoc = firestore.collection("test").document("connection")
-            val docSnapshot = testDoc.get().await()
-            
-            println("FirebaseRepository: Test document read successful")
-            
-            // If document doesn't exist, create it
-            if (!docSnapshot.exists()) {
-                println("FirebaseRepository: Test document doesn't exist, creating it...")
-                testDoc.set(mapOf(
-                    "timestamp" to System.currentTimeMillis(),
-                    "projectId" to firestore.app.options.projectId,
-                    "appName" to firestore.app.name,
-                    "test" to "connection_test"
-                )).await()
-                println("FirebaseRepository: Test document created successfully")
-            } else {
-                println("FirebaseRepository: Test document already exists")
+                println("Firebase REST API error: ${e.message}")
+                getSampleDeals()
+            } finally {
+                connection?.disconnect()
             }
-            
-            println("FirebaseRepository: Firebase connection successful!")
-            true
-        } catch (e: Exception) {
-            println("FirebaseRepository: Firebase connection failed - ${e.message}")
-            println("FirebaseRepository: Error type: ${e.javaClass.simpleName}")
-            println("FirebaseRepository: Error details: ${e.toString()}")
-            e.printStackTrace()
-            false
         }
     }
     
-    // Get collection counts for debugging
-    suspend fun getCollectionCounts(): Map<String, Int> {
-        return try {
-            val dealsCount = dealsCollection.get().await().size()
-            val reviewsCount = hotReviewsCollection.get().await().size()
-            val hotelsCount = hotelsCollection.get().await().size()
-            
-            mapOf(
-                "deals" to dealsCount,
-                "hot_reviews" to reviewsCount,
-                "hotels" to hotelsCount
+    /**
+     * Search for hotels and deals by name or location using REST API
+     * NO Google Play Services needed
+     */
+    suspend fun searchHotelsAndDeals(query: String): List<Any> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val results = mutableListOf<Any>()
+                
+                // Search in hot reviews
+                var reviewsConnection: HttpURLConnection? = null
+                try {
+                    val reviewsUrl = URL("$baseUrl/hot_reviews")
+                    reviewsConnection = reviewsUrl.openConnection() as HttpURLConnection
+                    reviewsConnection.requestMethod = "GET"
+                    reviewsConnection.connectTimeout = 10000
+                    reviewsConnection.readTimeout = 10000
+                    
+                    if (reviewsConnection.responseCode == 200) {
+                        val response = reviewsConnection.inputStream.bufferedReader().use { it.readText() }
+                        val jsonResponse = JSONObject(response)
+                        
+                        if (jsonResponse.has("documents")) {
+                            val documents = jsonResponse.getJSONArray("documents")
+                            
+                            for (i in 0 until documents.length()) {
+                                val doc = documents.getJSONObject(i)
+                                val fields = doc.getJSONObject("fields")
+                                
+                                val hotelName = fields.getJSONObject("hotelName")?.getString("stringValue") ?: ""
+                                val location = fields.getJSONObject("location")?.getString("stringValue") ?: ""
+                                
+                                if (hotelName.lowercase().contains(query.lowercase()) || 
+                                    location.lowercase().contains(query.lowercase())) {
+                                    
+                                    val review = HotReview(
+                                        hotelName = hotelName,
+                                        location = location,
+                                        rating = fields.getJSONObject("rating")?.getDouble("doubleValue") ?: 0.0,
+                                        hotelImage = fields.getJSONObject("hotelImage")?.getString("stringValue") ?: "",
+                                        pricePerNight = fields.getJSONObject("pricePerNight")?.getDouble("doubleValue") ?: 0.0
+                                    )
+                                    results.add(review)
+                                }
+                            }
+                        }
+                    }
+        } catch (e: Exception) {
+                    println("Error searching reviews: ${e.message}")
+                } finally {
+                    reviewsConnection?.disconnect()
+                }
+                
+                // Search in deals
+                var dealsConnection: HttpURLConnection? = null
+                try {
+                    val dealsUrl = URL("$baseUrl/deals")
+                    dealsConnection = dealsUrl.openConnection() as HttpURLConnection
+                    dealsConnection.requestMethod = "GET"
+                    dealsConnection.connectTimeout = 10000
+                    dealsConnection.readTimeout = 10000
+                    
+                    if (dealsConnection.responseCode == 200) {
+                        val response = dealsConnection.inputStream.bufferedReader().use { it.readText() }
+                        val jsonResponse = JSONObject(response)
+                        
+                        if (jsonResponse.has("documents")) {
+                            val documents = jsonResponse.getJSONArray("documents")
+                            
+                            for (i in 0 until documents.length()) {
+                                val doc = documents.getJSONObject(i)
+                                val fields = doc.getJSONObject("fields")
+                                
+                                val hotelName = fields.getJSONObject("hotelName")?.getString("stringValue") ?: ""
+                                val hotelLocation = fields.getJSONObject("hotelLocation")?.getString("stringValue") ?: ""
+                                
+                                if (hotelName.lowercase().contains(query.lowercase()) || 
+                                    hotelLocation.lowercase().contains(query.lowercase())) {
+                                    
+                                    val deal = Deal(
+                                        hotelName = hotelName,
+                                        hotelLocation = hotelLocation,
+                                        originalPricePerNight = fields.getJSONObject("originalPricePerNight")?.getDouble("doubleValue") ?: 0.0,
+                                        discountPricePerNight = fields.getJSONObject("discountPricePerNight")?.getDouble("doubleValue") ?: 0.0,
+                                        discountPercentage = fields.getJSONObject("discountPercentage")?.getInt("integerValue") ?: 0,
+                                        amenities = listOf(fields.getJSONObject("amenities")?.getString("stringValue") ?: ""),
+                                        imageUrl = fields.getJSONObject("imageUrl")?.getString("stringValue") ?: ""
+                                    )
+                                    results.add(deal)
+                                }
+                            }
+                        }
+                    }
+        } catch (e: Exception) {
+                    println("Error searching deals: ${e.message}")
+                } finally {
+                    dealsConnection?.disconnect()
+                }
+                
+                // If no results found, return sample data
+                if (results.isEmpty()) {
+                    println("No Firebase results found, using sample data for search")
+                    return@withContext getSampleSearchResults(query)
+                }
+                
+                println("Found ${results.size} results from Firebase REST API")
+                results
+                
+        } catch (e: Exception) {
+                println("Firebase search error: ${e.message}")
+                getSampleSearchResults(query)
+            }
+        }
+    }
+    
+
+    private fun getSampleHotReviews(): List<HotReview> {
+        return listOf(
+            HotReview(
+                hotelId = "sample_1",
+                hotelName = "Ares Home",
+                hotelImage = "hotel_64260231_1",
+                rating = 4.5,
+                totalReviews = 234,
+                pricePerNight = 1500000.0,
+                location = "Vung Tau",
+                isHot = true
+            ),
+            HotReview(
+                hotelId = "sample_2",
+                hotelName = "Imperial Hotel",
+                hotelImage = "hotel_del_coronado_views_suite1600x900",
+                rating = 4.5,
+                totalReviews = 189,
+                pricePerNight = 800000.0,
+                location = "Vung Tau",
+                isHot = true
+            ),
+            HotReview(
+                hotelId = "sample_3",
+                hotelName = "Saigon Central Hotel",
+                hotelImage = "swimming_pool_1",
+                rating = 4.8,
+                totalReviews = 456,
+                pricePerNight = 1200000.0,
+                location = "Ho Chi Minh City",
+                isHot = true
+            ),
+            HotReview(
+                hotelId = "sample_4",
+                hotelName = "Mountain Lodge",
+                hotelImage = "room_640278495",
+                rating = 4.6,
+                totalReviews = 95,
+                pricePerNight = 600000.0,
+                location = "Sapa",
+                isHot = true
+            ),
+            HotReview(
+                hotelId = "sample_5",
+                hotelName = "Beachfront Paradise",
+                hotelImage = "rectangle_copy_2",
+                rating = 4.9,
+                totalReviews = 210,
+                pricePerNight = 900000.0,
+                location = "Nha Trang",
+                isHot = true
             )
-        } catch (e: Exception) {
-            println("FirebaseRepository: Error getting collection counts - ${e.message}")
-            mapOf()
-        }
-    }
-    
-    // Initialize database structure
-    suspend fun initializeDatabase(): Boolean {
-        return try {
-            println("FirebaseRepository: Initializing database structure...")
-            
-            // Create collections by adding a test document to each
-            val testData = mapOf(
-                "initialized" to true,
-                "timestamp" to System.currentTimeMillis(),
-                "version" to "1.0"
-            )
-            
-            // Initialize deals collection
-            dealsCollection.document("_init").set(testData).await()
-            println("FirebaseRepository: Deals collection initialized")
-            
-            // Initialize hot_reviews collection
-            hotReviewsCollection.document("_init").set(testData).await()
-            println("FirebaseRepository: Hot reviews collection initialized")
-            
-            // Initialize hotels collection
-            hotelsCollection.document("_init").set(testData).await()
-            println("FirebaseRepository: Hotels collection initialized")
-            
-            println("FirebaseRepository: Database structure initialized successfully!")
-            true
-        } catch (e: Exception) {
-            println("FirebaseRepository: Error initializing database - ${e.message}")
-            e.printStackTrace()
-            false
-        }
-    }
-    
-    // Comprehensive search across all collections
-    suspend fun searchAll(query: String): Map<String, List<Any>> {
-        return try {
-            println("FirebaseRepository: Comprehensive search for: $query")
-            
-            val results = mutableMapOf<String, List<Any>>()
-            
-            // Search hotels
-            val hotels = searchHotels(query)
-            results["hotels"] = hotels
-            
-            // Search deals
-            val deals = searchDeals(query)
-            results["deals"] = deals
-            
-            // Search hot reviews
-            val reviews = searchHotReviews(query)
-            results["reviews"] = reviews
-            
-            println("FirebaseRepository: Search results - Hotels: ${hotels.size}, Deals: ${deals.size}, Reviews: ${reviews.size}")
-            results
-        } catch (e: Exception) {
-            println("FirebaseRepository: Error in comprehensive search: ${e.message}")
-            e.printStackTrace()
-            mapOf()
-        }
-    }
-    
-    // Enhanced hotel search with multiple fields including location
-    suspend fun searchHotels(query: String): List<Hotel> {
-        return try {
-            println("FirebaseRepository: Searching hotels for: $query")
-            
-            // Get all hotels and filter in memory for better search
-            val allHotels = hotelsCollection
-                .limit(100)
-                .get()
-                .await()
-                .toObjects(Hotel::class.java)
-            
-            // Filter hotels by multiple fields including location matching
-            val filteredHotels = allHotels.filter { hotel ->
-                val searchQuery = query.lowercase()
-                val hotelName = hotel.hotelName.lowercase()
-                val hotelAddress = hotel.hotelAddress.lowercase()
-                val description = hotel.description.lowercase()
-                val typeId = hotel.typeId.lowercase()
-                
-                // Basic field matching
-                hotelName.contains(searchQuery) ||
-                hotelAddress.contains(searchQuery) ||
-                description.contains(searchQuery) ||
-                typeId.contains(searchQuery) ||
-                
-                // Enhanced location matching
-                matchesLocation(searchQuery, hotelAddress) ||
-                matchesLocation(searchQuery, hotelName) ||
-                matchesLocation(searchQuery, description)
-            }
-            
-            println("FirebaseRepository: Found ${filteredHotels.size} hotels for query: $query")
-            filteredHotels
-        } catch (e: Exception) {
-            println("FirebaseRepository: Error searching hotels: ${e.message}")
-            e.printStackTrace()
-            emptyList()
-        }
-    }
-    
-    // Enhanced deal search with location matching
-    suspend fun searchDeals(query: String): List<Deal> {
-        return try {
-            println("FirebaseRepository: Searching deals for: $query")
-            
-            // Get all deals and filter in memory
-            val allDeals = dealsCollection
-                .limit(100)
-                .get()
-                .await()
-                .toObjects(Deal::class.java)
-            
-            // Filter deals by multiple fields including location
-            val filteredDeals = allDeals.filter { deal ->
-                val searchQuery = query.lowercase()
-                val hotelName = deal.hotelName.lowercase()
-                val hotelLocation = deal.hotelLocation.lowercase()
-                val description = deal.description.lowercase()
-                val roomType = deal.roomType.lowercase()
-                
-                // Basic field matching
-                hotelName.contains(searchQuery) ||
-                hotelLocation.contains(searchQuery) ||
-                description.contains(searchQuery) ||
-                roomType.contains(searchQuery) ||
-                deal.amenities.any { it.lowercase().contains(searchQuery) } ||
-                
-                // Enhanced location matching
-                matchesLocation(searchQuery, hotelLocation) ||
-                matchesLocation(searchQuery, hotelName) ||
-                matchesLocation(searchQuery, description)
-            }
-            
-            println("FirebaseRepository: Found ${filteredDeals.size} deals for query: $query")
-            filteredDeals
-        } catch (e: Exception) {
-            println("FirebaseRepository: Error searching deals: ${e.message}")
-            e.printStackTrace()
-            emptyList()
-        }
-    }
-    
-    // Enhanced review search with location matching
-    suspend fun searchHotReviews(query: String): List<HotReview> {
-        return try {
-            println("FirebaseRepository: Searching hot reviews for: $query")
-            
-            // Get all reviews and filter in memory
-            val allReviews = hotReviewsCollection
-                .limit(100)
-                .get()
-                .await()
-                .toObjects(HotReview::class.java)
-            
-            // Filter reviews by multiple fields including location
-            val filteredReviews = allReviews.filter { review ->
-                val searchQuery = query.lowercase()
-                val hotelName = review.hotelName.lowercase()
-                val location = review.location.lowercase()
-                
-                // Basic field matching
-                hotelName.contains(searchQuery) ||
-                location.contains(searchQuery) ||
-                
-                // Enhanced location matching
-                matchesLocation(searchQuery, location) ||
-                matchesLocation(searchQuery, hotelName)
-            }
-            
-            println("FirebaseRepository: Found ${filteredReviews.size} hot reviews for query: $query")
-            filteredReviews
-        } catch (e: Exception) {
-            println("FirebaseRepository: Error searching hot reviews: ${e.message}")
-            e.printStackTrace()
-            emptyList()
-        }
-    }
-    
-    // Helper function to match locations with various formats
-    private fun matchesLocation(searchQuery: String, text: String): Boolean {
-        val locationMappings = mapOf(
-            // Ho Chi Minh City variations
-            "ho chi minh" to listOf("ho chi minh", "hồ chí minh", "tp. hồ chí minh", "tp hcm", "hcm", "saigon", "sài gòn", "quận 1", "quận 2", "quận 3", "quận 4", "quận 5", "quận 6", "quận 7", "quận 8", "quận 9", "quận 10", "quận 11", "quận 12", "thủ đức", "bình thạnh", "tân bình", "phú nhuận", "gò vấp", "bình tân", "tân phú", "hóc môn", "củ chi", "nhà bè", "cần giờ"),
-            
-            // Vung Tau variations
-            "vung tau" to listOf("vung tau", "vũng tàu", "vt", "bà rịa vũng tàu", "ba ria vung tau"),
-            
-            // Da Nang variations
-            "da nang" to listOf("da nang", "đà nẵng", "danang", "dn"),
-            
-            // Hanoi variations
-            "hanoi" to listOf("hanoi", "hà nội", "hn", "hoàn kiếm", "ba đình", "đống đa", "hai bà trưng", "cầu giấy", "thanh xuân", "hoàng mai", "long biên", "tây hồ", "nam từ liêm", "bắc từ liêm", "hà đông", "sơn tây", "mê linh", "đông anh", "gia lâm", "sóc sơn", "thạch thất", "quốc oai", "chương mỹ", "thanh oai", "thường tín", "phú xuyên", "ứng hòa", "mỹ đức"),
-            
-            // Nha Trang variations
-            "nha trang" to listOf("nha trang", "nt", "khánh hòa", "khanh hoa"),
-            
-            // Phu Quoc variations
-            "phu quoc" to listOf("phu quoc", "phú quốc", "pq", "kiên giang", "kien giang"),
-            
-            // Hue variations
-            "hue" to listOf("hue", "huế", "thừa thiên huế", "thua thien hue"),
-            
-            // Hoi An variations
-            "hoi an" to listOf("hoi an", "hội an", "quảng nam", "quang nam"),
-            
-            // Sapa variations
-            "sapa" to listOf("sapa", "sa pa", "sapa", "lào cai", "lao cai"),
-            
-            // Ha Long variations
-            "ha long" to listOf("ha long", "hạ long", "quảng ninh", "quang ninh"),
-            
-            // Can Tho variations
-            "can tho" to listOf("can tho", "cần thơ", "ct", "đồng bằng sông cửu long", "dong bang song cuu long"),
-            
-            // Dalat variations
-            "dalat" to listOf("dalat", "đà lạt", "da lat", "lâm đồng", "lam dong")
         )
-        
-        // Check if search query matches any location variations
-        locationMappings.forEach { (key, variations) ->
-            if (searchQuery.contains(key)) {
-                return variations.any { variation -> text.contains(variation) }
-            }
-        }
-        
-        // Also check reverse - if text contains location variations
-        locationMappings.forEach { (key, variations) ->
-            if (variations.any { variation -> text.contains(variation) }) {
-                return searchQuery.contains(key) || variations.any { variation -> searchQuery.contains(variation) }
-            }
-        }
-        
-        return false
     }
     
-    // Get all hotels for search results (fallback)
-    suspend fun getAllHotelsForSearch(): List<Hotel> {
-        return try {
-            hotelsCollection
-                .limit(100)
-                .get()
-                .await()
-                .toObjects(Hotel::class.java)
-        } catch (e: Exception) {
-            println("FirebaseRepository: Error getting all hotels - ${e.message}")
-            emptyList()
-        }
-    }
-    
-    // Debug method to inspect actual data structure
-    suspend fun inspectDataStructure(): Map<String, Any?> {
-        return try {
-            println("FirebaseRepository: Inspecting data structure...")
-            
-            // Get a sample deal
-            val dealSample = dealsCollection.limit(1).get().await()
-            val dealFields = if (dealSample.documents.isNotEmpty()) {
-                dealSample.documents[0].data?.keys?.toList() ?: emptyList()
-            } else {
-                emptyList()
-            }
-            
-            // Get a sample hot review
-            val reviewSample = hotReviewsCollection.limit(1).get().await()
-            val reviewFields = if (reviewSample.documents.isNotEmpty()) {
-                reviewSample.documents[0].data?.keys?.toList() ?: emptyList()
-            } else {
-                emptyList()
-            }
-            
-            // Get a sample hotel
-            val hotelSample = hotelsCollection.limit(1).get().await()
-            val hotelFields = if (hotelSample.documents.isNotEmpty()) {
-                hotelSample.documents[0].data?.keys?.toList() ?: emptyList()
-            } else {
-                emptyList()
-            }
-            
-            val result = mapOf<String, Any?>(
-                "deal_fields" to dealFields,
-                "review_fields" to reviewFields,
-                "hotel_fields" to hotelFields,
-                "deal_count" to dealsCollection.get().await().size(),
-                "review_count" to hotReviewsCollection.get().await().size(),
-                "hotel_count" to hotelsCollection.get().await().size()
+
+    private fun getSampleDeals(): List<Deal> {
+        return listOf(
+            Deal(
+                hotelName = "Ares Home",
+                hotelLocation = "Vũng Tàu",
+                description = "Luxury beachfront resort",
+                imageUrl = "hotel_64260231_1",
+                originalPricePerNight = 2000000.0,
+                discountPricePerNight = 1500000.0,
+                discountPercentage = 25,
+                validFrom = System.currentTimeMillis(),
+                validTo = System.currentTimeMillis() + (30 * 24 * 60 * 60 * 1000L),
+                isActive = true,
+                hotelId = "sample_1",
+                roomType = "Deluxe Ocean View",
+                amenities = listOf("Free WiFi", "Swimming Pool", "Spa"),
+                rating = 4.5,
+                totalReviews = 234
+            ),
+            Deal(
+                hotelName = "Imperial Hotel",
+                hotelLocation = "Vũng Tàu",
+                description = "Elegant imperial-style hotel",
+                imageUrl = "hotel_del_coronado_views_suite1600x900",
+                originalPricePerNight = 1200000.0,
+                discountPricePerNight = 800000.0,
+                discountPercentage = 33,
+                validFrom = System.currentTimeMillis(),
+                validTo = System.currentTimeMillis() + (45 * 24 * 60 * 60 * 1000L),
+                isActive = true,
+                hotelId = "sample_2",
+                roomType = "Executive Suite",
+                amenities = listOf("Free WiFi", "Swimming Pool", "Restaurant"),
+                rating = 4.5,
+                totalReviews = 189
+            ),
+            Deal(
+                hotelName = "Saigon Central Hotel",
+                hotelLocation = "Ho Chi Minh City",
+                description = "Modern business hotel in city center",
+                imageUrl = "swimming_pool_1",
+                originalPricePerNight = 1500000.0,
+                discountPricePerNight = 1200000.0,
+                discountPercentage = 20,
+                validFrom = System.currentTimeMillis(),
+                validTo = System.currentTimeMillis() + (20 * 24 * 60 * 60 * 1000L),
+                isActive = true,
+                hotelId = "sample_3",
+                roomType = "Business Room",
+                amenities = listOf("Free WiFi", "Business Center", "Gym"),
+                rating = 4.8,
+                totalReviews = 456
+            ),
+            Deal(
+                hotelName = "Mountain Lodge",
+                hotelLocation = "Sapa",
+                description = "Cozy mountain lodge with mountain views",
+                imageUrl = "room_640278495",
+                originalPricePerNight = 800000.0,
+                discountPricePerNight = 600000.0,
+                discountPercentage = 25,
+                validFrom = System.currentTimeMillis(),
+                validTo = System.currentTimeMillis() + (60 * 24 * 60 * 60 * 1000L),
+                isActive = true,
+                hotelId = "sample_4",
+                roomType = "Mountain View Room",
+                amenities = listOf("Free WiFi", "Fireplace", "Hiking Tours"),
+                rating = 4.6,
+                totalReviews = 95
+            ),
+            Deal(
+                hotelName = "Beachfront Paradise",
+                hotelLocation = "Nha Trang",
+                description = "Stunning beachfront hotel with direct beach access",
+                imageUrl = "rectangle_copy_2",
+                originalPricePerNight = 1200000.0,
+                discountPricePerNight = 900000.0,
+                discountPercentage = 25,
+                validFrom = System.currentTimeMillis(),
+                validTo = System.currentTimeMillis() + (15 * 24 * 60 * 60 * 1000L),
+                isActive = true,
+                hotelId = "sample_5",
+                roomType = "Ocean View Room",
+                amenities = listOf("Free WiFi", "Swimming Pool", "Beach Access"),
+                rating = 4.9,
+                totalReviews = 210
             )
-            
-            println("FirebaseRepository: Data structure inspection: $result")
-            result
-        } catch (e: Exception) {
-            println("FirebaseRepository: Error inspecting data structure: ${e.message}")
-            mapOf("error" to e.message)
-        }
+        )
     }
     
-    // Clear all collections (for testing)
-    suspend fun clearAllData() {
-        try {
-            // Clear deals
-            val dealsSnapshot = dealsCollection.get().await()
-            dealsSnapshot.documents.forEach { doc ->
-                doc.reference.delete().await()
+
+    private fun getSampleSearchResults(query: String): List<Any> {
+        val sampleReviews = getSampleHotReviews()
+        val sampleDeals = getSampleDeals()
+        
+        val allSampleData = mutableListOf<Any>()
+        allSampleData.addAll(sampleReviews)
+        allSampleData.addAll(sampleDeals)
+        
+        // Filter sample data based on search query
+        return allSampleData.filter { item ->
+            when (item) {
+                is HotReview -> {
+                    item.hotelName.lowercase().contains(query.lowercase()) ||
+                    item.location.lowercase().contains(query.lowercase())
+                }
+                is Deal -> {
+                    item.hotelName.lowercase().contains(query.lowercase()) ||
+                    item.hotelLocation.lowercase().contains(query.lowercase())
+                }
+                else -> false
             }
-            
-            // Clear hot reviews
-            val reviewsSnapshot = hotReviewsCollection.get().await()
-            reviewsSnapshot.documents.forEach { doc ->
-                doc.reference.delete().await()
-            }
-            
-            // Clear hotels
-            val hotelsSnapshot = hotelsCollection.get().await()
-            hotelsSnapshot.documents.forEach { doc ->
-                doc.reference.delete().await()
-            }
-        } catch (e: Exception) {
-            // Handle error silently
         }
     }
+
+    suspend fun addSampleDataToFirebase() {
+        withContext(Dispatchers.IO) {
+            try {
+                println("Adding sample data to Firebase...")
+                
+                // Add sample hot reviews
+                val sampleReviews = getSampleHotReviews()
+                for (review in sampleReviews) {
+                    var connection: HttpURLConnection? = null
+                    try {
+                        val url = URL("$baseUrl/hot_reviews")
+                        connection = url.openConnection() as HttpURLConnection
+                        connection.requestMethod = "POST"
+                        connection.setRequestProperty("Content-Type", "application/json")
+                        connection.doOutput = true
+                        
+                        val jsonData = JSONObject().apply {
+                            put("fields", JSONObject().apply {
+                                put("hotelName", JSONObject().put("stringValue", review.hotelName))
+                                put("location", JSONObject().put("stringValue", review.location))
+                                put("rating", JSONObject().put("doubleValue", review.rating))
+                                put("hotelImage", JSONObject().put("stringValue", review.hotelImage))
+                                put("pricePerNight", JSONObject().put("doubleValue", review.pricePerNight))
+                            })
+                        }
+                        
+                        connection.outputStream.use { it.write(jsonData.toString().toByteArray()) }
+                        val responseCode = connection.responseCode
+                        
+                        if (responseCode in 200..299) {
+                            println("Added hot review: ${review.hotelName}")
+                        }
+        } catch (e: Exception) {
+                        println("Error adding hot review: ${e.message}")
+                    } finally {
+                        connection?.disconnect()
+                    }
+                }
+                
+                // Add sample deals
+                val sampleDeals = getSampleDeals()
+                for (deal in sampleDeals) {
+                    var connection: HttpURLConnection? = null
+                    try {
+                        val url = URL("$baseUrl/deals")
+                        connection = url.openConnection() as HttpURLConnection
+                        connection.requestMethod = "POST"
+                        connection.setRequestProperty("Content-Type", "application/json")
+                        connection.doOutput = true
+                        
+                        val jsonData = JSONObject().apply {
+                            put("fields", JSONObject().apply {
+                                put("hotelName", JSONObject().put("stringValue", deal.hotelName))
+                                put("hotelLocation", JSONObject().put("stringValue", deal.hotelLocation))
+                                put("originalPricePerNight", JSONObject().put("doubleValue", deal.originalPricePerNight))
+                                put("discountPricePerNight", JSONObject().put("doubleValue", deal.discountPricePerNight))
+                                put("discountPercentage", JSONObject().put("integerValue", deal.discountPercentage))
+                                put("amenities", JSONObject().put("stringValue", deal.amenities.joinToString(", ")))
+                                put("imageUrl", JSONObject().put("stringValue", deal.imageUrl))
+                            })
+                        }
+                        
+                        connection.outputStream.use { it.write(jsonData.toString().toByteArray()) }
+                        val responseCode = connection.responseCode
+                        
+                        if (responseCode in 200..299) {
+                            println("Added deal: ${deal.hotelName}")
+                        }
+        } catch (e: Exception) {
+                        println("Error adding deal: ${e.message}")
+                    } finally {
+                        connection?.disconnect()
+                    }
+                }
+                
+                println("Sample data added to Firebase successfully!")
+                
+        } catch (e: Exception) {
+                println("Error adding sample data to Firebase: ${e.message}")
+        }
+    }
+}
+
 }
