@@ -2,7 +2,7 @@
     android:shape="rectangle">
 
     <!-- Màu nền -->
-    <solid android:color="#5D5AF6" />
+    <solid android:color="@color/blueA" />
 
     <!-- Bo góc -->
     <corners android:radius="10dp" />
