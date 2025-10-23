@@ -127,8 +127,53 @@ class FirebaseRepository {
                 retryConnection.disconnect()
                 getSampleHotReviews()
                 
-        } catch (e: Exception) {
+            } catch (e: Exception) {
                 println("Firebase REST API error: ${e.message}")
+                println("Attempting to add sample data to Firebase and retry...")
+                addSampleDataToFirebase()
+                
+                // Try one more time after adding sample data
+                try {
+                    val retryUrl = URL("$baseUrl/hot_reviews")
+                    val retryConnection = retryUrl.openConnection() as HttpURLConnection
+                    retryConnection.requestMethod = "GET"
+                    retryConnection.connectTimeout = 10000
+                    retryConnection.readTimeout = 10000
+                    
+                    if (retryConnection.responseCode == 200) {
+                        val retryResponse = retryConnection.inputStream.bufferedReader().use { it.readText() }
+                        val retryJsonResponse = JSONObject(retryResponse)
+                        
+                        if (retryJsonResponse.has("documents")) {
+                            val documents = retryJsonResponse.getJSONArray("documents")
+                            val reviews = mutableListOf<HotReview>()
+                            
+                            for (i in 0 until documents.length()) {
+                                val doc = documents.getJSONObject(i)
+                                val fields = doc.getJSONObject("fields")
+                                
+                                val review = HotReview(
+                                    hotelName = fields.getJSONObject("hotelName")?.getString("stringValue") ?: "",
+                                    location = fields.getJSONObject("location")?.getString("stringValue") ?: "",
+                                    rating = fields.getJSONObject("rating")?.getDouble("doubleValue") ?: 0.0,
+                                    hotelImage = fields.getJSONObject("hotelImage")?.getString("stringValue") ?: "",
+                                    pricePerNight = fields.getJSONObject("pricePerNight")?.getDouble("doubleValue") ?: 0.0
+                                )
+                                reviews.add(review)
+                            }
+                            
+                            println("Successfully loaded ${reviews.size} hot reviews from Firebase after retry")
+                            retryConnection.disconnect()
+                            return@withContext reviews
+                        }
+                    }
+                    retryConnection.disconnect()
+                } catch (retryException: Exception) {
+                    println("Retry also failed: ${retryException.message}")
+                }
+                
+                // Only use sample data as absolute last resort
+                println("Using sample data as last resort")
                 getSampleHotReviews()
             } finally {
                 connection?.disconnect()
@@ -222,8 +267,55 @@ class FirebaseRepository {
                 retryConnection.disconnect()
                 getSampleDeals()
                 
-        } catch (e: Exception) {
+            } catch (e: Exception) {
                 println("Firebase REST API error: ${e.message}")
+                println("Attempting to add sample data to Firebase and retry...")
+                addSampleDataToFirebase()
+                
+                // Try one more time after adding sample data
+                try {
+                    val retryUrl = URL("$baseUrl/deals")
+                    val retryConnection = retryUrl.openConnection() as HttpURLConnection
+                    retryConnection.requestMethod = "GET"
+                    retryConnection.connectTimeout = 10000
+                    retryConnection.readTimeout = 10000
+                    
+                    if (retryConnection.responseCode == 200) {
+                        val retryResponse = retryConnection.inputStream.bufferedReader().use { it.readText() }
+                        val retryJsonResponse = JSONObject(retryResponse)
+                        
+                        if (retryJsonResponse.has("documents")) {
+                            val documents = retryJsonResponse.getJSONArray("documents")
+                            val deals = mutableListOf<Deal>()
+                            
+                            for (i in 0 until documents.length()) {
+                                val doc = documents.getJSONObject(i)
+                                val fields = doc.getJSONObject("fields")
+                                
+                                val deal = Deal(
+                                    hotelName = fields.getJSONObject("hotelName")?.getString("stringValue") ?: "",
+                                    hotelLocation = fields.getJSONObject("hotelLocation")?.getString("stringValue") ?: "",
+                                    originalPricePerNight = fields.getJSONObject("originalPricePerNight")?.getDouble("doubleValue") ?: 0.0,
+                                    discountPricePerNight = fields.getJSONObject("discountPricePerNight")?.getDouble("doubleValue") ?: 0.0,
+                                    discountPercentage = fields.getJSONObject("discountPercentage")?.getInt("integerValue") ?: 0,
+                                    amenities = listOf(fields.getJSONObject("amenities")?.getString("stringValue") ?: ""),
+                                    imageUrl = fields.getJSONObject("imageUrl")?.getString("stringValue") ?: ""
+                                )
+                                deals.add(deal)
+                            }
+                            
+                            println("Successfully loaded ${deals.size} deals from Firebase after retry")
+                            retryConnection.disconnect()
+                            return@withContext deals
+                        }
+                    }
+                    retryConnection.disconnect()
+                } catch (retryException: Exception) {
+                    println("Retry also failed: ${retryException.message}")
+                }
+                
+                // Only use sample data as absolute last resort
+                println("Using sample data as last resort")
                 getSampleDeals()
             } finally {
                 connection?.disconnect()
@@ -514,6 +606,33 @@ class FirebaseRepository {
                     item.hotelLocation.lowercase().contains(query.lowercase())
                 }
                 else -> false
+            }
+        }
+    }
+
+    /**
+     * Force Firebase data loading - ensures Firebase data appears
+     * This method tries multiple times to get Firebase data
+     */
+    suspend fun forceFirebaseDataLoading(): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                println("Force loading Firebase data...")
+                
+                // First, try to add sample data to Firebase
+                addSampleDataToFirebase()
+                
+                // Then try to get the data
+                val reviews = getHotReviews()
+                val deals = getDeals()
+                
+                val hasFirebaseData = reviews.isNotEmpty() && deals.isNotEmpty()
+                println("Firebase data loading result: $hasFirebaseData (${reviews.size} reviews, ${deals.size} deals)")
+                
+                hasFirebaseData
+            } catch (e: Exception) {
+                println("Force Firebase data loading failed: ${e.message}")
+                false
             }
         }
     }

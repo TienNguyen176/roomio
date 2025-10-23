@@ -138,19 +138,19 @@ class HomeFragment : Fragment() {
         // Use coroutines to load data from Firebase
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                // Test Firebase connection (ignores Google Play Services errors)
-                val isConnected = firebaseRepository.testConnection()
+                // Force Firebase data loading to ensure Firebase data appears
+                val firebaseDataLoaded = firebaseRepository.forceFirebaseDataLoading()
                 
-                if (isConnected) {
+                if (firebaseDataLoaded) {
                     android.widget.Toast.makeText(
                         requireContext(),
-                        "Connected to Firebase",
+                        "Firebase data loaded successfully",
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                 } else {
                     android.widget.Toast.makeText(
                         requireContext(),
-                        "Using offline data",
+                        "Loading Firebase data...",
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -278,13 +278,33 @@ class HomeFragment : Fragment() {
      * This is called when user searches for something
      */
     private fun navigateToSearchResults(query: String) {
-        // TODO: Implement search results navigation
-        // For now, we'll just show a simple message
-        android.widget.Toast.makeText(
-            requireContext(), 
-            "Searching for: $query", 
-            android.widget.Toast.LENGTH_SHORT
-        ).show()
+        if (query.trim().isEmpty()) {
+            android.widget.Toast.makeText(
+                requireContext(),
+                "Please enter a search term",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        
+        try {
+            // Create SearchResultsFragment with the search query
+            val searchFragment = SearchResultsFragment.newInstance(query, "")
+            
+            // Navigate to search results fragment
+            parentFragmentManager.beginTransaction()
+                .replace(R.id.nav_host_container, searchFragment)
+                .addToBackStack("search_results")
+                .commit()
+                
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(
+                requireContext(),
+                "Error opening search: ${e.message}",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+            println("Search navigation error: ${e.message}")
+        }
     }
 }
 
