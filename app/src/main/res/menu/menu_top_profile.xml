@@ -8,11 +8,16 @@
         android:icon="@drawable/home"
         android:title="Chủ Khách Sạn" />
     <item
-        android:id="@+id/navDonPhong"
+        android:id="@+id/navLeTan"
         android:icon="@drawable/home"
         android:title="Lễ Tân" />
     <item
-        android:id="@+id/navLeTan"
+        android:id="@+id/navDonPhong"
         android:icon="@drawable/home"
         android:title="Dọn Phòng" />
+    <item
+        android:id="@+id/navXuLy"
+        android:icon="@drawable/home"
+        android:title="Xử lý đơn hàng"/>
+
 </menu>

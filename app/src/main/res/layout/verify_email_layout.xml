@@ -16,6 +16,7 @@
         android:layout_marginBottom="12dp"/>
 
     <TextView
+        android:id="@+id/edtContent"
         android:text="Vui lòng mở email và bấm vào đường link xác minh. Sau khi xác minh xong, hệ thống sẽ tự động đăng ký."
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
