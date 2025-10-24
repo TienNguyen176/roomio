@@ -1,21 +1,23 @@
 package com.tdc.nhom6.roomio.activities
 
-import android.animation.ValueAnimator
 import android.animation.ArgbEvaluator
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.databinding.ProfileLayoutBinding
 import com.tdc.nhom6.roomio.models.User
-import android.graphics.Color
 
 class ProfileActivity : AppCompatActivity() {
 
@@ -23,7 +25,7 @@ class ProfileActivity : AppCompatActivity() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
-    private var userRoleId: String = "userRoles/user"
+    private var userRoleId: String = "user"
     private var roleName: String = "User"
 
     private var isBalanceVisible = true
@@ -38,14 +40,12 @@ class ProfileActivity : AppCompatActivity() {
         supportActionBar?.title = "Roomio"
 
         setupActions()
-        //wallet
         setupWalletToggle()
         loadUserData()
-        //wallet
         loadWalletData()
-
     }
-    // 🔹 Ẩn/hiện số dư ví
+
+    // 👁 Ẩn / hiện số dư ví
     private fun setupWalletToggle() {
         binding.imgEye.setOnClickListener {
             isBalanceVisible = !isBalanceVisible
@@ -58,14 +58,14 @@ class ProfileActivity : AppCompatActivity() {
             }
         }
     }
+
+    // ⚙️ Hành động nút
     private fun setupActions() {
-        // 👉 Chỉnh sửa hồ sơ
         binding.showProfile.setOnClickListener {
             val intent = Intent(this, EditProfileActivity::class.java)
             startActivityForResult(intent, 100)
         }
 
-        // 👉 Đăng xuất
         binding.btnSignOut.setOnClickListener {
             auth.signOut()
             val intent = Intent(this, LoginActivity::class.java)
@@ -75,6 +75,7 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
+    // 📥 Tải dữ liệu user
     private fun loadUserData() {
         val uid = auth.currentUser?.uid ?: return
 
@@ -86,7 +87,7 @@ class ProfileActivity : AppCompatActivity() {
                     if (user != null) {
                         binding.tvUsername.text = user.username.ifEmpty { "Người dùng" }
 
-                        // Load avatar
+                        // Ảnh đại diện
                         if (user.avatar.isNotEmpty()) {
                             Glide.with(this)
                                 .load(user.avatar)
@@ -97,50 +98,86 @@ class ProfileActivity : AppCompatActivity() {
                             binding.imgAvatar.setImageResource(R.drawable.user)
                         }
 
-                        userRoleId = user.roleId
+                        userRoleId = user.roleId.ifEmpty { "user" }
 
-                        // Lấy role name từ userRoles
-                        db.document(userRoleId)
+                        // Lấy thông tin role từ Firestore
+                        db.collection("userRoles").document(userRoleId)
                             .get()
                             .addOnSuccessListener { roleDoc ->
                                 if (roleDoc.exists()) {
-                                    roleName = roleDoc.getString("role_name") ?: "User"
-                                    binding.tvRank.text = roleName
+                                    roleName = roleDoc.getString("role_name") ?: userRoleId.capitalize()
                                 } else {
-                                    binding.tvRank.text = "User"
+                                    roleName = userRoleId.capitalize()
                                 }
+                                binding.tvRank.text = roleName
+                                updateRoleUI(userRoleId)
+                                animateRoleColor(userRoleId)
                                 invalidateOptionsMenu()
+                            }
+                            .addOnFailureListener {
+                                binding.tvRank.text = "User"
+                                updateRoleUI("user")
+                                animateRoleColor("user")
                             }
                     }
                 }
             }
     }
-//    // 🌈 Hàm tạo hiệu ứng chuyển màu động cho vai trò
-//    private fun animateRoleColor(roleName: String) {
-//        val colorMap = mapOf(
-//            "Admin" to Color.parseColor("#FF4C4C"),
-//            "Owner" to Color.parseColor("#FFA500"),
-//            "Lễ tân" to Color.parseColor("#4CAF50"),
-//            "Dọn phòng" to Color.parseColor("#4CAF50"),
-//            "User" to Color.parseColor("#BDBDBD")
-//        )
-//
-//        val targetColor = colorMap[roleName] ?: Color.parseColor("#BDBDBD")
-//        val currentColor = (binding.tvRank.background?.mutate() as? android.graphics.drawable.ColorDrawable)?.color ?: Color.WHITE
-//
-//        val colorAnim = ValueAnimator.ofObject(ArgbEvaluator(), currentColor, targetColor)
-//        colorAnim.duration = 600
-//        colorAnim.addUpdateListener { animator ->
-//            val color = animator.animatedValue as Int
-//            binding.tvRank.setBackgroundColor(color)
-//            binding.tvRank.animate().scaleX(1.05f).scaleY(1.05f).setDuration(150).withEndAction {
-//                binding.tvRank.animate().scaleX(1f).scaleY(1f).setDuration(150).start()
-//            }.start()
-//        }
-//        colorAnim.start()
-//    }
 
-    // 🔹 Lấy số dư từ Firestore
+    // 🎨 Cập nhật UI rank (màu + bo góc + hiệu ứng)
+    private fun updateRoleUI(roleId: String) {
+        val colorRes = when (roleId.lowercase()) {
+            "admin" -> R.color.red
+            "owner" -> R.color.orange
+            "letan" -> R.color.green
+            "donphong" -> R.color.light_blue
+            "xulydon" -> R.color.purple
+            else -> R.color.gray
+        }
+
+        val bgColor = ContextCompat.getColor(this, colorRes)
+        val shape = GradientDrawable().apply {
+            cornerRadius = 25f
+            setColor(bgColor)
+        }
+        binding.tvRank.background = shape
+
+        // Hiệu ứng phóng nhẹ
+        binding.tvRank.animate()
+            .scaleX(1.1f).scaleY(1.1f)
+            .setDuration(250)
+            .withEndAction {
+                binding.tvRank.animate().scaleX(1f).scaleY(1f).duration = 250
+            }
+            .start()
+    }
+
+    // 🌈 Hiệu ứng chuyển màu mượt
+    private fun animateRoleColor(roleId: String) {
+        val colorMap = mapOf(
+            "admin" to Color.parseColor("#FF4C4C"),   // đỏ
+            "owner" to Color.parseColor("#FFA500"),   // cam
+            "letan" to Color.parseColor("#4CAF50"),   // xanh lá
+            "donphong" to Color.parseColor("#03A9F4"), // xanh da trời
+            "xulydon" to Color.parseColor("#9C27B0"), // tím
+            "user" to Color.parseColor("#BDBDBD")     // xám
+        )
+
+        val targetColor = colorMap[roleId.lowercase()] ?: Color.parseColor("#BDBDBD")
+        val bg = binding.tvRank.background as? GradientDrawable ?: GradientDrawable()
+        val currentColor = (bg.color?.defaultColor ?: Color.WHITE)
+
+        val colorAnim = ValueAnimator.ofObject(ArgbEvaluator(), currentColor, targetColor)
+        colorAnim.duration = 600
+        colorAnim.addUpdateListener { animator ->
+            val color = animator.animatedValue as Int
+            bg.setColor(color)
+            binding.tvRank.background = bg
+        }
+        colorAnim.start()
+    }
+
+    // 💰 Tải số dư ví
     private fun loadWalletData() {
         val uid = auth.currentUser?.uid ?: return
         db.collection("wallets").document(uid)
@@ -148,55 +185,49 @@ class ProfileActivity : AppCompatActivity() {
             .addOnSuccessListener { doc ->
                 if (doc.exists()) {
                     currentBalance = doc.getLong("balance") ?: 0L
-                    if (isBalanceVisible)
-                        binding.tvBalance.text = formatMoney(currentBalance)
-                    else
-                        binding.tvBalance.text = "•••••••••"
                 } else {
                     currentBalance = 0L
-                    binding.tvBalance.text = formatMoney(0L)
                 }
+                binding.tvBalance.text =
+                    if (isBalanceVisible) formatMoney(currentBalance) else "•••••••••"
             }
             .addOnFailureListener {
                 Toast.makeText(this, "Lỗi tải ví: ${it.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
-    // 🔹 Định dạng tiền tệ
     private fun formatMoney(amount: Long): String {
         return String.format("%,d VNĐ", amount).replace(",", ".")
     }
-    // 🟢 Tạo menu 3 chấm
+
+    // 📋 Tạo menu quyền
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        if (userRoleId == "userRoles/user") return false
+        if (userRoleId == "user") return false
 
         menuInflater.inflate(R.menu.menu_top_profile, menu)
-
-        // Ẩn tất cả
         menu?.findItem(R.id.navAdmin)?.isVisible = false
         menu?.findItem(R.id.navChuKS)?.isVisible = false
         menu?.findItem(R.id.navLeTan)?.isVisible = false
         menu?.findItem(R.id.navDonPhong)?.isVisible = false
+        menu?.findItem(R.id.navXuLy)?.isVisible = false
 
-        // Hiển thị menu phù hợp role
         when (userRoleId) {
-            "userRoles/admin" -> menu?.findItem(R.id.navAdmin)?.isVisible = true
-            "userRoles/owner" -> menu?.findItem(R.id.navChuKS)?.isVisible = true
-            "userRoles/staff" -> {
-                menu?.findItem(R.id.navLeTan)?.isVisible = true
-                menu?.findItem(R.id.navDonPhong)?.isVisible = true
-            }
+            "admin" -> menu?.findItem(R.id.navAdmin)?.isVisible = true
+            "owner" -> menu?.findItem(R.id.navChuKS)?.isVisible = true
+            "letan" -> menu?.findItem(R.id.navLeTan)?.isVisible = true
+            "donphong" -> menu?.findItem(R.id.navDonPhong)?.isVisible = true
+            "xulydon" -> menu?.findItem(R.id.navXuLy)?.isVisible = true
         }
         return true
     }
 
-    // 🟣 Chọn menu
 //    override fun onOptionsItemSelected(item: MenuItem): Boolean {
 //        when (item.itemId) {
 //            R.id.navAdmin -> startActivity(Intent(this, AdminActivity::class.java))
 //            R.id.navChuKS -> startActivity(Intent(this, ChuKhachSanActivity::class.java))
 //            R.id.navLeTan -> startActivity(Intent(this, LeTanActivity::class.java))
 //            R.id.navDonPhong -> startActivity(Intent(this, DonPhongActivity::class.java))
+//            R.id.navXuLy -> startActivity(Intent(this, XuLyDonActivity::class.java))
 //        }
 //        return super.onOptionsItemSelected(item)
 //    }

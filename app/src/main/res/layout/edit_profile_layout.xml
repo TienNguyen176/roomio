@@ -44,7 +44,6 @@
                 android:layout_marginTop="4dp"
                 android:elevation="4dp"
                 android:text="ROOMIO"
-                android:textStyle="bold"
                 android:textSize="24dp"
                 android:textColor="#8A56AC" />
         </LinearLayout>
@@ -61,7 +60,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:elevation="4dp"
-                android:text="Edit"
+                android:text="Sửa"
                 android:textSize="20dp"
                 android:textColor="#FF0000" />
         </LinearLayout>
@@ -185,14 +184,14 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Nam"
-                        android:textColor="#FFFFFF" />
+                        android:textColorHint="#000000" />
 
                     <RadioButton
                         android:id="@+id/radioFemale"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Nữ"
-                        android:textColor="#FFFFFF"
+                        android:textColorHint="#000000"
                         android:layout_marginStart="30dp" />
                 </RadioGroup>
 
@@ -200,8 +199,7 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:background="@drawable/underline_input">
+                    android:orientation="vertical">
 
                     <TextView
                         android:layout_width="wrap_content"
