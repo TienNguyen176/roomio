@@ -120,6 +120,7 @@ class ProfileSignUpActivity : AppCompatActivity() {
             putExtra("password", password)
             putExtra("roleId", "user")
             putExtra("createdAt", createdAt)
+            putExtra("balance", 0.0) // 👈 Thêm số dư mặc định
         }
         startActivity(intent)
     }

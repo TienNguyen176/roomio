@@ -27,6 +27,7 @@ class EmailVerifyActivity : AppCompatActivity() {
     private lateinit var birthDate: String
     private lateinit var password: String
     private var roleId: String = "user"
+    private var balance: Double = 0.0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +44,7 @@ class EmailVerifyActivity : AppCompatActivity() {
             birthDate = getStringExtra("birthDate") ?: ""
             password = getStringExtra("password") ?: ""
             roleId = getStringExtra("roleId") ?: "user"
+            balance = getDoubleExtra("balance", 0.0)
         }
 
         binding.edtEmailVerify.text = email
@@ -122,7 +124,9 @@ class EmailVerifyActivity : AppCompatActivity() {
             "birthDate" to birthDate,
             "accountId" to uid,
             "roleId" to roleId,
+            "balance" to balance, // 🔹 Firestore lưu dạng Number
             "createdAt" to formattedTime
+
         )
 
         db.collection("accounts").document(uid).set(accountData)

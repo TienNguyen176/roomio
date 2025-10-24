@@ -180,7 +180,7 @@ class ProfileActivity : AppCompatActivity() {
     // 💰 Tải số dư ví
     private fun loadWalletData() {
         val uid = auth.currentUser?.uid ?: return
-        db.collection("wallets").document(uid)
+        db.collection("users").document(uid)
             .get()
             .addOnSuccessListener { doc ->
                 if (doc.exists()) {
