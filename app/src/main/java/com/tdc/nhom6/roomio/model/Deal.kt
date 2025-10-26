@@ -17,10 +17,10 @@ data class Deal(
     val isActive: Boolean = true,
     val hotelId: String = "",
     val roomType: String = "",
-    val amenities: List<String> = emptyList(),
+    val amenities: Any = emptyList<String>(), // Flexible type for Firebase
     val rating: Double = 0.0,
     val totalReviews: Int = 0,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Any = System.currentTimeMillis() // Flexible type for Firebase
 )
 
 data class HotReview(
@@ -34,5 +34,5 @@ data class HotReview(
     val pricePerNight: Double = 0.0,
     val location: String = "",
     val isHot: Boolean = false,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Any = System.currentTimeMillis() // Flexible type for Firebase
 )

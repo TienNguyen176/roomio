@@ -1,23 +1,28 @@
 package com.tdc.nhom6.roomio.adapter
 
+import android.content.Context
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.model.HotReviewItem
+import com.tdc.nhom6.roomio.model.Hotel
 
 
 class HotReviewAdapter(
-    private var hotelReviews: List<HotReviewItem>
+    private var hotelReviews: List<Hotel>
 ) : RecyclerView.Adapter<HotReviewAdapter.HotReviewViewHolder>() {
 
-    /**
-     * Creates a new view holder for each item
-     * This is called when RecyclerView needs a new item to display
-     */
+    override fun getItemId(position: Int): Long {
+        // Use hotel ID as stable ID to prevent swap behavior issues
+        return hotelReviews[position].hotelId.hashCode().toLong()
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HotReviewViewHolder {
         // Inflate the layout for each item
         val view = LayoutInflater.from(parent.context)
@@ -27,14 +32,14 @@ class HotReviewAdapter(
 
     /**
      * Binds data to a view holder
-     * This is called when RecyclerView wants to show data in an item
      */
     override fun onBindViewHolder(holder: HotReviewViewHolder, position: Int) {
         // Get the hotel review at this position
-        val hotelReview = hotelReviews[position]
-        
+        val hotelReview:Hotel = hotelReviews[position]
+
         // Put the data into the view holder
         holder.bind(hotelReview)
+
     }
 
     /**
@@ -46,40 +51,39 @@ class HotReviewAdapter(
      * Updates the data and refreshes the display
      * Call this when you have new data to show
      */
-    fun updateData(newReviews: List<HotReviewItem>) {
+    fun updateData(newReviews: List<Hotel>) {
         // Simple update without DiffUtil to prevent swap behavior issues
         hotelReviews = newReviews
+        // Use notifyDataSetChanged() for stable updates
         notifyDataSetChanged()
     }
 
-    /**
-     * ViewHolder - Holds references to the views in each item
-     * This makes scrolling faster because we don't have to find views every time
-     */
-    class HotReviewViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        
+
+    inner class HotReviewViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+
         // Find the views in the layout
-        private val hotelImage: ImageView = itemView.findViewById(R.id.imgPhoto)
+        val hotelImage: ImageView = itemView.findViewById(R.id.imgPhoto)
         private val hotelName: TextView = itemView.findViewById(R.id.tvTitle)
         private val hotelRating: TextView = itemView.findViewById(R.id.tvRating)
         private val hotelPrice: TextView = itemView.findViewById(R.id.tvPrice)
 
-        /**
-         * Binds hotel review data to the views
-         * This is where we put the actual data into the UI elements
-         */
-        fun bind(hotelReview: HotReviewItem) {
+
+        fun bind(hotel: Hotel) {
             // Set the hotel image
-            hotelImage.setImageResource(hotelReview.imageRes)
-            
+            if (hotel.images.isNotEmpty()) {
+                Glide.with(hotelImage.context).load(hotel.images[0]).into(hotelImage)
+            } else {
+                hotelImage.setImageResource(R.drawable.hotel_64260231_1)
+            }
+
             // Set the hotel name
-            hotelName.text = hotelReview.title
-            
+            hotelName.text = hotel.hotelName
+
             // Set the rating (e.g., "4.5 (234)")
-            hotelRating.text = hotelReview.ratingText
-            
+            hotelRating.text = "${hotel.averageRating} (${hotel.totalReviews})"
+
             // Set the price (e.g., "VND 1,500,000")
-            hotelPrice.text = hotelReview.priceText
+            hotelPrice.text = "VND ${String.format("%.0f", hotel.pricePerNight)}"
         }
     }
 }

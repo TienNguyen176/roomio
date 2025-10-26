@@ -13,7 +13,7 @@ data class Hotel(
     val typeId: String = "",
     val description: String = "",
     val statusId: String = "",
-    val createdAt: Long = System.currentTimeMillis(),
+    val createdAt: Any = System.currentTimeMillis(), // Flexible type for Firebase
     val images: List<String> = emptyList(),
     val averageRating: Double = 0.0,
     val totalReviews: Int = 0,
@@ -25,7 +25,7 @@ data class HotelType(
     val typeId: String = "",
     val typeName: String = "",
     val description: String = "",
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Any = System.currentTimeMillis() // Flexible type for Firebase
 )
 
 data class HotelImage(
@@ -34,5 +34,5 @@ data class HotelImage(
     val hotelId: String = "",
     val imageUrl: String = "",
     val isThumbnail: Boolean = false,
-    val uploadedAt: Long = System.currentTimeMillis()
+    val uploadedAt: Any = System.currentTimeMillis() // Flexible type for Firebase
 )

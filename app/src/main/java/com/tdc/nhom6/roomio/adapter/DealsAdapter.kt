@@ -14,10 +14,12 @@ class DealsAdapter(
     private var hotelDeals: List<DealItem>
 ) : RecyclerView.Adapter<DealsAdapter.DealsViewHolder>() {
 
-    /**
-     * Creates a new view holder for each item
-     * This is called when RecyclerView needs a new item to display
-     */
+    override fun getItemId(position: Int): Long {
+        // Use title hash as stable ID to prevent swap behavior issues
+        return hotelDeals[position].title.hashCode().toLong()
+    }
+
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DealsViewHolder {
         // Inflate the layout for each item
         val view = LayoutInflater.from(parent.context)
@@ -49,6 +51,7 @@ class DealsAdapter(
     fun updateData(newDeals: List<DealItem>) {
         // Simple update without DiffUtil to prevent swap behavior issues
         hotelDeals = newDeals
+        // Use notifyDataSetChanged() for stable updates
         notifyDataSetChanged()
     }
 

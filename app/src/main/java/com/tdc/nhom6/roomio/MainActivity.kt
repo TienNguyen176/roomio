@@ -1,11 +1,13 @@
 package com.tdc.nhom6.roomio
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.firebase.FirebaseApp
 import com.tdc.nhom6.roomio.ui.HomeFragment
 
 /**
@@ -20,6 +22,14 @@ class MainActivity : AppCompatActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Initialize Firebase
+        try {
+            FirebaseApp.initializeApp(this)
+            Log.d("Firebase", "Firebase initialized successfully")
+        } catch (e: Exception) {
+            Log.e("Firebase", "Failed to initialize Firebase: ${e.message}")
+        }
         
         // Enable edge-to-edge display for modern Android look
         enableEdgeToEdge()

@@ -1,6 +1,7 @@
 package com.tdc.nhom6.roomio.ui
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -15,6 +16,7 @@ import com.tdc.nhom6.roomio.model.Deal
 import com.tdc.nhom6.roomio.model.DealItem
 import com.tdc.nhom6.roomio.model.HotReview
 import com.tdc.nhom6.roomio.model.HotReviewItem
+import com.tdc.nhom6.roomio.model.Hotel
 import com.tdc.nhom6.roomio.repository.FirebaseRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,10 +28,10 @@ class HomeFragment : Fragment() {
     // Adapters for our RecyclerViews
     private lateinit var hotReviewAdapter: HotReviewAdapter
     private lateinit var dealsAdapter: DealsAdapter
-    
+
     // Firebase repository for data operations
     private lateinit var firebaseRepository: FirebaseRepository
-
+    private var hotReviews = emptyList<Hotel>()
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -47,39 +49,40 @@ class HomeFragment : Fragment() {
 
         // Set up the Hot Reviews RecyclerView
         setupHotReviewsRecyclerView(view)
-        
+
         // Set up the Deals RecyclerView
         setupDealsRecyclerView(view)
-        
+
         // Set up search functionality
         setupSearchFunctionality(view)
-        
+
         // Load data from Firebase
         loadDataFromFirebase()
-    }
 
+    }
     /**
      * Sets up the Hot Reviews RecyclerView
      * This shows hotel reviews in a horizontal scrolling list
      */
     private fun setupHotReviewsRecyclerView(view: View) {
         val rvHotReviews = view.findViewById<RecyclerView>(R.id.rvHotReview)
-        
+
         // Set horizontal layout manager with improved configuration
         val layoutManager = LinearLayoutManager(
-            requireContext(), 
-            LinearLayoutManager.HORIZONTAL, 
+            requireContext(),
+            LinearLayoutManager.HORIZONTAL,
             false
         )
-        
+
         // Configure RecyclerView to prevent swap behavior issues
         rvHotReviews.layoutManager = layoutManager
-        rvHotReviews.setHasFixedSize(true) // Improves performance and prevents layout issues
-        rvHotReviews.setItemViewCacheSize(10) // Cache more views to prevent recycling issues
+        rvHotReviews.setItemViewCacheSize(20) // Cache more views to prevent recycling issues
         rvHotReviews.itemAnimator = null // Disable animations to prevent swap behavior errors
-        
+        rvHotReviews.setNestedScrollingEnabled(false) // Disable nested scrolling
+        rvHotReviews.isNestedScrollingEnabled = false
+
         // Create adapter with empty list initially
-        hotReviewAdapter = HotReviewAdapter(emptyList())
+        hotReviewAdapter = HotReviewAdapter(hotReviews)
         rvHotReviews.adapter = hotReviewAdapter
     }
 
@@ -89,16 +92,17 @@ class HomeFragment : Fragment() {
      */
     private fun setupDealsRecyclerView(view: View) {
         val rvDeals = view.findViewById<RecyclerView>(R.id.rvDeals)
-        
+
         // Set grid layout manager with 2 columns
         val gridLayoutManager = GridLayoutManager(requireContext(), 2)
-        
+
         // Configure RecyclerView to prevent swap behavior issues
         rvDeals.layoutManager = gridLayoutManager
-        rvDeals.setHasFixedSize(true) // Improves performance and prevents layout issues
-        rvDeals.setItemViewCacheSize(10) // Cache more views to prevent recycling issues
+        rvDeals.setItemViewCacheSize(20) // Cache more views to prevent recycling issues
         rvDeals.itemAnimator = null // Disable animations to prevent swap behavior errors
-        
+        rvDeals.setNestedScrollingEnabled(false) // Disable nested scrolling
+        rvDeals.isNestedScrollingEnabled = false
+
         // Create adapter with empty list initially
         dealsAdapter = DealsAdapter(emptyList())
         rvDeals.adapter = dealsAdapter
@@ -111,7 +115,7 @@ class HomeFragment : Fragment() {
     private fun setupSearchFunctionality(view: View) {
         val searchLayout = view.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.searchLayout)
         val searchEditText = searchLayout.editText
-        
+
         // Handle search button click
         searchLayout.setEndIconOnClickListener {
             val query = searchEditText?.text?.toString() ?: ""
@@ -135,141 +139,82 @@ class HomeFragment : Fragment() {
      * This replaces sample data with real Firebase data
      */
     private fun loadDataFromFirebase() {
-        // Use coroutines to load data from Firebase
-        CoroutineScope(Dispatchers.Main).launch {
-            try {
-                // Force Firebase data loading to ensure Firebase data appears
-                val firebaseDataLoaded = firebaseRepository.forceFirebaseDataLoading()
-                
-                if (firebaseDataLoaded) {
-                    android.widget.Toast.makeText(
-                        requireContext(),
-                        "Firebase data loaded successfully",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                } else {
-                    android.widget.Toast.makeText(
-                        requireContext(),
-                        "Loading Firebase data...",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                }
-                
-                // Load hot reviews (will always return data - Firebase or sample)
-                val hotReviews = firebaseRepository.getHotReviews()
-                if (::hotReviewAdapter.isInitialized) {
-                    hotReviewAdapter.updateData(hotReviews.map { it.toHotReviewItem() })
-                }
-                
-                // Load deals (will always return data - Firebase or sample)
-                val deals = firebaseRepository.getDeals()
-                if (::dealsAdapter.isInitialized) {
-                    dealsAdapter.updateData(deals.map { it.toDealItem() })
-                }
-
-                // Show success message
-                android.widget.Toast.makeText(
-                    requireContext(),
-                    "Loaded ${hotReviews.size} reviews and ${deals.size} deals",
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-
-            } catch (e: Exception) {
-                // If there's an error, show error message and use sample data
-                android.widget.Toast.makeText(
-                    requireContext(),
-                    "Error loading data: ${e.message}",
-                    android.widget.Toast.LENGTH_LONG
-                ).show()
-                
-                // Load sample data as fallback
+        // Load hot reviews
+        firebaseRepository.getHotReviews { hotels ->
+            if (hotels.isNotEmpty()) {
+                hotReviews = hotels
+                hotReviewAdapter.updateData(hotReviews)
+                Log.d("Firebase", "Loaded ${hotReviews.size} hotels")
+            } else {
+                // If no Firebase data, show sample data
                 loadSampleData()
             }
         }
+
+        // Load deals
+        firebaseRepository.getDeals { deals ->
+            if (::dealsAdapter.isInitialized) {
+                if (deals.isNotEmpty()) {
+                    dealsAdapter.updateData(deals.map { it.toDealItem() })
+                    Log.d("Firebase", "Loaded ${deals.size} deals")
+                } else {
+                    // If no Firebase data, show sample deals
+                    loadSampleDeals()
+                }
+            }
+        }
     }
-    
+
     /**
-     * Load sample data when Firebase is not available
-     * This provides offline functionality
+     * Loads sample data when Firebase is not available
      */
     private fun loadSampleData() {
-        // Sample hot reviews data
-        val sampleHotReviews = listOf(
-            HotReviewItem(
-                imageRes = R.drawable.hotel_64260231_1,
-                title = "Ares Home",
-                ratingText = "4.5 (234)",
-                priceText = "VND 1,500,000"
+        val sampleHotels = listOf(
+            Hotel(
+                hotelId = "sample_1",
+                hotelName = "Ares Home",
+                hotelAddress = "123 Beach Road, Vung Tau",
+                images = listOf("hotel_64260231_1"),
+                averageRating = 4.5,
+                totalReviews = 234,
+                pricePerNight = 1500000.0
             ),
-            HotReviewItem(
-                imageRes = R.drawable.hotel_del_coronado_views_suite1600x900,
-                title = "Imperial Hotel",
-                ratingText = "4.5 (189)",
-                priceText = "VND 800,000"
-            ),
-            HotReviewItem(
-                imageRes = R.drawable.swimming_pool_1,
-                title = "Saigon Central Hotel",
-                ratingText = "4.8 (456)",
-                priceText = "VND 1,200,000"
-            ),
-            HotReviewItem(
-                imageRes = R.drawable.room_640278495,
-                title = "Mountain Lodge",
-                ratingText = "4.6 (95)",
-                priceText = "VND 600,000"
-            ),
-            HotReviewItem(
-                imageRes = R.drawable.rectangle_copy_2,
-                title = "Beachfront Paradise",
-                ratingText = "4.9 (210)",
-                priceText = "VND 900,000"
+            Hotel(
+                hotelId = "sample_2", 
+                hotelName = "Imperial Hotel",
+                hotelAddress = "456 Imperial Street, Vung Tau",
+                images = listOf("hotel_del_coronado_views_suite1600x900"),
+                averageRating = 4.8,
+                totalReviews = 189,
+                pricePerNight = 1200000.0
             )
         )
         
-        // Sample deals data
+        hotReviews = sampleHotels
+        hotReviewAdapter.updateData(hotReviews)
+        Log.d("Firebase", "Loaded ${hotReviews.size} sample hotels")
+    }
+
+    /**
+     * Loads sample deals when Firebase is not available
+     */
+    private fun loadSampleDeals() {
         val sampleDeals = listOf(
-            DealItem(
-                imageRes = R.drawable.hotel_64260231_1,
-                title = "Ares Home",
-                subtitle = "Vũng Tàu"
-            ),
             DealItem(
                 imageRes = R.drawable.hotel_del_coronado_views_suite1600x900,
                 title = "Imperial Hotel",
-                subtitle = "Vũng Tàu"
+                subtitle = "Vung Tau"
             ),
             DealItem(
                 imageRes = R.drawable.swimming_pool_1,
-                title = "Saigon Central Hotel",
-                subtitle = "Ho Chi Minh City"
-            ),
-            DealItem(
-                imageRes = R.drawable.room_640278495,
-                title = "Mountain Lodge",
-                subtitle = "Sapa"
-            ),
-            DealItem(
-                imageRes = R.drawable.rectangle_copy_2,
-                title = "Beachfront Paradise",
+                title = "Beach Resort",
                 subtitle = "Nha Trang"
             )
         )
         
-        // Update adapters with sample data (with safety checks)
-        try {
-            if (::hotReviewAdapter.isInitialized) {
-                hotReviewAdapter.updateData(sampleHotReviews)
-            }
-            if (::dealsAdapter.isInitialized) {
-                dealsAdapter.updateData(sampleDeals)
-            }
-        } catch (e: Exception) {
-            android.widget.Toast.makeText(
-                requireContext(),
-                "Error updating UI: ${e.message}",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
+        if (::dealsAdapter.isInitialized) {
+            dealsAdapter.updateData(sampleDeals)
+            Log.d("Firebase", "Loaded ${sampleDeals.size} sample deals")
         }
     }
 
@@ -286,17 +231,17 @@ class HomeFragment : Fragment() {
             ).show()
             return
         }
-        
+
         try {
             // Create SearchResultsFragment with the search query
             val searchFragment = SearchResultsFragment.newInstance(query, "")
-            
+
             // Navigate to search results fragment
             parentFragmentManager.beginTransaction()
                 .replace(R.id.nav_host_container, searchFragment)
                 .addToBackStack("search_results")
                 .commit()
-                
+
         } catch (e: Exception) {
             android.widget.Toast.makeText(
                 requireContext(),
@@ -309,12 +254,12 @@ class HomeFragment : Fragment() {
 }
 
 // Extension functions to convert Firebase models to UI models
-private fun HotReview.toHotReviewItem(): HotReviewItem {
-    val imageRes = getDrawableResourceId(hotelImage)
+private fun Hotel.toHotReviewItem(): HotReviewItem {
+    val imageRes = getDrawableResourceId(images.firstOrNull() ?: "hotel_64260231_1")
     return HotReviewItem(
         imageRes = imageRes,
         title = hotelName,
-        ratingText = "${rating} (${totalReviews})",
+        ratingText = "${averageRating} (${totalReviews})",
         priceText = "VND ${String.format("%.0f", pricePerNight)}"
     )
 }

@@ -21,7 +21,15 @@ class ReceptionFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val rv = view.findViewById<RecyclerView>(R.id.rvReservations)
-        rv.layoutManager = LinearLayoutManager(requireContext())
+        
+        // Configure RecyclerView to prevent swap behavior issues
+        val layoutManager = LinearLayoutManager(requireContext())
+        rv.layoutManager = layoutManager
+        rv.setItemViewCacheSize(20) // Cache more views to prevent recycling issues
+        rv.itemAnimator = null // Disable animations to prevent swap behavior errors
+        rv.setNestedScrollingEnabled(false) // Disable nested scrolling
+        rv.isNestedScrollingEnabled = false
+        
         rv.adapter = ReservationAdapter(placeholderItems())
     }
 
@@ -79,6 +87,7 @@ class ReservationViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         )
     }
 }
+
 
 
 
