@@ -1,6 +1,6 @@
 package com.tdc.nhom6.roomio.models
 
-import java.util.Date
+import com.google.firebase.Timestamp
 
 data class HotelRequestModel(
     val user_id: String = "",
@@ -20,6 +20,6 @@ data class HotelRequestModel(
     val license: List<String>? = listOf(),
     val status_id: String = "",
     val reason_rejected: String = "",
-    val created_at: String = "",
-    val updated_at: String = ""
+    val created_at: Timestamp? = null,
+    val updated_at: Timestamp? = null,
 )

@@ -1,5 +1,7 @@
 package com.tdc.nhom6.roomio.models
 
+import com.google.firebase.Timestamp
+
 data class HotelModel(
     val ownerId: String ="",
     val hotelName: String = "",
@@ -13,5 +15,5 @@ data class HotelModel(
     val typeId: String ="",
     val totalReviews: Int = 0,
     val averageRating: Double = 0.0,
-    val createdAt: String = ""
+    val createdAt: Timestamp? = null
 )

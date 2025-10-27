@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
@@ -384,8 +385,8 @@ class BusinessRegistrationActivity : AppCompatActivity() {
                     license = licenseUrls,
                     status_id = STATUS_ID,
                     reason_rejected = "",
-                    created_at = currentDate,
-                    updated_at = ""
+                    created_at = Timestamp.now(),
+                    updated_at = null
                 )
 
                 delay(5000)

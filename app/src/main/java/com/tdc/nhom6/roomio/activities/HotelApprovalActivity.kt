@@ -11,6 +11,7 @@ import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.databinding.HotelApprovalLayoutBinding
@@ -27,8 +28,6 @@ class HotelApprovalActivity : AppCompatActivity() {
     private lateinit var userId: String
     private var documentId: String? = null
 
-    val now = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = HotelApprovalLayoutBinding.inflate(layoutInflater)
@@ -38,8 +37,7 @@ class HotelApprovalActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         // ✅ Lấy userId từ Intent
-        //userId = intent.getStringExtra("USER_ID") ?: ""
-        userId = "zd8vs4NN5sezzAMVAmkmQXWh5rl2"
+        userId = intent.getStringExtra("user_id") ?: ""
         supportActionBar?.title = "UserID - $userId"
 
         loadHotelRequest(userId)
@@ -52,6 +50,12 @@ class HotelApprovalActivity : AppCompatActivity() {
             btnTuChoi.setOnClickListener { showRejectDialog() }
             btnDongY.setOnClickListener { showApproveDialog() }
         }
+    }
+
+    private fun formatDate(timestamp: Any?): String {
+        if (timestamp !is Timestamp) return ""
+        val date = timestamp.toDate()
+        return SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(date)
     }
 
     @SuppressLint("SetTextI18n")
@@ -137,13 +141,14 @@ class HotelApprovalActivity : AppCompatActivity() {
             }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun handleStatusUI(status: String, data: Map<String, Any>) {
+        val updatedAt = formatDate(data["updated_at"])
         binding.apply {
             when (status) {
                 "hotel_request_rejected" -> {
                     btnDongY.visibility = android.view.View.GONE
                     btnTuChoi.visibility = android.view.View.GONE
-                    val updatedAt = data["updated_at"]?.toString() ?: ""
                     val reason = data["reason_rejected"]?.toString() ?: "Không rõ lý do"
                     tvStatus.apply {
                         text = "Đã từ chối vào ngày: $updatedAt\nLý do: $reason"
@@ -154,7 +159,6 @@ class HotelApprovalActivity : AppCompatActivity() {
                 "hotel_request_approved" -> {
                     btnDongY.visibility = android.view.View.GONE
                     btnTuChoi.visibility = android.view.View.GONE
-                    val updatedAt = data["updated_at"]?.toString() ?: ""
                     tvStatus.text = "Đã duyệt đơn vào ngày: $updatedAt"
                     tvStatus.setBackgroundResource(R.drawable.bg_approved_status)
                 }
@@ -215,7 +219,7 @@ class HotelApprovalActivity : AppCompatActivity() {
                     .update(
                         mapOf(
                             "status_id" to "hotel_request_approved",
-                            "updated_at" to now,
+                            "updated_at" to Timestamp.now(),
                             "reason_rejected" to ""
                         )
                     )
@@ -279,7 +283,7 @@ class HotelApprovalActivity : AppCompatActivity() {
                 typeId = data["hotel_type_id"] as? String ?: "",
                 totalReviews = 0,
                 averageRating = 0.0,
-                createdAt = now
+                createdAt = Timestamp.now()
             )
 
             // 🔹 Lưu vào Firestore với ID cố định

@@ -50,4 +50,6 @@
     <string name="text_dieu_khoan_dich_vu">Điều khoản dịch vụ:</string>
     <string name="text_ghi_chu_thu_phi">Phí: 200.000đ/tháng (Miễn phí 2 tháng đầu sử dụng dịch vụ)</string>
     <string name="text_trang_thai_anh">Trạng thái hình ảnh</string>
+    <string name="text_phone_number">Phone Number: </string>
+    <string name="text_address">Address: </string>
 </resources>
