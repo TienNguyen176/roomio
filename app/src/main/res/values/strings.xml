@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Roomio</string>
+    <string name="cloudinary_cloud_name">dgxcjxzqi</string>
+    <string name="cloudinary_upload_preset">upload_images</string>
 </resources>
