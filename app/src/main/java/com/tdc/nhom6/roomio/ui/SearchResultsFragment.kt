@@ -14,6 +14,7 @@ import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.model.Deal
 import com.tdc.nhom6.roomio.model.HotReview
 import com.tdc.nhom6.roomio.model.Hotel
+import com.tdc.nhom6.roomio.model.RoomType
 import com.tdc.nhom6.roomio.model.SearchResultItem
 import com.tdc.nhom6.roomio.model.SearchResultType
 import com.tdc.nhom6.roomio.repository.FirebaseRepository
@@ -208,75 +209,50 @@ class SearchResultsFragment : Fragment() {
     }
 
     private fun performSearch() {
-        if (searchQuery.isEmpty()) {
-            android.widget.Toast.makeText(requireContext(), "Please enter a search term", Toast.LENGTH_SHORT).show()
-            return
-        }
+        val message = if (searchQuery.isBlank()) "Showing all results" else "Searching for: $searchQuery"
+        android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
 
-        android.widget.Toast.makeText(requireContext(), "Searching for: $searchQuery", Toast.LENGTH_SHORT).show()
+        // Query Firebase directly without any sample seeding
+        performFirebaseSearch()
+    }
 
+    private fun performFirebaseSearch() {
         // Simple search using Firebase directly
         val results = mutableListOf<SearchResultItem>()
-        
+
         try {
             // Search hotels
             firebaseRepository.db.collection("hotels")
             .get()
             .addOnSuccessListener { hotelResult ->
+                val hotels = mutableListOf<Hotel>()
                 for (document in hotelResult) {
                     try {
                         val hotel: Hotel = document.toObject<Hotel>()
                         if (hotel.hotelName.lowercase().contains(searchQuery.lowercase()) ||
                             hotel.hotelAddress.lowercase().contains(searchQuery.lowercase())) {
-                            results.add(SearchResultItem(
-                                type = SearchResultType.HOTEL,
-                                hotel = hotel,
-                                deal = null,
-                                review = null
-                            ))
+                            hotels.add(hotel)
                         }
                     } catch (e: Exception) {
                         Log.e("Search", "Error converting hotel document ${document.id}: ${e.message}")
                         // Skip this document and continue with others
                     }
                 }
-                
-                // Search deals
-                firebaseRepository.db.collection("deals")
-                    .get()
-                    .addOnSuccessListener { dealResult ->
-                        for (document in dealResult) {
-                            try {
-                                val deal: Deal = document.toObject<Deal>()
-                                if (deal.hotelName.lowercase().contains(searchQuery.lowercase()) ||
-                                    deal.hotelLocation.lowercase().contains(searchQuery.lowercase())) {
-                                    results.add(SearchResultItem(
-                                        type = SearchResultType.DEAL,
-                                        hotel = null,
-                                        deal = deal,
-                                        review = null
-                                    ))
-                                }
-                            } catch (e: Exception) {
-                                Log.e("Search", "Error converting deal document ${document.id}: ${e.message}")
-                                // Skip this document and continue with others
-                            }
-                        }
-                        
-                        // Update adapter with results
-                        searchResultsAdapter.updateData(results)
 
-                        // Show results message
-                        val message = if (results.isEmpty()) {
-                            "No results found for '$searchQuery'. Try: Ares, Vung Tau, Saigon, Sapa, or Nha Trang"
-                        } else {
-                            "Found ${results.size} results for '$searchQuery'"
-                        }
-                        android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                // Load room types to get correct prices for hotels
+                loadRoomTypesAndUpdatePrices(hotels) { hotelsWithPrices ->
+                    hotelsWithPrices.forEach { hotel ->
+                        results.add(SearchResultItem(
+                            type = SearchResultType.HOTEL,
+                            hotel = hotel,
+                            deal = null,
+                            review = null
+                        ))
                     }
-                    .addOnFailureListener { exception ->
-                        android.widget.Toast.makeText(requireContext(), "Error searching deals: ${exception.message}", Toast.LENGTH_LONG).show()
-                    }
+
+                    // Continue with deals search
+                    performDealsSearch(results)
+                }
             }
             .addOnFailureListener { exception ->
                 android.widget.Toast.makeText(requireContext(), "Error searching hotels: ${exception.message}", Toast.LENGTH_LONG).show()
@@ -286,133 +262,88 @@ class SearchResultsFragment : Fragment() {
             Log.e("Search", "Exception in search: ${e.message}")
         }
     }
-//
+
     /**
-     * Perform offline search when Firebase is not available
-     * This provides basic search functionality without Firebase
+     * Loads room types from Firebase and updates hotel prices with the lowest room price
      */
-    private fun performOfflineSearch() {
-        // Sample data for offline search
-        val sampleHotels = listOf(
-            SearchResultItem(
-                type = SearchResultType.REVIEW,
-                hotel = null,
-                deal = null,
-                review = HotReview(
-                    hotelId = "sample_1",
-                    hotelName = "Ares Home",
-                    hotelImage = "hotel_64260231_1",
-                    rating = 4.5,
-                    totalReviews = 234,
-                    pricePerNight = 1500000.0,
-                    location = "Vung Tau",
-                    isHot = true
-                )
-            ),
-            SearchResultItem(
-                type = SearchResultType.DEAL,
-                hotel = null,
-                deal = Deal(
-                    hotelName = "Imperial Hotel",
-                    hotelLocation = "Vũng Tàu",
-                    description = "Elegant imperial-style hotel",
-                    imageUrl = "hotel_del_coronado_views_suite1600x900",
-                    originalPricePerNight = 1200000.0,
-                    discountPricePerNight = 800000.0,
-                    discountPercentage = 33,
-                    validFrom = System.currentTimeMillis(),
-                    validTo = System.currentTimeMillis() + (45 * 24 * 60 * 60 * 1000L),
-                    isActive = true,
-                    hotelId = "sample_2",
-                    roomType = "Executive Suite",
-                    amenities = listOf("Free WiFi", "Swimming Pool", "Restaurant"),
-                    rating = 4.5,
-                    totalReviews = 189
-                ),
-                review = null
-            ),
-            SearchResultItem(
-                type = SearchResultType.REVIEW,
-                hotel = null,
-                deal = null,
-                review = HotReview(
-                    hotelId = "sample_3",
-                    hotelName = "Saigon Central Hotel",
-                    hotelImage = "swimming_pool_1",
-                    rating = 4.8,
-                    totalReviews = 456,
-                    pricePerNight = 1200000.0,
-                    location = "Ho Chi Minh City",
-                    isHot = true
-                )
-            ),
-            SearchResultItem(
-                type = SearchResultType.REVIEW,
-                hotel = null,
-                deal = null,
-                review = HotReview(
-                    hotelId = "sample_4",
-                    hotelName = "Mountain Lodge",
-                    hotelImage = "room_640278495",
-                    rating = 4.6,
-                    totalReviews = 95,
-                    pricePerNight = 600000.0,
-                    location = "Sapa",
-                    isHot = true
-                )
-            ),
-            SearchResultItem(
-                type = SearchResultType.DEAL,
-                hotel = null,
-                deal = Deal(
-                    hotelName = "Beachfront Paradise",
-                    hotelLocation = "Nha Trang",
-                    description = "Luxury beachfront resort",
-                    imageUrl = "rectangle_copy_2",
-                    originalPricePerNight = 2000000.0,
-                    discountPricePerNight = 900000.0,
-                    discountPercentage = 55,
-                    validFrom = System.currentTimeMillis(),
-                    validTo = System.currentTimeMillis() + (30 * 24 * 60 * 60 * 1000L),
-                    isActive = true,
-                    hotelId = "sample_5",
-                    roomType = "Deluxe Ocean View",
-                    amenities = listOf("Free WiFi", "Swimming Pool", "Spa"),
-                    rating = 4.9,
-                    totalReviews = 210
-                ),
-                review = null
-            )
-        )
+    private fun loadRoomTypesAndUpdatePrices(hotels: List<Hotel>, callback: (List<Hotel>) -> Unit) {
+        firebaseRepository.db.collection("roomTypes")
+            .get()
+            .addOnSuccessListener { roomTypesResult ->
+                val roomTypesMap = mutableMapOf<String, MutableList<RoomType>>()
 
-        // Filter sample data based on search query
-        val filteredResults = sampleHotels.filter { item ->
-            when (item.type) {
-                SearchResultType.REVIEW -> {
-                    item.review?.hotelName?.lowercase()?.contains(searchQuery.lowercase()) == true ||
-                            item.review?.location?.lowercase()?.contains(searchQuery.lowercase()) == true
+                // Group room types by hotel ID
+                for (document in roomTypesResult) {
+                    try {
+                        val roomType: RoomType = document.toObject<RoomType>()
+                        val hotelId = roomType.hotelId
+
+                        if (!roomTypesMap.containsKey(hotelId)) {
+                            roomTypesMap[hotelId] = mutableListOf()
+                        }
+                        roomTypesMap[hotelId]?.add(roomType)
+                    } catch (e: Exception) {
+                        Log.e("Search", "Error converting room type ${document.id}: ${e.message}")
+                    }
                 }
-                SearchResultType.DEAL -> {
-                    item.deal?.hotelName?.lowercase()?.contains(searchQuery.lowercase()) == true ||
-                            item.deal?.hotelLocation?.lowercase()?.contains(searchQuery.lowercase()) == true
+
+                // Update hotel prices with lowest room price
+                val hotelsWithPrices = hotels.map { hotel ->
+                    val roomTypes = roomTypesMap[hotel.hotelId] ?: emptyList()
+                    val lowestPrice = roomTypes.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
+
+                    hotel.copy(pricePerNight = lowestPrice)
                 }
-                else -> false
+
+                callback(hotelsWithPrices)
             }
-        }
-
-        // Update adapter with filtered results
-        searchResultsAdapter.updateData(filteredResults)
-
-        // Show result count
-        val resultCount = filteredResults.size
-        val message = if (resultCount > 0) {
-            "Found $resultCount results for '$searchQuery' (offline mode)"
-        } else {
-            "No results found for '$searchQuery'. Try: Ares, Vung Tau, Saigon, Sapa, or Nha Trang"
-        }
-
-        android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+            .addOnFailureListener { exception ->
+                Log.w("Search", "Error loading room types: ${exception.message}")
+                // Return hotels without price updates
+                callback(hotels)
+            }
     }
+
+    private fun performDealsSearch(results: MutableList<SearchResultItem>) {
+        // Search deals
+        firebaseRepository.db.collection("deals")
+            .get()
+            .addOnSuccessListener { dealResult ->
+                for (document in dealResult) {
+                    try {
+                        val deal: Deal = document.toObject<Deal>()
+                        if (deal.hotelName.lowercase().contains(searchQuery.lowercase()) ||
+                            deal.hotelLocation.lowercase().contains(searchQuery.lowercase())) {
+                            results.add(SearchResultItem(
+                                type = SearchResultType.DEAL,
+                                hotel = null,
+                                deal = deal,
+                                review = null
+                            ))
+                        }
+                    } catch (e: Exception) {
+                        Log.e("Search", "Error converting deal document ${document.id}: ${e.message}")
+                        // Skip this document and continue with others
+                    }
+                }
+
+                // Update adapter with results
+                searchResultsAdapter.updateData(results)
+
+                // Show results message
+                val message = if (results.isEmpty()) {
+                    "No results found for '$searchQuery'. Try: Ares, Vung Tau, Saigon, Sapa, or Nha Trang"
+                } else {
+                    "Found ${results.size} results for '$searchQuery'"
+                }
+                android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+            }
+            .addOnFailureListener { exception ->
+                android.widget.Toast.makeText(requireContext(), "Error searching deals: ${exception.message}", Toast.LENGTH_LONG).show()
+            }
+    }
+
+    // All offline/sample search code removed
 }
 
 // Adapter for search results
@@ -537,7 +468,7 @@ class SearchResultsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
             "swimming_pool_1" -> R.drawable.swimming_pool_1
             "room_640278495" -> R.drawable.room_640278495
             "rectangle_copy_2" -> R.drawable.rectangle_copy_2
-            "rectangle_copy_3" -> R.drawable.rectangle_copy_3
+            "property_colombo" -> R.drawable.property_colombo
             "dsc04512_scaled_1" -> R.drawable.dsc04512_scaled_1
             else -> R.drawable.hotel_64260231_1
         }

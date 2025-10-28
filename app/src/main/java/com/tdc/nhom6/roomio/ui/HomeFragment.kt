@@ -56,6 +56,14 @@ class HomeFragment : Fragment() {
         // Set up search functionality
         setupSearchFunctionality(view)
 
+        // Set up "View all" actions to show list view
+        view.findViewById<android.widget.TextView>(R.id.tvViewAllHot)?.setOnClickListener {
+            navigateToSearchResults("")
+        }
+        view.findViewById<android.widget.TextView>(R.id.tvViewAllDeals)?.setOnClickListener {
+            navigateToSearchResults("")
+        }
+
         // Load data from Firebase
         loadDataFromFirebase()
 
@@ -147,7 +155,7 @@ class HomeFragment : Fragment() {
                 Log.d("Firebase", "Loaded ${hotReviews.size} hotels")
             } else {
                 // If no Firebase data, show sample data
-                loadSampleData()
+                Log.d("Firebase", "Cannot load the hotels database")
             }
         }
 
@@ -159,78 +167,18 @@ class HomeFragment : Fragment() {
                     Log.d("Firebase", "Loaded ${deals.size} deals")
                 } else {
                     // If no Firebase data, show sample deals
-                    loadSampleDeals()
+                    Log.d("Firebase", "Cannot load the hotels database")
                 }
             }
         }
     }
 
-    /**
-     * Loads sample data when Firebase is not available
-     */
-    private fun loadSampleData() {
-        val sampleHotels = listOf(
-            Hotel(
-                hotelId = "sample_1",
-                hotelName = "Ares Home",
-                hotelAddress = "123 Beach Road, Vung Tau",
-                images = listOf("hotel_64260231_1"),
-                averageRating = 4.5,
-                totalReviews = 234,
-                pricePerNight = 1500000.0
-            ),
-            Hotel(
-                hotelId = "sample_2", 
-                hotelName = "Imperial Hotel",
-                hotelAddress = "456 Imperial Street, Vung Tau",
-                images = listOf("hotel_del_coronado_views_suite1600x900"),
-                averageRating = 4.8,
-                totalReviews = 189,
-                pricePerNight = 1200000.0
-            )
-        )
-        
-        hotReviews = sampleHotels
-        hotReviewAdapter.updateData(hotReviews)
-        Log.d("Firebase", "Loaded ${hotReviews.size} sample hotels")
-    }
-
-    /**
-     * Loads sample deals when Firebase is not available
-     */
-    private fun loadSampleDeals() {
-        val sampleDeals = listOf(
-            DealItem(
-                imageRes = R.drawable.hotel_del_coronado_views_suite1600x900,
-                title = "Imperial Hotel",
-                subtitle = "Vung Tau"
-            ),
-            DealItem(
-                imageRes = R.drawable.swimming_pool_1,
-                title = "Beach Resort",
-                subtitle = "Nha Trang"
-            )
-        )
-        
-        if (::dealsAdapter.isInitialized) {
-            dealsAdapter.updateData(sampleDeals)
-            Log.d("Firebase", "Loaded ${sampleDeals.size} sample deals")
-        }
-    }
 
     /**
      * Navigates to search results screen
      * This is called when user searches for something
      */
     private fun navigateToSearchResults(query: String) {
-        if (query.trim().isEmpty()) {
-            android.widget.Toast.makeText(
-                requireContext(),
-                "Please enter a search term",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
-            return
-        }
 
         try {
             // Create SearchResultsFragment with the search query
@@ -276,16 +224,15 @@ private fun Deal.toDealItem(): DealItem {
 // Helper function to get drawable resource ID from name
 private fun getDrawableResourceId(imageName: String): Int {
     return when (imageName) {
-        "hotel_64260231_1" -> R.drawable.hotel_64260231_1
-        "hotel_del_coronado_views_suite1600x900" -> R.drawable.hotel_del_coronado_views_suite1600x900
-        "swimming_pool_1" -> R.drawable.swimming_pool_1
+        "bungalow" -> R.drawable.bungalow
+        "caption" -> R.drawable.caption
+        "dn587384532" -> R.drawable.dn587384532
         "room_640278495" -> R.drawable.room_640278495
         "radisson_blue_camranh" -> R.drawable.radisson_blue_camranh
         "bungalow" -> R.drawable.bungalow
         "dsc04512_scaled_1" -> R.drawable.dsc04512_scaled_1
         "dn587384532" -> R.drawable.dn587384532
         "cc449227_khach_san_quan_1_view_dep_19" -> R.drawable.cc449227_khach_san_quan_1_view_dep_19
-        "caption" -> R.drawable.caption
-        else -> R.drawable.rectangle_copy_2
+        else -> R.drawable.caption
     }
 }

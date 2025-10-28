@@ -64,6 +64,10 @@ class MainActivity : AppCompatActivity() {
     private fun setupBottomNavigation() {
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_nav)
         
+        // Set the item icon tint to use our color selector (red when selected, black otherwise)
+        bottomNav.itemIconTintList = resources.getColorStateList(R.color.nav_item_color)
+        bottomNav.itemTextColor = resources.getColorStateList(R.color.nav_item_color)
+        
         bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.menu_home -> {

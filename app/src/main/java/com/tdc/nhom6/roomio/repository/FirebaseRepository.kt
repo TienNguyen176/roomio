@@ -7,6 +7,7 @@ import com.google.firebase.firestore.toObject
 import com.tdc.nhom6.roomio.model.Deal
 import com.tdc.nhom6.roomio.model.HotReview
 import com.tdc.nhom6.roomio.model.Hotel
+import com.tdc.nhom6.roomio.model.RoomType
 import com.tdc.nhom6.roomio.model.SearchResultItem
 import com.tdc.nhom6.roomio.model.SearchResultType
 import kotlinx.coroutines.Dispatchers
@@ -62,11 +63,14 @@ class FirebaseRepository {
                         }
                     }
                     
-                    // Get hotels with most reviews (top 5)
-                    val topHotels = hotels.sortedByDescending { it.totalReviews }.take(5)
-                    
-                    Log.d("Firebase", "Load ${topHotels.size} hotels successfully")
-                    callback(topHotels)
+                    // Load room types to get correct prices
+                    loadRoomTypesAndUpdatePrices(hotels) { hotelsWithPrices ->
+                        // Get hotels with most reviews (top 5)
+                        val topHotels = hotelsWithPrices.sortedByDescending { it.totalReviews }.take(5)
+                        
+                        Log.d("Firebase", "Load ${topHotels.size} hotels successfully with prices from room types")
+                        callback(topHotels)
+                    }
                 }
                 .addOnFailureListener { exception ->
                     Log.w("Firebase", "Error getting documents.", exception)
@@ -77,6 +81,47 @@ class FirebaseRepository {
             Log.e("Firebase", "Exception in getHotReviews: ${e.message}")
             callback(emptyList())
         }
+    }
+
+    /**
+     * Loads room types from Firebase and updates hotel prices with the lowest room price
+     */
+    private fun loadRoomTypesAndUpdatePrices(hotels: List<Hotel>, callback: (List<Hotel>) -> Unit) {
+        db.collection("roomTypes")
+            .get()
+            .addOnSuccessListener { roomTypesResult ->
+                val roomTypesMap = mutableMapOf<String, MutableList<RoomType>>()
+                
+                // Group room types by hotel ID
+                for (document in roomTypesResult) {
+                    try {
+                        val roomType: RoomType = document.toObject<RoomType>()
+                        val hotelId = roomType.hotelId
+                        
+                        if (!roomTypesMap.containsKey(hotelId)) {
+                            roomTypesMap[hotelId] = mutableListOf()
+                        }
+                        roomTypesMap[hotelId]?.add(roomType)
+                    } catch (e: Exception) {
+                        Log.e("Firebase", "Error converting room type ${document.id}: ${e.message}")
+                    }
+                }
+                
+                // Update hotel prices with lowest room price
+                val hotelsWithPrices = hotels.map { hotel ->
+                    val roomTypes = roomTypesMap[hotel.hotelId] ?: emptyList()
+                    val lowestPrice = roomTypes.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
+                    
+                    hotel.copy(pricePerNight = lowestPrice)
+                }
+                
+                callback(hotelsWithPrices)
+            }
+            .addOnFailureListener { exception ->
+                Log.w("Firebase", "Error loading room types: ${exception.message}")
+                // Return hotels without price updates
+                callback(hotels)
+            }
     }
 
     fun getDeals(callback: (List<Deal>) -> Unit) {
@@ -109,5 +154,7 @@ class FirebaseRepository {
             callback(emptyList())
         }
     }
+
+
 
 }
