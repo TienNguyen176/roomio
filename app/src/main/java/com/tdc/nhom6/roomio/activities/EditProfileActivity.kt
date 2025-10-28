@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import android.widget.RadioButton
 import android.widget.Toast
@@ -88,15 +89,23 @@ class EditProfileActivity : AppCompatActivity() {
 
     private fun loadUserInfo() {
         val uid = auth.currentUser?.uid ?: return
-        val createdAt = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
-            .format(Date(System.currentTimeMillis()))
         db.collection("users").document(uid).get()
             .addOnSuccessListener { userDoc ->
-                if (!userDoc.exists()) return@addOnSuccessListener
-
                 binding.apply {
+                    val emailFromFirestore = userDoc.getString("email")
+                    val emailFromAuth = auth.currentUser?.email
+                    val emailFromPrefs = getSharedPreferences("user_prefs", MODE_PRIVATE).getString("email", "")
+
+                    // 🔹 Ưu tiên lấy email từ Firestore → FirebaseAuth → SharedPreferences
+                    val finalEmail = when {
+                        !emailFromFirestore.isNullOrEmpty() -> emailFromFirestore
+                        !emailFromAuth.isNullOrEmpty() -> emailFromAuth
+                        !emailFromPrefs.isNullOrEmpty() -> emailFromPrefs
+                        else -> ""
+                    }
+
                     edtUsername.setText(userDoc.getString("username") ?: "")
-                    edtEmail.setText(userDoc.getString("email") ?: "")
+                    edtEmail.setText(finalEmail)
                     edtBirthDate.setText(userDoc.getString("birthDate") ?: "")
 
                     val gender = userDoc.getString("gender") ?: ""
@@ -110,21 +119,17 @@ class EditProfileActivity : AppCompatActivity() {
                         .placeholder(R.drawable.user)
                         .into(imgAvatar)
                 }
-
-                // 🔹 Lấy thêm thông tin từ collection accounts
                 db.collection("accounts").document(uid).get()
                     .addOnSuccessListener { accDoc ->
                         if (accDoc.exists()) {
-                            binding.apply {
-                                edtPhone.setText(accDoc.getString("phone") ?: "")
-                                edtEmail.setText(accDoc.getString("email") ?: "")
-                            }
-
+                            binding.edtPhone.setText(accDoc.getString("phone") ?: "")
                         }
                     }
             }
             .addOnFailureListener { showToast("❌ Lỗi tải dữ liệu: ${it.message}") }
     }
+
+
 
     private fun enableEditing(enable: Boolean) = binding.apply {
         isEditing = enable
@@ -145,14 +150,13 @@ class EditProfileActivity : AppCompatActivity() {
         }
 
         val createdAt = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
-            .format(Date(System.currentTimeMillis()))
+            .format(Date())
 
         val updates = hashMapOf<String, Any>(
             "accountId" to uid,
             "avatar" to "",
             "birthDate" to birthDate,
             "createdAt" to createdAt,
-            "current_id" to "",
             "email" to (auth.currentUser?.email ?: ""),
             "gender" to gender,
             "phone" to phone,
@@ -160,25 +164,52 @@ class EditProfileActivity : AppCompatActivity() {
             "username" to username
         )
 
-        if (imageUri != null) uploadAvatar(uid, updates, phone)
-        else updateUserAndPhone(uid, updates, phone)
+        // 🔹 Nếu người dùng chọn ảnh → upload trước, rồi lưu Firestore
+        if (imageUri != null) {
+            uploadAvatar(uid, updates, phone)
+        } else {
+            updateUserAndPhone(uid, updates, phone)
+        }
     }
 
 
     private fun uploadAvatar(uid: String, updates: HashMap<String, Any>, phone: String) {
+        val imageUri = imageUri ?: return
         val storageRef = FirebaseStorage.getInstance().reference.child("avatars/$uid.jpg")
 
-        storageRef.putFile(imageUri!!)
+        // Hiển thị loading tạm thời (tuỳ bạn thêm ProgressBar hoặc disable nút)
+        binding.tvEdit.isEnabled = false
+
+        storageRef.putFile(imageUri)
             .continueWithTask { task ->
-                if (!task.isSuccessful) throw task.exception ?: Exception("Upload thất bại")
+                if (!task.isSuccessful) {
+                    throw task.exception ?: Exception("Upload thất bại")
+                }
                 storageRef.downloadUrl
             }
             .addOnSuccessListener { uri ->
-                updates["avatar"] = uri.toString()
+                val downloadUrl = uri.toString()
+                updates["avatar"] = downloadUrl
+
+                // 🔹 Lưu thông tin và đường dẫn ảnh vào Firestore
                 updateUserAndPhone(uid, updates, phone)
+
+                // 🔹 Cập nhật ngay ảnh trên giao diện
+                Glide.with(this)
+                    .load(downloadUrl)
+                    .placeholder(R.drawable.user)
+                    .into(binding.imgAvatar)
             }
-            .addOnFailureListener { showToast("❌ Upload ảnh lỗi: ${it.message}") }
+            .addOnFailureListener { e ->
+                Log.e("UploadError", "Firebase upload failed", e)
+                showToast("❌ Lỗi tải ảnh: ${e.message}")
+            }
+            .addOnCompleteListener {
+                binding.tvEdit.isEnabled = true
+            }
     }
+
+
 
     private fun updateUserAndPhone(uid: String, updates: HashMap<String, Any>, phone: String) {
         val userRef = db.collection("users").document(uid)

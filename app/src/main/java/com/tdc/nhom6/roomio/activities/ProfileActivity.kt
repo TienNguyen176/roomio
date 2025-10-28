@@ -24,6 +24,7 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var binding: ProfileLayoutBinding
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val prefs by lazy { getSharedPreferences("user_prefs", MODE_PRIVATE) }
 
     private var userRoleId: String = "user"
     private var roleName: String = "User"
@@ -39,13 +40,32 @@ class ProfileActivity : AppCompatActivity() {
         setSupportActionBar(binding.topAppBar)
         supportActionBar?.title = "Roomio"
 
+        checkSession()
         setupActions()
         setupWalletToggle()
+    }
+
+    /**
+     * ✅ Kiểm tra phiên đăng nhập hợp lệ
+     */
+    private fun checkSession() {
+        val firebaseUser = auth.currentUser
+        val savedUid = prefs.getString("uid", null)
+
+        if (firebaseUser == null && savedUid == null) {
+            Toast.makeText(this, "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, LoginActivity::class.java))
+            finish()
+            return
+        }
+
         loadUserData()
         loadWalletData()
     }
 
-    // 👁 Ẩn / hiện số dư ví
+    /**
+     * 👁 Ẩn / hiện số dư ví
+     */
     private fun setupWalletToggle() {
         binding.imgEye.setOnClickListener {
             isBalanceVisible = !isBalanceVisible
@@ -59,7 +79,9 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
-    // ⚙️ Hành động nút
+    /**
+     * ⚙️ Xử lý các nút bấm
+     */
     private fun setupActions() {
         binding.showProfile.setOnClickListener {
             val intent = Intent(this, EditProfileActivity::class.java)
@@ -67,7 +89,11 @@ class ProfileActivity : AppCompatActivity() {
         }
 
         binding.btnSignOut.setOnClickListener {
+            // ✅ Đăng xuất hoàn toàn
             auth.signOut()
+            prefs.edit().clear().apply()
+
+            Toast.makeText(this, "Đã đăng xuất thành công", Toast.LENGTH_SHORT).show()
             val intent = Intent(this, LoginActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
@@ -75,9 +101,11 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
-    // 📥 Tải dữ liệu user
+    /**
+     * 📥 Tải dữ liệu người dùng
+     */
     private fun loadUserData() {
-        val uid = auth.currentUser?.uid ?: return
+        val uid = auth.currentUser?.uid ?: prefs.getString("uid", null) ?: return
 
         db.collection("users").document(uid)
             .get()
@@ -100,15 +128,11 @@ class ProfileActivity : AppCompatActivity() {
 
                         userRoleId = user.roleId.ifEmpty { "user" }
 
-                        // Lấy thông tin role từ Firestore
+                        // Lấy thông tin vai trò
                         db.collection("userRoles").document(userRoleId)
                             .get()
                             .addOnSuccessListener { roleDoc ->
-                                if (roleDoc.exists()) {
-                                    roleName = roleDoc.getString("role_name") ?: userRoleId.capitalize()
-                                } else {
-                                    roleName = userRoleId.capitalize()
-                                }
+                                roleName = roleDoc.getString("role_name") ?: userRoleId.capitalize()
                                 binding.tvRank.text = roleName
                                 updateRoleUI(userRoleId)
                                 animateRoleColor(userRoleId)
@@ -120,11 +144,35 @@ class ProfileActivity : AppCompatActivity() {
                                 animateRoleColor("user")
                             }
                     }
+                } else {
+                    Toast.makeText(this, "Không tìm thấy thông tin người dùng", Toast.LENGTH_SHORT).show()
                 }
+            }
+            .addOnFailureListener {
+                Toast.makeText(this, "Lỗi tải dữ liệu: ${it.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
-    // 🎨 Cập nhật UI rank (màu + bo góc + hiệu ứng)
+    /**
+     * 💰 Tải số dư ví
+     */
+    private fun loadWalletData() {
+        val uid = auth.currentUser?.uid ?: prefs.getString("uid", null) ?: return
+        db.collection("users").document(uid)
+            .get()
+            .addOnSuccessListener { doc ->
+                currentBalance = doc.getLong("balance") ?: 0L
+                binding.tvBalance.text =
+                    if (isBalanceVisible) formatMoney(currentBalance) else "•••••••••"
+            }
+            .addOnFailureListener {
+                Toast.makeText(this, "Lỗi tải ví: ${it.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    /**
+     * 🎨 Cập nhật giao diện vai trò
+     */
     private fun updateRoleUI(roleId: String) {
         val colorRes = when (roleId.lowercase()) {
             "admin" -> R.color.red
@@ -142,7 +190,7 @@ class ProfileActivity : AppCompatActivity() {
         }
         binding.tvRank.background = shape
 
-        // Hiệu ứng phóng nhẹ
+        // Hiệu ứng nhún
         binding.tvRank.animate()
             .scaleX(1.1f).scaleY(1.1f)
             .setDuration(250)
@@ -152,20 +200,22 @@ class ProfileActivity : AppCompatActivity() {
             .start()
     }
 
-    // 🌈 Hiệu ứng chuyển màu mượt
+    /**
+     * 🌈 Hiệu ứng chuyển màu mượt cho role
+     */
     private fun animateRoleColor(roleId: String) {
         val colorMap = mapOf(
-            "admin" to Color.parseColor("#FF4C4C"),   // đỏ
-            "owner" to Color.parseColor("#FFA500"),   // cam
-            "letan" to Color.parseColor("#4CAF50"),   // xanh lá
-            "donphong" to Color.parseColor("#03A9F4"), // xanh da trời
-            "xulydon" to Color.parseColor("#9C27B0"), // tím
-            "user" to Color.parseColor("#BDBDBD")     // xám
+            "admin" to Color.parseColor("#FF4C4C"),
+            "owner" to Color.parseColor("#FFA500"),
+            "letan" to Color.parseColor("#4CAF50"),
+            "donphong" to Color.parseColor("#03A9F4"),
+            "xulydon" to Color.parseColor("#9C27B0"),
+            "user" to Color.parseColor("#BDBDBD")
         )
 
         val targetColor = colorMap[roleId.lowercase()] ?: Color.parseColor("#BDBDBD")
         val bg = binding.tvRank.background as? GradientDrawable ?: GradientDrawable()
-        val currentColor = (bg.color?.defaultColor ?: Color.WHITE)
+        val currentColor = bg.color?.defaultColor ?: Color.WHITE
 
         val colorAnim = ValueAnimator.ofObject(ArgbEvaluator(), currentColor, targetColor)
         colorAnim.duration = 600
@@ -177,30 +227,10 @@ class ProfileActivity : AppCompatActivity() {
         colorAnim.start()
     }
 
-    // 💰 Tải số dư ví
-    private fun loadWalletData() {
-        val uid = auth.currentUser?.uid ?: return
-        db.collection("users").document(uid)
-            .get()
-            .addOnSuccessListener { doc ->
-                if (doc.exists()) {
-                    currentBalance = doc.getLong("balance") ?: 0L
-                } else {
-                    currentBalance = 0L
-                }
-                binding.tvBalance.text =
-                    if (isBalanceVisible) formatMoney(currentBalance) else "•••••••••"
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Lỗi tải ví: ${it.message}", Toast.LENGTH_SHORT).show()
-            }
-    }
-
     private fun formatMoney(amount: Long): String {
         return String.format("%,d VNĐ", amount).replace(",", ".")
     }
 
-    // 📋 Tạo menu quyền
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         if (userRoleId == "user") return false
 
