@@ -23,7 +23,6 @@ class ForgotPasswordActivity : AppCompatActivity() {
         binding.btnContinue.setOnClickListener {
             val email = binding.edtEmail.text.toString().trim()
 
-            // 🔸 Kiểm tra email hợp lệ
             if (email.isEmpty()) {
                 Toast.makeText(this, "Vui lòng nhập email", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -34,18 +33,18 @@ class ForgotPasswordActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // 🔸 Gửi link reset mật khẩu
+            // ✅ Gửi link reset mật khẩu
             auth.sendPasswordResetEmail(email)
                 .addOnSuccessListener {
                     Toast.makeText(
                         this,
-                        "Đã gửi liên kết đặt lại mật khẩu đến $email.\nHãy kiểm tra hộp thư!",
+                        "Đã gửi liên kết đặt lại mật khẩu đến $email. Hãy kiểm tra hộp thư!",
                         Toast.LENGTH_LONG
                     ).show()
 
-                    // ✅ Sau khi gửi link → quay về màn hình đăng nhập
-                    val intent = Intent(this, LoginActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                    // ➡️ Chuyển sang màn hình "Đang chờ xác minh"
+                    val intent = Intent(this, ResetPasswordActivity::class.java)
+                    intent.putExtra("email", email)
                     startActivity(intent)
                     finish()
                 }
@@ -54,9 +53,6 @@ class ForgotPasswordActivity : AppCompatActivity() {
                 }
         }
 
-        // 🔹 Nút quay lại
-        binding.btnBack.setOnClickListener {
-            finish()
-        }
+        binding.btnBack.setOnClickListener { finish() }
     }
 }

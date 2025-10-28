@@ -2,14 +2,16 @@ package com.tdc.nhom6.roomio.activities
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import at.favre.lib.crypto.bcrypt.BCrypt
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
 import com.tdc.nhom6.roomio.databinding.VerifyEmailLayoutBinding
-import at.favre.lib.crypto.bcrypt.BCrypt
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -18,7 +20,9 @@ class EmailVerifyActivity : AppCompatActivity() {
     private lateinit var binding: VerifyEmailLayoutBinding
     private val auth = Firebase.auth
     private val db = FirebaseFirestore.getInstance()
+    private var checkVerifyHandler: Handler? = null
 
+    // Dữ liệu đăng ký
     private lateinit var currentId: String
     private lateinit var username: String
     private lateinit var email: String
@@ -34,77 +38,83 @@ class EmailVerifyActivity : AppCompatActivity() {
         binding = VerifyEmailLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // 📩 Nhận dữ liệu từ ProfileSignUpActivity
-        with(intent) {
-            currentId = getStringExtra("current_id") ?: ""
-            username = getStringExtra("username") ?: ""
-            email = getStringExtra("email") ?: ""
-            phone = getStringExtra("phone") ?: ""
-            gender = getStringExtra("gender") ?: ""
-            birthDate = getStringExtra("birthDate") ?: ""
-            password = getStringExtra("password") ?: ""
-            roleId = getStringExtra("roleId") ?: "user"
-            balance = getDoubleExtra("balance", 0.0)
-        }
-
-        binding.edtEmailVerify.text = email
+        receiveDataFromSignUp()
+        setupUI()
         createAccountAndSendVerify()
+    }
 
-        binding.btnResendEmail.setOnClickListener { resendVerifyEmail() }
+    /** ------------------ NHẬN DỮ LIỆU ------------------ **/
+    private fun receiveDataFromSignUp() = with(intent) {
+        currentId = getStringExtra("current_id") ?: ""
+        username = getStringExtra("username") ?: ""
+        email = getStringExtra("email") ?: ""
+        phone = getStringExtra("phone") ?: ""
+        gender = getStringExtra("gender") ?: ""
+        birthDate = getStringExtra("birthDate") ?: ""
+        password = getStringExtra("password") ?: ""
+        roleId = getStringExtra("roleId") ?: "user"
+        balance = getDoubleExtra("balance", 0.0)
+    }
 
-        binding.btnVerifyDone.setOnClickListener {
-            toggleLoading(true)
-            auth.currentUser?.reload()?.addOnSuccessListener {
-                val user = auth.currentUser
-                if (user?.isEmailVerified == true) {
-                    saveAccountAndUser(user.uid)
-                } else {
-                    toast("Email chưa được xác minh ❌")
-                    toggleLoading(false)
-                }
-            }?.addOnFailureListener {
-                toast("Lỗi xác minh: ${it.message}")
-                toggleLoading(false)
-            }
+    /** ------------------ GIAO DIỆN ------------------ **/
+    private fun setupUI() = binding.apply {
+        edtEmailVerify.text = email
+
+        btnResendEmail.setOnClickListener {
+            auth.currentUser?.sendEmailVerification()
+                ?.addOnSuccessListener { toast("Đã gửi lại email xác minh 📩") }
+                ?.addOnFailureListener { toast("Lỗi gửi email: ${it.message}") }
         }
     }
 
-    /**
-     * 📤 Tạo tài khoản + gửi email xác minh
-     */
+    /** ------------------ TẠO ACCOUNT + GỬI EMAIL ------------------ **/
     private fun createAccountAndSendVerify() {
-        toggleLoading(true)
+        toggleLoading(true, "Đang gửi email xác minh...")
+
         auth.createUserWithEmailAndPassword(email, password)
             .addOnSuccessListener {
-                toggleLoading(false)
                 auth.currentUser?.sendEmailVerification()
-                    ?.addOnSuccessListener { toast("Đã gửi email xác minh 📩") }
-                    ?.addOnFailureListener { toast("Gửi email thất bại: ${it.message}") }
+                    ?.addOnSuccessListener {
+                        toast("Đã gửi email xác minh 📩")
+                        toggleLoading(true, "⏳ Đang chờ xác minh...")
+                        startAutoCheckVerification()
+                    }
+                    ?.addOnFailureListener {
+                        toast("Gửi email thất bại: ${it.message}")
+                        toggleLoading(false)
+                    }
             }
             .addOnFailureListener {
-                toggleLoading(false)
-                if (it.message?.contains("already in use", true) == true)
-                    toast("Email này đã được đăng ký ❌")
-                else toast("Lỗi tạo tài khoản: ${it.message}")
+                val msg = if (it.message?.contains("already in use", true) == true)
+                    "Email này đã được đăng ký ❌"
+                else "Lỗi tạo tài khoản: ${it.message}"
+                toast(msg)
                 finish()
             }
     }
 
-    /**
-     * 🔁 Gửi lại email xác minh
-     */
-    private fun resendVerifyEmail() {
-        auth.currentUser?.sendEmailVerification()
-            ?.addOnSuccessListener { toast("Đã gửi lại email xác minh 📩") }
-            ?.addOnFailureListener { toast("Lỗi gửi email: ${it.message}") }
+    /** ------------------ KIỂM TRA XÁC MINH TỰ ĐỘNG ------------------ **/
+    private fun startAutoCheckVerification() {
+        checkVerifyHandler = Handler(Looper.getMainLooper())
+        checkVerifyHandler?.postDelayed(object : Runnable {
+            override fun run() {
+                auth.currentUser?.reload()?.addOnSuccessListener {
+                    if (auth.currentUser?.isEmailVerified == true) {
+                        toast("✅ Email đã được xác minh!")
+                        saveAccountAndUser(auth.currentUser!!.uid)
+                        checkVerifyHandler?.removeCallbacks(this)
+                    } else {
+                        checkVerifyHandler?.postDelayed(this, 3000)
+                    }
+                }
+            }
+        }, 3000)
     }
 
-    /**
-     * 💾 Lưu account + user vào Firestore
-     */
+    /** ------------------ LƯU FIRESTORE ------------------ **/
     private fun saveAccountAndUser(uid: String) {
-        val now = System.currentTimeMillis()
-        val formattedTime = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date(now))
+        val formattedTime = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
+            .format(Date(System.currentTimeMillis()))
         val hashedPassword = BCrypt.withDefaults().hashToString(12, password.toCharArray())
 
         val accountData = mapOf(
@@ -124,21 +134,15 @@ class EmailVerifyActivity : AppCompatActivity() {
             "birthDate" to birthDate,
             "accountId" to uid,
             "roleId" to roleId,
-            "balance" to balance, // 🔹 Firestore lưu dạng Number
+            "balance" to balance,
             "createdAt" to formattedTime
-
         )
 
         db.collection("accounts").document(uid).set(accountData)
-            .continueWithTask {
-                db.collection("users").document(uid).set(userData)
-            }
+            .continueWithTask { db.collection("users").document(uid).set(userData) }
             .addOnSuccessListener {
-                toast("Đăng ký thành công ✅")
-                startActivity(Intent(this, LoginActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                })
-                finish()
+                toast("🎉 Đăng ký thành công!")
+                navigateToLogin()
             }
             .addOnFailureListener {
                 toast("Lỗi lưu dữ liệu: ${it.message}")
@@ -146,20 +150,26 @@ class EmailVerifyActivity : AppCompatActivity() {
             }
     }
 
+    /** ------------------ CHUYỂN MÀN HÌNH ------------------ **/
+    private fun navigateToLogin() {
+        startActivity(Intent(this, LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        })
+        finish()
+    }
 
-     // An toan bo
-
-    private fun toggleLoading(isLoading: Boolean) {
-        binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-
-        // Ẩn toàn bộ
-        val visibility = if (isLoading) View.GONE else View.VISIBLE
-        binding.btnResendEmail.visibility = visibility
-        binding.btnVerifyDone.visibility = visibility
-        binding.edtEmailVerify.visibility = visibility
-        binding.edtContent.visibility = visibility
+    /** ------------------ TIỆN ÍCH ------------------ **/
+    private fun toggleLoading(isLoading: Boolean, message: String = "") = binding.apply {
+        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        txtStatus.text = message
+        txtStatus.visibility = if (isLoading) View.VISIBLE else View.GONE
     }
 
     private fun toast(msg: String) =
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+    override fun onDestroy() {
+        super.onDestroy()
+        checkVerifyHandler?.removeCallbacksAndMessages(null)
+    }
 }

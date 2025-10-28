@@ -4,6 +4,7 @@ import android.app.DatePickerDialog
 import android.content.Intent
 import android.os.Bundle
 import android.util.Patterns
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
@@ -30,7 +31,6 @@ class ProfileSignUpActivity : AppCompatActivity() {
 
         // 📅 Chọn ngày sinh
         binding.edtBirthDate.setOnClickListener { showDatePicker() }
-        binding.imgCalendar.setOnClickListener { showDatePicker() }
 
         // 📝 Đăng ký
         binding.btnSignUp.setOnClickListener { validateAndContinue() }

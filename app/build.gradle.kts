@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
+    implementation ("com.google.android.gms:play-services-auth:20.7.0")
     implementation("at.favre.lib:bcrypt:0.9.0")
 
 
