@@ -17,6 +17,7 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
@@ -317,6 +318,7 @@ class BusinessRegistrationActivity : AppCompatActivity() {
     }
 
     private fun sendData() {
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
         val userName = binding.edtHoTen.text.toString().trim()
         val cccdNumber = binding.edtCCCD.text.toString().trim()
         val birthDate = binding.edtNamSinh.text.toString().trim()
@@ -418,8 +420,8 @@ class BusinessRegistrationActivity : AppCompatActivity() {
 
             null
         }.addOnSuccessListener {
-            Toast.makeText(this, "Gửi yêu cầu thành công!", Toast.LENGTH_LONG).show()
             navigateTo(AdminHomeActivity::class.java, flag = false)
+            Toast.makeText(this, "Gửi yêu cầu thành công!", Toast.LENGTH_LONG).show()
             finish()
         }.addOnFailureListener { e ->
             Log.w("Firestore", "Lỗi transaction", e)
