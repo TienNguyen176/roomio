@@ -38,7 +38,7 @@ class AdminHotelActivity : AppCompatActivity() {
     }
 
     /**
-     * 🔹 Tải tất cả khách sạn mà người dùng sở hữu.
+     *  Tải tất cả khách sạn mà người dùng sở hữu.
      */
     private fun loadHotelData(uid: String) {
         db.collection("hotels")
@@ -74,7 +74,7 @@ class AdminHotelActivity : AppCompatActivity() {
     }
 
     /**
-     * 🔹 Hiển thị hộp thoại cho người dùng chọn một trong các khách sạn sở hữu.
+     *  Hiển thị hộp thoại cho người dùng chọn một trong các khách sạn sở hữu.
      */
     private fun showHotelSelectionDialog() {
         val hotelNames = ownedHotels.map { "${it.second} (${it.third})" }.toTypedArray()
@@ -104,7 +104,6 @@ class AdminHotelActivity : AppCompatActivity() {
      */
     private fun setupButtons() = with(binding) {
 
-        // Listener cho TextView để người dùng có thể đổi khách sạn
         binding.tvHotelName.setOnClickListener {
             if (ownedHotels.size > 1) {
                 showHotelSelectionDialog()

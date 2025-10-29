@@ -11,6 +11,7 @@
         android:layout_height="wrap_content"
         android:padding="16dp">
 
+        <!-- Nút quay lại -->
         <ImageButton
             android:id="@+id/btnBack"
             android:layout_width="40dp"
@@ -21,6 +22,7 @@
             app:layout_constraintStart_toStartOf="parent"
             android:contentDescription="Back" />
 
+        <!-- Tiêu đề -->
         <TextView
             android:id="@+id/tvHeader"
             android:layout_width="0dp"
@@ -34,30 +36,57 @@
             app:layout_constraintStart_toEndOf="@id/btnBack"
             app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- Ảnh đại diện -->
         <ImageView
             android:id="@+id/imgHotel"
             android:layout_width="0dp"
             android:layout_height="200dp"
             android:layout_marginTop="24dp"
-            android:src="@android:drawable/ic_menu_gallery"
             android:scaleType="centerCrop"
             android:background="#EEE"
+            android:contentDescription="Hotel Image"
             app:layout_constraintTop_toBottomOf="@id/tvHeader"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:contentDescription="Hotel Image" />
+            app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- Nút chọn ảnh -->
         <Button
             android:id="@+id/btnChangeImage"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Chọn Ảnh (Chính &amp; Thư viện)"
+            android:text="Chọn Ảnh"
+            android:layout_marginTop="8dp"
             android:textSize="14sp"
-            android:layout_margin="8dp"
             app:layout_constraintTop_toBottomOf="@id/imgHotel"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- Tiêu đề danh sách ảnh hiện có -->
+        <TextView
+            android:id="@+id/tvCurrentImages"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Ảnh hiện có:"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:layout_constraintTop_toBottomOf="@id/btnChangeImage"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <!-- Danh sách ảnh hiện có -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvCurrentImages"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:nestedScrollingEnabled="false"
+            app:layout_constraintTop_toBottomOf="@id/tvCurrentImages"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+            app:spanCount="3" />
+
+        <!-- Ô nhập tên khách sạn -->
         <EditText
             android:id="@+id/edtHotelName"
             android:layout_width="0dp"
@@ -65,18 +94,19 @@
             android:layout_marginTop="16dp"
             android:hint="Tên Khách sạn"
             android:textSize="16sp"
-            app:layout_constraintTop_toBottomOf="@id/btnChangeImage"
+            android:inputType="textCapWords"
+            app:layout_constraintTop_toBottomOf="@id/rvCurrentImages"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:inputType="textCapWords" />
+            app:layout_constraintEnd_toEndOf="parent" />
 
+        <!-- Header tiện ích -->
         <LinearLayout
             android:id="@+id/facilityHeader"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginTop="24dp"
             app:layout_constraintTop_toBottomOf="@id/edtHotelName"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
@@ -96,23 +126,24 @@
                 android:layout_height="wrap_content"
                 android:src="@android:drawable/ic_input_add"
                 app:tint="#2F6FD1"
-                android:contentDescription="Add Facility"
-                android:background="?attr/selectableItemBackgroundBorderless" />
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Add Facility" />
         </LinearLayout>
 
-
+        <!-- Danh sách tiện ích -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvFacilities"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:nestedScrollingEnabled="false"
-            app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
-            app:spanCount="2"
             app:layout_constraintTop_toBottomOf="@id/facilityHeader"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+            app:spanCount="2" />
 
+        <!-- Nút lưu -->
         <Button
             android:id="@+id/btnSave"
             android:layout_width="0dp"

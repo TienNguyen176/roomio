@@ -13,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.adapters.FacilityAdapter
+import com.tdc.nhom6.roomio.adapters.ImageListAdapter
 import com.tdc.nhom6.roomio.apis.CloudinaryRepository
 import com.tdc.nhom6.roomio.databinding.EditHotelLayoutBinding
 import com.tdc.nhom6.roomio.models.Facility
@@ -31,30 +32,21 @@ class EditHotelActivity : AppCompatActivity() {
     private lateinit var cloudinaryRepository: CloudinaryRepository
 
     private var hotelId: String? = null
-    private var currentImageUrl: String? = null
-
+    private var currentImageUrls: MutableList<String> = mutableListOf()
     private var selectedNewUris: MutableList<Uri> = mutableListOf()
-
-    private var currentImageUrls: List<String> = emptyList() // Lưu trữ TẤT CẢ URLs cũ từ trường 'images'
 
     private var allFacilities: List<Facility> = emptyList()
     private val selectedFacilityIds: MutableSet<String> = mutableSetOf()
 
-    /**
-     * Launcher GỐC được cấu hình để cho phép chọn NHIỀU ẢNH.
-     */
+    // Chọn nhiều ảnh mới
     private val imagePickerLauncher = registerForActivityResult(
         ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
             selectedNewUris.clear()
             selectedNewUris.addAll(uris)
-
-            // Lấy ảnh đầu tiên làm ảnh đại diện để hiển thị ngay
-            val mainUri = uris.first()
-            binding.imgHotel.setImageURI(mainUri)
-
-            Toast.makeText(this, "Đã chọn ${uris.size} ảnh mới (Ảnh chính & Thư viện).", Toast.LENGTH_LONG).show()
+            binding.imgHotel.setImageURI(uris.first())
+            Toast.makeText(this, "Đã chọn ${uris.size} ảnh mới", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -77,74 +69,69 @@ class EditHotelActivity : AppCompatActivity() {
         loadAllFacilities()
     }
 
-// ----------------------------------------------------------------------
-// SETUP & LISTENERS
-// ----------------------------------------------------------------------
-
     private fun setupListeners() {
-        binding.btnBack.setOnClickListener { finish() }
-
-        binding.btnChangeImage.setOnClickListener {
-            imagePickerLauncher.launch("image/*")
+        binding.btnBack.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Hủy bỏ hành động")
+                .setMessage("Hành động đang được thực hiện vẫn chưa được lưu, đồng ý thoát?")
+                .setPositiveButton("Đồng ý") { _, _ ->
+                    finish()
+                }
+                .setNegativeButton("Hủy", null)
+                .show()
+             }
+        binding.btnChangeImage.setOnClickListener { imagePickerLauncher.launch("image/*") }
+        binding.btnAddFacility.setOnClickListener { showAddFacilityDialog() }
+        binding.btnSave.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Xác nhận lưu thay đổi")
+                .setMessage("Bạn có chắc chắn muốn lưu các thay đổi cho khách sạn này không?")
+                .setPositiveButton("Lưu") { _, _ ->
+                    saveHotelData()
+                }
+                .setNegativeButton("Hủy", null)
+                .show()
         }
 
-        binding.btnAddFacility.setOnClickListener {
-            showAddFacilityDialog()
-        }
-
-        binding.btnSave.setOnClickListener { saveHotelData() }
     }
 
-// ----------------------------------------------------------------------
-// TẢI DỮ LIỆU TỪ FIREBASE
-// ----------------------------------------------------------------------
-
+    // ----------------------------------------------------
+    // LOAD HOTEL DATA
+    // ----------------------------------------------------
     private fun loadHotelData() = lifecycleScope.launch(Dispatchers.IO) {
         try {
-            val hotelDoc = db.collection("hotels").document(hotelId!!).get().await()
+            val doc = db.collection("hotels").document(hotelId!!).get().await()
+            if (doc.exists()) {
+                val name = doc.getString("hotelName")
+                val imageList = doc.get("images") as? List<String> ?: emptyList()
+                val facilityIds = doc.get("facilityIds") as? List<String> ?: emptyList()
 
-            if (hotelDoc.exists()) {
-                val name = hotelDoc.getString("hotelName")
-
-                // ĐỌC TẤT CẢ URLs TỪ TRƯỜNG 'images' (List<String>)
-                @Suppress("UNCHECKED_CAST")
-                val imageList = hotelDoc.get("images") as? List<String> ?: emptyList()
-                currentImageUrls = imageList // Lưu TẤT CẢ URLs cũ
-
-                val imageUrl = imageList.firstOrNull()
-                currentImageUrl = imageUrl
-
-                @Suppress("UNCHECKED_CAST")
-                val facilityIds = hotelDoc.get("facilityIds") as? List<String> ?: emptyList()
+                currentImageUrls = imageList.toMutableList()
+                selectedFacilityIds.addAll(facilityIds)
 
                 launch(Dispatchers.Main) {
                     binding.edtHotelName.setText(name)
+                    if (imageList.isNotEmpty())
+                        Glide.with(this@EditHotelActivity).load(imageList.first()).into(binding.imgHotel)
 
-                    if (!imageUrl.isNullOrEmpty()) {
-                        Glide.with(this@EditHotelActivity).load(imageUrl).into(binding.imgHotel)
-                    }
-
-                    selectedFacilityIds.addAll(facilityIds)
-                    (binding.rvFacilities.adapter as? FacilityAdapter)?.notifyDataSetChanged()
+                    val adapter = ImageListAdapter(currentImageUrls) { url -> removeImage(url) }
+                    binding.rvCurrentImages.adapter = adapter
+                    binding.rvFacilities.adapter = FacilityAdapter(allFacilities, selectedFacilityIds)
                 }
             }
         } catch (e: Exception) {
-            Log.e("EditHotel", "Lỗi tải dữ liệu khách sạn: ${e.message}", e)
-            launch(Dispatchers.Main) {
-                Toast.makeText(this@EditHotelActivity, "Lỗi tải dữ liệu.", Toast.LENGTH_SHORT).show()
-            }
+            Log.e("EditHotel", "Lỗi tải dữ liệu: ${e.message}")
         }
     }
 
     private fun loadAllFacilities() = lifecycleScope.launch(Dispatchers.IO) {
         try {
             val snapshot = db.collection("facilities").get().await()
-
-            allFacilities = snapshot.documents.map { doc ->
+            allFacilities = snapshot.documents.map {
                 Facility(
-                    id = doc.id,
-                    facilities_name = doc.getString("facilities_name") ?: "",
-                    description = doc.getString("description") ?: ""
+                    id = it.id,
+                    facilities_name = it.getString("facilities_name") ?: "",
+                    description = it.getString("description") ?: ""
                 )
             }.sortedBy { it.facilities_name }
 
@@ -152,140 +139,103 @@ class EditHotelActivity : AppCompatActivity() {
                 binding.rvFacilities.adapter = FacilityAdapter(allFacilities, selectedFacilityIds)
             }
         } catch (e: Exception) {
-            Log.e("EditHotel", "Lỗi tải tiện ích: ${e.message}", e)
-            launch(Dispatchers.Main) {
-                Toast.makeText(this@EditHotelActivity, "Lỗi tải tiện ích.", Toast.LENGTH_SHORT).show()
-            }
+            Log.e("EditHotel", "Lỗi tải tiện ích: ${e.message}")
         }
     }
 
-// ----------------------------------------------------------------------
-// LOGIC THÊM TIỆN ÍCH
-// ----------------------------------------------------------------------
-
-    private fun showAddFacilityDialog() {
-        val input = EditText(this).apply {
-            hint = "Nhập tên tiện ích (Ví dụ: Bể bơi vô cực)"
-            setPadding(50, 50, 50, 50)
-        }
-
+    // ----------------------------------------------------
+    // REMOVE IMAGE
+    // ----------------------------------------------------
+    private fun removeImage(url: String) {
         AlertDialog.Builder(this)
-            .setTitle("Thêm Tiện ích Mới")
-            .setView(input)
-            .setPositiveButton("Thêm") { _, _ ->
-                val facilityName = input.text.toString().trim()
-                if (facilityName.isNotEmpty()) {
-                    addNewFacilityToFirebase(facilityName)
-                } else {
-                    Toast.makeText(this, "Tên tiện ích không được trống.", Toast.LENGTH_SHORT).show()
-                }
+            .setTitle("Xác nhận xóa ảnh")
+            .setMessage("Bạn có chắc chắn muốn xóa ảnh này không? Ảnh sẽ chỉ bị xóa khi bạn bấm 'Lưu thay đổi'.")
+            .setPositiveButton("Xóa") { _, _ ->
+                currentImageUrls.remove(url)
+                (binding.rvCurrentImages.adapter as? ImageListAdapter)?.notifyDataSetChanged()
+
+                Toast.makeText(this, "Đã xóa ảnh khỏi danh sách tạm. Nhấn 'Lưu thay đổi' để cập nhật.", Toast.LENGTH_LONG).show()
             }
             .setNegativeButton("Hủy", null)
             .show()
     }
 
-    private fun addNewFacilityToFirebase(name: String) {
-        val newFacilityData = hashMapOf(
+
+
+    // ----------------------------------------------------
+    // ADD NEW FACILITY
+    // ----------------------------------------------------
+    private fun showAddFacilityDialog() {
+        val input = EditText(this).apply {
+            hint = "Nhập tên tiện ích mới"
+            setPadding(50, 50, 50, 50)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Thêm tiện ích")
+            .setView(input)
+            .setPositiveButton("Thêm") { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isNotEmpty()) addNewFacility(name)
+                else Toast.makeText(this, "Tên không được trống", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
+    }
+
+    private fun addNewFacility(name: String) {
+        val newData = hashMapOf(
             "facilities_name" to name,
             "description" to "Tiện ích được thêm bởi chủ khách sạn"
         )
-
-        db.collection("facilities").add(newFacilityData)
-            .addOnSuccessListener { newDocRef ->
-                Toast.makeText(this, "Đã thêm tiện ích '$name'", Toast.LENGTH_LONG).show()
-
-                selectedFacilityIds.add(newDocRef.id)
-
+        db.collection("facilities").add(newData)
+            .addOnSuccessListener { ref ->
+                selectedFacilityIds.add(ref.id)
                 loadAllFacilities()
-            }
-            .addOnFailureListener { e ->
-                Toast.makeText(this, "Lỗi khi thêm tiện ích: ${e.message}", Toast.LENGTH_SHORT).show()
-                Log.e("EditHotel", "Lỗi thêm tiện ích", e)
+                Toast.makeText(this, "Đã thêm '$name'", Toast.LENGTH_SHORT).show()
             }
     }
 
-// ----------------------------------------------------------------------
-// LƯU DỮ LIỆU VÀ TẢI ẢNH (Hợp nhất)
-// ----------------------------------------------------------------------
-
+    // ----------------------------------------------------
+    // SAVE HOTEL
+    // ----------------------------------------------------
     private fun saveHotelData() {
         val newName = binding.edtHotelName.text.toString().trim()
         if (newName.isEmpty()) {
-            binding.edtHotelName.error = "Tên khách sạn không được để trống"
+            binding.edtHotelName.error = "Tên không được trống"
             return
         }
 
-        if (selectedNewUris.isNotEmpty()) {
-            uploadAssetsAndSave(newName)
-        } else {
-            // Nếu không có ảnh mới, lưu dữ liệu ngay lập tức (dùng ảnh cũ)
-            updateFirestore(newName, currentImageUrls)
-        }
+        if (selectedNewUris.isNotEmpty()) uploadAssetsAndSave(newName)
+        else updateFirestore(newName, currentImageUrls)
     }
 
-    /**
-     * Tải ảnh đại diện và tất cả ảnh thư viện mới lên Cloudinary.
-     */
     private fun uploadAssetsAndSave(newName: String) = lifecycleScope.launch(Dispatchers.Main) {
-        if (selectedNewUris.isEmpty()) return@launch
+        Toast.makeText(this@EditHotelActivity, "Đang tải ảnh mới...", Toast.LENGTH_SHORT).show()
+        val newUrls = mutableListOf<String>()
 
-        Toast.makeText(this@EditHotelActivity, "Đang tải ${selectedNewUris.size} ảnh lên...", Toast.LENGTH_LONG).show()
-
-        val newMainUri = selectedNewUris.first()
-        val newGalleryUris = selectedNewUris.subList(1, selectedNewUris.size)
-
-        // Danh sách URLs cuối cùng (chỉ chứa các URLs mới được tải lên)
-        val finalImageUrls: MutableList<String> = mutableListOf()
-
-        // 1. Tải ảnh đại diện mới
-        val mainImageFile = withContext(Dispatchers.IO) { uriToFile(newMainUri) }
-        if (mainImageFile != null) {
-            val result = withContext(Dispatchers.IO) {
-                cloudinaryRepository.uploadSingleImage(mainImageFile, "hotel_images/main")
-            }
-            mainImageFile.delete()
-
-            if (result != null && !result.secure_url.isNullOrBlank()) {
-                finalImageUrls.add(result.secure_url) // Thêm ảnh đại diện vào List
-            } else {
-                Toast.makeText(this@EditHotelActivity, "Lỗi tải ảnh đại diện.", Toast.LENGTH_LONG).show()
-            }
+        val files = withContext(Dispatchers.IO) {
+            selectedNewUris.mapNotNull { uriToFile(it) }
         }
 
-        // 2. Tải các ảnh thư viện mới
-        if (newGalleryUris.isNotEmpty()) {
-            val filesToUpload = withContext(Dispatchers.IO) {
-                newGalleryUris.mapNotNull { uriToFile(it) }
-            }
-
-            if (filesToUpload.isNotEmpty()) {
-                val results = withContext(Dispatchers.IO) {
-                    cloudinaryRepository.uploadMultipleImages(filesToUpload, "hotel_images/gallery")
-                }
-
-                filesToUpload.forEach { it.delete() }
-
-                finalImageUrls.addAll(results.mapNotNull { it.secure_url }) // Thêm ảnh thư viện vào List
-            }
+        val uploaded = withContext(Dispatchers.IO) {
+            cloudinaryRepository.uploadMultipleImages(files, "hotel_images")
         }
 
-        // 3. Lưu kết quả cuối cùng vào Firestore
-        updateFirestore(newName, finalImageUrls)
+        files.forEach { it.delete() }
+        newUrls.addAll(uploaded.mapNotNull { it.secure_url })
+
+        // Gộp ảnh cũ + ảnh mới
+        val allUrls = (currentImageUrls + newUrls).distinct()
+        updateFirestore(newName, allUrls)
     }
 
-    /**
-     * Cập nhật tên và URL ảnh cuối cùng vào Firestore.
-     */
-    private fun updateFirestore(newName: String, finalImageUrls: List<String>) {
-        val updates = mutableMapOf<String, Any>(
+    private fun updateFirestore(newName: String, imageUrls: List<String>) {
+        val updates = mapOf(
             "hotelName" to newName,
             "facilityIds" to selectedFacilityIds.toList(),
-            // ❌ Loại bỏ galleryUrls khỏi updates
+            "images" to imageUrls
         )
-
-        // ✅ LƯU TẤT CẢ URLs VÀO TRƯỜNG 'images' DUY NHẤT
-        updates["images"] = finalImageUrls
-
 
         db.collection("hotels").document(hotelId!!)
             .update(updates)
@@ -294,33 +244,25 @@ class EditHotelActivity : AppCompatActivity() {
                 setResult(Activity.RESULT_OK)
                 finish()
             }
-            .addOnFailureListener { e ->
-                Toast.makeText(this, "Lỗi lưu: ${e.message}", Toast.LENGTH_LONG).show()
-                Log.e("EditHotel", "Lỗi lưu dữ liệu: ", e)
+            .addOnFailureListener {
+                Toast.makeText(this, "Lỗi lưu dữ liệu!", Toast.LENGTH_SHORT).show()
             }
     }
 
-// ----------------------------------------------------------------------
-// HÀM TIỆN ÍCH
-// ----------------------------------------------------------------------
 
-    /**
-     * HÀM TIỆN ÍCH: Chuyển URI sang File tạm thời để tải lên mạng.
-     */
+    // ----------------------------------------------------
+    // UTIL
+    // ----------------------------------------------------
     private fun uriToFile(uri: Uri): File? {
-        val contentResolver = applicationContext.contentResolver
-        val tempFile = File(cacheDir, "temp_upload_${System.currentTimeMillis()}")
-
-        try {
-            contentResolver.openInputStream(uri)?.use { inputStream: InputStream ->
-                FileOutputStream(tempFile).use { outputStream: FileOutputStream ->
-                    inputStream.copyTo(outputStream)
-                }
+        val tempFile = File(cacheDir, "upload_${System.currentTimeMillis()}")
+        return try {
+            contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(tempFile).use { output -> input.copyTo(output) }
             }
-            return tempFile
+            tempFile
         } catch (e: Exception) {
-            Log.e("UriToFile", "Error creating temp file from URI: ${e.message}", e)
-            return null
+            Log.e("UriToFile", "Lỗi: ${e.message}")
+            null
         }
     }
 }
