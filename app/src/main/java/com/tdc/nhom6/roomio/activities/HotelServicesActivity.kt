@@ -92,8 +92,8 @@ class HotelServicesActivity : AppCompatActivity() {
     }
 
     private fun confirmUpdateDialog() {
-        val pos = selectedIndex
-        if (pos == null || pos < 0 || pos >= serviceList.size) {
+        val index = selectedIndex
+        if (index == null || index < 0 || index >= serviceList.size) {
             showToast("Vui lòng chọn dịch vụ để cập nhật")
             return
         }
@@ -106,8 +106,8 @@ class HotelServicesActivity : AppCompatActivity() {
     }
 
     private fun confirmDeleteDialog() {
-        val pos = selectedIndex
-        if (pos == null || pos < 0 || pos >= serviceList.size) {
+        val index = selectedIndex
+        if (index == null || index < 0 || index >= serviceList.size) {
             showToast("Vui lòng chọn dịch vụ để xóa")
             return
         }
@@ -160,13 +160,13 @@ class HotelServicesActivity : AppCompatActivity() {
     }
 
     private fun updateService() {
-        val pos = selectedIndex
-        if (pos == null || pos < 0 || pos >= serviceList.size) {
+        val index = selectedIndex
+        if (index == null || index < 0 || index >= serviceList.size) {
             showToast("Vui lòng chọn dịch vụ để cập nhật")
             return
         }
 
-        val service = serviceList[pos]
+        val service = serviceList[index]
         val name = binding.edtServiceName.text.toString().trim()
         val desc = binding.edtServiceDesc.text.toString().trim()
 
@@ -199,13 +199,13 @@ class HotelServicesActivity : AppCompatActivity() {
     }
 
     private fun deleteService() {
-        val pos = selectedIndex
-        if (pos == null || pos < 0 || pos >= serviceList.size) {
+        val index = selectedIndex
+        if (index == null || index < 0 || index >= serviceList.size) {
             showToast("Vui lòng chọn dịch vụ để xóa")
             return
         }
 
-        val service = serviceList[pos]
+        val service = serviceList[index]
         service.id?.let {
             db.collection("services").document(it)
                 .delete()
@@ -232,5 +232,10 @@ class HotelServicesActivity : AppCompatActivity() {
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceListener?.remove()
     }
 }
