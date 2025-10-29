@@ -21,6 +21,9 @@ class AdminHomeActivity : AppCompatActivity() {
             btnDanhSachDon.setOnClickListener {
                 navigateTo(AdminListHotelRequestActivity::class.java, flag = false)
             }
+            btnQuanLyKhachSan.setOnClickListener {
+                navigateTo(HotelServicesActivity::class.java, flag = false)
+            }
         }
     }
 }

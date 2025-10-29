@@ -1,11 +1,13 @@
 <resources>
     <string name="app_name">Roomio</string>
     <string name="app_bar_title_dang_ky_kinh_doanh">Đăng ký kinh doanh</string>
+    <string name="app_bar_title_service">Danh sách dịch vụ</string>
+    <string name="app_bar_title_facilities">Danh sách tiện ích</string>
     <string name="cloudinary_cloud_name">dgxcjxzqi</string>
     <string name="cloudinary_upload_preset">upload_images</string>
     <string name="btn_danh_sach_don">Danh sách đơn đăng ký</string>
     <string name="btn_quan_ly_tai_khoan">Quản lý tài khoản</string>
-    <string name="btn_danh_sach_hotel">Danh sách khách sạn</string>
+    <string name="btn_quan_ly_hotel">Quản lý khách sạn</string>
     <string name="btn_logout">ĐĂNG XUẤT</string>
     <string name="text_xem_them"><u>Xem thêm</u></string>
     <string name="title_thong_tin_chinh_chu">I. Thông tin chính chủ khách sạn</string>
@@ -27,6 +29,7 @@
     <string name="hint_sdt_lien_he">Số điện thoại liên hệ</string>
     <string name="text_sdt_lien_he">Số điện thoại:</string>
     <string name="text_ngay_sinh">Ngày sinh: </string>
+    <string name="hint_ngay_sinh">Ngày sinh</string>
     <string name="hint_nam_sinh">Năm sinh</string>
     <string name="hint_email_lien_he">Email liên hệ</string>
     <string name="text_email_lien_he">Email:</string>

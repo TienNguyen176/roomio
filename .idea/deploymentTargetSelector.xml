@@ -22,7 +22,7 @@
       <SelectionState runConfigName="AdminListHotelRequestActivity">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="AdminHomeActivity">
+      <SelectionState runConfigName="HotelServicesActivity">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>
