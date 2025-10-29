@@ -24,6 +24,11 @@ class HotelServicesActivity : AppCompatActivity() {
     private val db = FirebaseFirestore.getInstance()
     private var serviceListener: ListenerRegistration? = null
 
+    companion object {
+        const val SERVICE_NAME = "service_name"
+        const val DESCRIPTION = "description"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = HotelServicesLayoutBinding.inflate(layoutInflater)
@@ -178,8 +183,8 @@ class HotelServicesActivity : AppCompatActivity() {
         db.collection("services").document(service.id!!)
             .update(
                 mapOf(
-                    "service_name" to name,
-                    "description" to desc
+                    SERVICE_NAME to name,
+                    DESCRIPTION to desc
                 )
             )
             .addOnSuccessListener {
