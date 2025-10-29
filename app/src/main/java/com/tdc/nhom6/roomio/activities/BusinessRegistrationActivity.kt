@@ -303,11 +303,11 @@ class BusinessRegistrationActivity : AppCompatActivity() {
                 isAnimatingText = false
                 loadingDialog?.dismiss()
 
-                // ✅ Ẩn bàn phím nếu đang mở
+                // Ẩn bàn phím nếu đang mở
                 val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
                 currentFocus?.let { imm.hideSoftInputFromWindow(it.windowToken, 0) }
 
-                // ✅ Xóa focus khỏi tất cả các trường nhập liệu
+                // Xóa focus khỏi tất cả các trường nhập liệu
                 window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
                 currentFocus?.clearFocus()
             }
@@ -333,8 +333,6 @@ class BusinessRegistrationActivity : AppCompatActivity() {
         val hotelFloors = binding.edtSoTang.text.toString().trim().toIntOrNull() ?: 0
         val hotelRoomFloors = binding.edtSoPhong.text.toString().toIntOrNull() ?: 0
         val hotelTotalRoom = hotelFloors * hotelRoomFloors
-
-        val currentDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
 
         if (userName.isEmpty() || cccdNumber.isEmpty() || address.isEmpty() || phone.isEmpty() ||
             email.isEmpty() || hotelName.isEmpty() || hotelAddress.isEmpty()

@@ -35,6 +35,7 @@ class HotelApprovalActivity : AppCompatActivity() {
         const val UPDATED_AT = "updated_at"
         const val RESON_REJECTED = "reason_rejected"
         const val HOTEL_STATUS_ID = "hotel_active"
+        const val ROOM_STATUS_ID = "room_available"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -338,7 +339,7 @@ class HotelApprovalActivity : AppCompatActivity() {
                     room_number = roomNumber,
                     floor = floor,
                     room_type_id = "",
-                    status_id = "room_available"
+                    status_id = ROOM_STATUS_ID
                 )
 
                 val roomDoc = roomsRef.document(roomId)
