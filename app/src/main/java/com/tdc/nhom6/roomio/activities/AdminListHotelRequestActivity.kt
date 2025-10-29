@@ -29,6 +29,12 @@ class AdminListHotelRequestActivity : AppCompatActivity() {
 
     private val tabTitles = listOf("Tất cả", "Đồng ý", "Từ chối", "Chờ duyệt")
 
+    companion object {
+        const val REQUEST_APPROVED = "hotel_request_approved"
+        const val REQUEST_REJECTED = "hotel_request_rejected"
+        const val REQUEST_PENDING = "hotel_request_pending"
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = AdminListHotelRequestLayoutBinding.inflate(layoutInflater)
@@ -177,7 +183,6 @@ class AdminListHotelRequestActivity : AppCompatActivity() {
 
     private fun setupTabs() {
         tabTitles.forEachIndexed { index, title ->
-            // inflate custom tab bằng binding
             val tabBinding = TabCustomBinding.inflate(LayoutInflater.from(this))
 
             tabBinding.tvTab.text = title
@@ -198,9 +203,9 @@ class AdminListHotelRequestActivity : AppCompatActivity() {
 
                 when (tab.position) {
                     0 -> loadRequests()
-                    1 -> loadRequestsByStatus("hotel_request_approved")
-                    2 -> loadRequestsByStatus("hotel_request_rejected")
-                    3 -> loadRequestsByStatus("hotel_request_pending")
+                    1 -> loadRequestsByStatus(REQUEST_APPROVED)
+                    2 -> loadRequestsByStatus(REQUEST_REJECTED)
+                    3 -> loadRequestsByStatus(REQUEST_PENDING)
                 }
             }
 
