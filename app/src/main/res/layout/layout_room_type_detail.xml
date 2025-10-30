@@ -62,11 +62,12 @@
                     android:id="@+id/view_detail"
                     layout="@layout/item_facility"/>
             </LinearLayout>
-            <GridView
+            <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/gridFacilities_detail"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:numColumns="2"/>
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:layout_marginTop="8dp"/>
         </LinearLayout>
 
     </LinearLayout>

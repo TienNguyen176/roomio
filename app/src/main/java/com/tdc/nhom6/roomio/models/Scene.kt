@@ -1,6 +1,6 @@
 package com.tdc.nhom6.roomio.models
 
-data class View(
+data class Scene(
     val id: String = "",
     val name: String = ""
 )

@@ -7,10 +7,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.databinding.ItemFacilityBinding
 
-class FacilityAdapter(
+class ServiceAdapter(
     private val context: Context,
-    private val listFacility: List<Facility>
-) : RecyclerView.Adapter<FacilityAdapter.FacilityViewHolder>() {
+    private val listFacility: List<Service>
+) : RecyclerView.Adapter<ServiceAdapter.FacilityViewHolder>() {
 
     class FacilityViewHolder(val binding: ItemFacilityBinding) :
         RecyclerView.ViewHolder(binding.root)
@@ -27,7 +27,7 @@ class FacilityAdapter(
     override fun onBindViewHolder(holder: FacilityViewHolder, position: Int) {
         val facility = listFacility[position]
 
-        holder.binding.tvFacilityName.text = facility.facilities_name
+        holder.binding.tvFacilityName.text = facility.service_name
 
         Glide.with(context)
             .load(facility.iconUrl)

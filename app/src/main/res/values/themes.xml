@@ -1,6 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Base.Theme.Roomio" parent="Theme.MaterialComponents.DayNight.NoActionBar"/>
-    <style name="Theme.Roomio" parent="Base.Theme.Roomio" />
+    <style name="Theme.Roomio" parent="Base.Theme.Roomio" >
+    </style>
 
     <style name="ButtonsFilled" parent="Widget.MaterialComponents.Button">
         <item name="backgroundTint">@color/red</item>

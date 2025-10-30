@@ -16,7 +16,8 @@
                 android:layout_height="48dp"
                 android:text="Travel Wallet"
                 android:drawableLeft="@drawable/ic_wallet"
-                />
+                android:clickable="false"
+                android:focusable="false"/>
             <TextView
                 android:id="@+id/tvBalance"
                 android:layout_width="match_parent"

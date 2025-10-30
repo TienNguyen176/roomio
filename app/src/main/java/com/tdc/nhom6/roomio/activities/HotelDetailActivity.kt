@@ -1,109 +1,311 @@
 package com.tdc.nhom6.roomio.activities
 
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
+import android.view.MenuItem
+import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
+import androidx.core.widget.NestedScrollView
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.bumptech.glide.Glide
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.PhotoGridAdapter
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter
 import com.tdc.nhom6.roomio.databinding.ActivityHotelDetailBinding
 import com.tdc.nhom6.roomio.models.FacilityDamageLossRateModel
 import com.tdc.nhom6.roomio.models.FacilityPriceRateModel
+import com.tdc.nhom6.roomio.models.HotelModel
 import com.tdc.nhom6.roomio.models.RoomImage
 import com.tdc.nhom6.roomio.models.RoomType
+import com.tdc.nhom6.roomio.models.Service
+import com.tdc.nhom6.roomio.models.ServiceAdapter
+import com.tdc.nhom6.roomio.models.ServiceRate
 import java.util.Date
 
+@Suppress("DEPRECATION")
 class HotelDetailActivity: AppCompatActivity() {
     private lateinit var binding: ActivityHotelDetailBinding
     private lateinit var roomTypeAdapter: RoomTypeAdapter
-    private lateinit var listPhoto: List<String>
     private var listRoomType: MutableList<RoomType> = mutableListOf()
-    private var listRoomImage: MutableList<RoomImage> = mutableListOf()
+    private var listServices: MutableList<Service> = mutableListOf()
+    private lateinit var hotelData: HotelModel
+    private lateinit var serviceAdapter: ServiceAdapter
+    private lateinit var photoGridAdapter: PhotoGridAdapter
+    private var systemBarsInsets: Insets? = null
+
+    // Biến Listener cho Realtime Updates
+    private var hotelListener: ListenerRegistration? = null
+    private var servicesListener: ListenerRegistration? = null
+    private var roomTypesListener: ListenerRegistration? = null
+
+
     companion object {
         val HOTEL_ID = "hotel-001"
         val db = FirebaseFirestore.getInstance()
     }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         binding = ActivityHotelDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+
+            binding.appBarLayout.updatePadding(
+                top = systemBars.top
+            )
+
+            v.setPadding(
+                systemBars.left,
+                0,
+                systemBars.right,
+                systemBars.bottom
+            )
+
             insets
         }
+
         initialLayout()
         initialAction()
+        setupToolbarScrollEffect()
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Dừng lắng nghe khi Activity bị hủy
+        hotelListener?.remove()
+        servicesListener?.remove()
+        roomTypesListener?.remove()
+    }
+
 
     private fun initialLayout() {
+    setSupportActionBar(binding.toolbar)
+        supportActionBar?.title = ""
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        listPhoto = listOf(
-            "https://cf.bstatic.com/xdata/images/hotel/max1024x768/738129545.jpg?k=e715bb89becf44df04deb39a73a43cdc6048c6fd1f04eda71630eba62d771337&o=",
-            "https://cf.bstatic.com/xdata/images/hotel/max1024x768/738129545.jpg?k=e715bb89becf44df04deb39a73a43cdc6048c6fd1f04eda71630eba62d771337&o=",
-            "https://cf.bstatic.com/xdata/images/hotel/max1024x768/738129545.jpg?k=e715bb89becf44df04deb39a73a43cdc6048c6fd1f04eda71630eba62d771337&o=",
-            "https://cf.bstatic.com/xdata/images/hotel/max1024x768/738129545.jpg?k=e715bb89becf44df04deb39a73a43cdc6048c6fd1f04eda71630eba62d771337&o=",
-            "https://cf.bstatic.com/xdata/images/hotel/max1024x768/738129545.jpg?k=e715bb89becf44df04deb39a73a43cdc6048c6fd1f04eda71630eba62d771337&o=",
-            "https://cf.bstatic.com/xdata/images/hotel/max1024x768/738129545.jpg?k=e715bb89becf44df04deb39a73a43cdc6048c6fd1f04eda71630eba62d771337&o=",
-            "https://cf.bstatic.com/xdata/images/hotel/max1024x768/738129545.jpg?k=e715bb89becf44df04deb39a73a43cdc6048c6fd1f04eda71630eba62d771337&o="
-        )
+        serviceAdapter = ServiceAdapter(this, listServices)
+        val spanCount = 3
+        binding.gridServices.layoutManager = GridLayoutManager(this, spanCount)
+        binding.gridServices.adapter = serviceAdapter
 
-//        binding.gridPhotos.adapter = PhotoGridAdapter(this, listPhoto)
-        roomTypeAdapter=RoomTypeAdapter(this,listRoomType,supportFragmentManager)
-        binding.listRoomType.adapter= roomTypeAdapter
-//        addRoomTypeFireBase()
+        roomTypeAdapter = RoomTypeAdapter(this, listRoomType, supportFragmentManager)
+        binding.listRoomType.layoutManager = LinearLayoutManager(this)
+        binding.listRoomType.adapter = roomTypeAdapter
+
+        photoGridAdapter = PhotoGridAdapter(this, listOf())
+        binding.gridPhotos.layoutManager = GridLayoutManager(this, 3)
+        binding.gridPhotos.adapter = photoGridAdapter
+
+        loadHotel()
         loadRoomTypes()
+        loadServices()
     }
-
 
     private fun initialAction() {
     }
 
-    private fun loadRoomTypes() {
-        val collectionPath = "roomTypes"
+    private fun setupToolbarScrollEffect() {
+        val maxScrollHeightDp = 300
+        val maxScroll = resources.displayMetrics.density * maxScrollHeightDp
 
-        db.collection(collectionPath)
-            .whereEqualTo("hotelId",HOTEL_ID)
-            .get()
-            .addOnSuccessListener { result ->
-                // Xóa dữ liệu cũ và thêm dữ liệu mới
-                listRoomType.clear()
-                for (document in result) {
-                    try {
-                        // Chuyển Document thành đối tượng RoomType
-                        val roomType = document.toObject(RoomType::class.java)
-                        listRoomType.add(roomType)
-                    } catch (e: Exception) {
-                        Log.e("Firestore", "Lỗi chuyển đổi dữ liệu cho RoomType: ${document.id}", e)
-                    }
+        val solidColor = ContextCompat.getColor(this, R.color.white)
+
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+
+        binding.scrollView.setOnScrollChangeListener(
+            NestedScrollView.OnScrollChangeListener { v, scrollX, scrollY, oldScrollX, oldScrollY ->
+
+                val scrollRatio = if (scrollY > 0) {
+                    (scrollY.toFloat() / maxScroll).coerceIn(0.0f, 1.0f)
+                } else {
+                    0.0f
                 }
 
-                roomTypeAdapter.notifyDataSetChanged()
+                val alpha = (scrollRatio * 255).toInt()
+
+                val newColor = (alpha shl 24) or (solidColor and 0x00FFFFFF)
+
+                binding.appBarLayout.setBackgroundColor(newColor)
+
+                if (scrollRatio >= 0.5f) {
+                    controller?.isAppearanceLightStatusBars=true
+                    binding.toolbar.navigationIcon?.setTint(resources.getColor(R.color.black))
+                }else{
+                    controller?.isAppearanceLightStatusBars=false
+                    binding.toolbar.navigationIcon?.setTint(solidColor)
+                }
+
+                if (scrollRatio >= 1.0f) {
+                    binding.appBarLayout.outlineProvider = ViewOutlineProvider.PADDED_BOUNDS
+                }
 
             }
-            .addOnFailureListener { exception ->
-                Log.e("Firestore", "Lỗi khi tải RoomTypes: ", exception)
+        )
+    }
+
+    private fun loadHotel() {
+        hotelListener?.remove()
+
+        hotelListener = db.collection("hotels")
+            .document(HOTEL_ID)
+            .addSnapshotListener { snapShot, exception ->
+                if (exception != null) {
+                    Log.e("firestore", "Error listening to hotel document:", exception)
+                    return@addSnapshotListener
+                }
+
+                if (snapShot != null && snapShot.exists()) {
+                    try {
+                        val hotel = snapShot.toObject(HotelModel::class.java)
+
+                        if (hotel != null) {
+                            hotelData = hotel
+
+                            Glide.with(this).load(hotelData.images?.get(0)).into(binding.imgHotel)
+                            binding.tvAddress.text = hotelData.hotelAddress
+                            binding.tvNameHotel.text = hotelData.hotelName
+                            binding.tvDescription.text = hotelData.description
+
+                            val images = hotelData.images ?: listOf()
+                            photoGridAdapter = PhotoGridAdapter(this, images)
+                            binding.gridPhotos.adapter = photoGridAdapter
+
+                        } else {
+                            Log.e("firestore", "Error converting document to HotelModel object.")
+                        }
+
+                    } catch (e: Exception) {
+                        Log.e("firestore", "Loi chuyen doi Hotel", e)
+                    }
+                } else {
+                    Log.w("firestore", "Hotel document with ID $HOTEL_ID does not exist or was deleted.")
+                }
             }
     }
 
+    fun loadServices() {
+        servicesListener?.remove()
+
+        servicesListener = db.collection("serviceRates")
+            .whereEqualTo("hotel_id", HOTEL_ID)
+            .addSnapshotListener { querySnapshot, exception ->
+                if (exception != null) {
+                    Log.e("Firestore", "Error listening to Service Rates: ", exception)
+                    return@addSnapshotListener
+                }
+
+                if (querySnapshot != null) {
+                    listServices.clear()
+
+                    val serviceIdsToFetch = querySnapshot.documents.mapNotNull { it.getString("service_id") }
+
+                    if (serviceIdsToFetch.isEmpty()) {
+                        serviceAdapter.notifyDataSetChanged()
+                        return@addSnapshotListener
+                    }
+
+                    var fetchCount = 0
+                    for (serviceId in serviceIdsToFetch) {
+                        db.collection("services")
+                            .document(serviceId)
+                            .get()
+                            .addOnSuccessListener { serviceDocument ->
+                                val service = serviceDocument.toObject(Service::class.java)
+                                if (service != null) {
+                                    listServices.add(service)
+                                }
+                            }
+                            .addOnCompleteListener {
+                                fetchCount++
+                                if (fetchCount == serviceIdsToFetch.size) {
+                                    serviceAdapter.notifyDataSetChanged()
+                                }
+                            }
+                    }
+                }
+            }
+    }
+
+    private fun loadRoomTypes() {
+        roomTypesListener?.remove()
+
+        val collectionPath = "roomTypes"
+        roomTypesListener = db.collection(collectionPath)
+            .whereEqualTo("hotelId",HOTEL_ID)
+            .addSnapshotListener { result, exception ->
+                if (exception != null) {
+                    Log.e("Firestore", "Error listening to RoomTypes: ", exception)
+                    return@addSnapshotListener
+                }
+
+                if (result != null) {
+                    listRoomType.clear()
+                    for (document in result) {
+                        try {
+                            val roomType = document.toObject(RoomType::class.java)
+                            listRoomType.add(roomType)
+                        } catch (e: Exception) {
+                            Log.e("Firestore", "Lỗi chuyển đổi dữ liệu cho RoomType: ${document.id}", e)
+                        }
+                    }
+                    roomTypeAdapter.notifyDataSetChanged()
+                }
+            }
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            android.R.id.home -> {
+                onBackPressedDispatcher.onBackPressed()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    fun addServiceRateToFirebase(hotelId: String, serviceId: String, price: Double) {
+        val newRate = ServiceRate(
+            hotel_id = hotelId,
+            service_id = serviceId,
+            price = price,
+        )
+        db.collection("serviceRates")
+            .add(newRate)
+            .addOnSuccessListener {
+                println("Thêm giá dịch vụ thành công: Hotel $hotelId, Service $serviceId")
+            }
+            .addOnFailureListener { e ->
+                println("Lỗi khi thêm giá dịch vụ: $e")
+            }
+    }
 
     private fun addRoomTypeFireBase() {
-        val ROOM_ID = "DLXR-002"
-        // 1. Tạo đối tượng Facility Rates
+        val ROOM_ID = "DLXR-003"
         val sampleFacilityRates = listOf(
             FacilityPriceRateModel(
                 facilityId = "facilities_01",
                 price = 0.0,
-                updateDate = Date().time.toFirestoreTimestamp() // Lấy timestamp hiện tại
+                updateDate = Date().time.toFirestoreTimestamp(),
             )
         )
 
-        // 2. Tạo đối tượng Damage/Loss Rates
         val sampleDamageLossRates = listOf(
             FacilityDamageLossRateModel(
                 facilityId = "facilities_01",
@@ -119,7 +321,6 @@ class HotelDetailActivity: AppCompatActivity() {
             ),
         )
 
-
         val newImage = RoomImage(
             imageUrl = "https://cf.bstatic.com/xdata/images/hotel/max1024x768/738129545.jpg?k=e715bb89becf44df04deb39a73a43cdc6048c6fd1f04eda71630eba62d771337&o=",
             isThumbnail = true,
@@ -129,25 +330,17 @@ class HotelDetailActivity: AppCompatActivity() {
             typeId = ROOM_ID,
             hotelId = HOTEL_ID,
             typeName = "SUPERIOR DOUBLE ROOM",
-            pricePerNight = 1300000000.0,
+            pricePerNight = 1300000.0,
             maxPeople = 6,
             area = 120,
             viewId = "0",
             roomImages = listOf(newImage,newImage,newImage)
         )
-        // Thêm RoomType vào firestore
         addRoomType(myTypeSafeRoom, ROOM_ID)
-
-        // Thêm FacilityRate vào RoomType
-        sampleFacilityRates.forEach { rate ->
-            addFacilityRate(rate, ROOM_ID)
-        }
-
-        sampleDamageLossRates.forEach { rate ->
-            addDamageLossRate(rate, ROOM_ID)
-        }
-
+        sampleFacilityRates.forEach { rate -> addFacilityRate(rate, ROOM_ID) }
+        sampleDamageLossRates.forEach { rate -> addDamageLossRate(rate, ROOM_ID) }
     }
+
 
     private fun addRoomType(roomType: RoomType, roomTypeIdAbbr: String) {
         db.collection("roomTypes")
@@ -161,9 +354,7 @@ class HotelDetailActivity: AppCompatActivity() {
             }
     }
 
-
     private fun addFacilityRate(rate: FacilityPriceRateModel, roomTypeId: String) {
-
         db.collection("roomTypes")
             .document(roomTypeId)
             .collection("facilityRates")
@@ -177,7 +368,6 @@ class HotelDetailActivity: AppCompatActivity() {
     }
 
     private fun addDamageLossRate(rate: FacilityDamageLossRateModel, roomTypeId: String) {
-
         db.collection("roomTypes")
             .document(roomTypeId)
             .collection("damageLossRates")
@@ -190,10 +380,9 @@ class HotelDetailActivity: AppCompatActivity() {
             }
     }
 
-
-    private fun Long.toFirestoreTimestamp(): Timestamp {
-        val seconds = this / 1000 // Chuyển từ mili giây sang giây
-        val nanoseconds = (this % 1000) * 1_000_000 // Phần còn lại là mili giây, chuyển sang nano
+    fun Long.toFirestoreTimestamp(): Timestamp {
+        val seconds = this / 1000
+        val nanoseconds = (this % 1000) * 1_000_000
         return Timestamp(seconds, nanoseconds.toInt())
     }
 }

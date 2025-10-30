@@ -1,28 +1,29 @@
 package com.tdc.nhom6.roomio.models
 
+import android.os.Parcelable
+import com.google.firebase.Timestamp
+import kotlinx.parcelize.Parcelize
 import java.math.BigDecimal
-import java.time.LocalDate
-import java.time.LocalDateTime
 
-class Booking(
+@Parcelize
+data class Booking(
+    val customerId: String,
+    val roomTypeId: String,
+    val totalOrigin: Double,
+    var totalFinal: Double,
 
-    val customerId: Int,
-    val roomTypeId: Int,
+    val statusId: Int? = 0,
 
-    val statusId: Int? = null,
+    val checkInDate: Long? = null,
+    val checkOutDate: Long? = null,
 
-    val checkInDate: LocalDateTime? = null,
-    val checkOutDate: LocalDateTime? = null,
-
-    val checkInDateActual: LocalDateTime? = null,
-    val checkOutDateActual: LocalDateTime? = null,
+    val checkInDateActual: Long? = null,
+    val checkOutDateActual: Long? = null,
 
     val numberGuest: Int = 1,
     val note: String? = null,
-    val totalOrigin: BigDecimal,
-    val discountId: String? = null,
+    var discountId: String? = null,
 
-    val totalFinal: BigDecimal,
+    val createdAt: Timestamp = Timestamp.now()
 
-    val createdAt: LocalDateTime = LocalDateTime.now()
-)
+) : Parcelable
