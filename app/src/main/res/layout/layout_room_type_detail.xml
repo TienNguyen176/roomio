@@ -132,17 +132,17 @@
                 android:layout_marginTop="8dp"/>
 
         </LinearLayout>
-        <Button
+        <TextView
             android:id="@+id/btnReverve"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/shape_foreground_radius"
             android:text="Reserve"
+            android:paddingHorizontal="10dp"
             android:textAllCaps="false"
             android:textColor="@color/green"
             android:paddingVertical="18dp"
-            android:layout_gravity="right|bottom"
-            />
+            android:layout_gravity="right|bottom"/>
 
     </LinearLayout>
 

@@ -105,7 +105,7 @@ class GuestDetailActivity : AppCompatActivity() {
             binding.tvHotelName.text = it.hotelName
             binding.address.text = it.hotelAddress
             binding.ratingBar.rating = it.averageRating.toFloat()
-            binding.tvReviews.text = it.totalReviews.toString()
+            binding.tvReviews.text = "(${it.totalReviews})"
         }
 
         binding.tvRoomType.text = currentRoomType?.typeName ?: "N/A"

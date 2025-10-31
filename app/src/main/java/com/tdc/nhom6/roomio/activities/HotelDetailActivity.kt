@@ -122,12 +122,15 @@ class HotelDetailActivity: AppCompatActivity() {
     }
 
     private fun setupToolbarScrollEffect() {
-        val maxScrollHeightDp = 300
+        val maxScrollHeightDp = 300 - binding.appBarLayout.height
         val maxScroll = resources.displayMetrics.density * maxScrollHeightDp
 
         val solidColor = ContextCompat.getColor(this, R.color.white)
 
         val controller = WindowCompat.getInsetsController(window, window.decorView)
+
+        controller?.isAppearanceLightStatusBars=false
+        binding.toolbar.navigationIcon?.setTint(solidColor)
 
         binding.scrollView.setOnScrollChangeListener(
             NestedScrollView.OnScrollChangeListener { v, scrollX, scrollY, oldScrollX, oldScrollY ->
@@ -144,16 +147,15 @@ class HotelDetailActivity: AppCompatActivity() {
 
                 binding.appBarLayout.setBackgroundColor(newColor)
 
-                if (scrollRatio >= 0.5f) {
+                if (scrollRatio >= 0.7f) {
+                    binding.appBarLayout.setBackgroundColor((solidColor))
+                    binding.appBarLayout.outlineProvider = ViewOutlineProvider.BOUNDS
                     controller?.isAppearanceLightStatusBars=true
                     binding.toolbar.navigationIcon?.setTint(resources.getColor(R.color.black))
                 }else{
+                    binding.appBarLayout.outlineProvider = null
                     controller?.isAppearanceLightStatusBars=false
                     binding.toolbar.navigationIcon?.setTint(solidColor)
-                }
-
-                if (scrollRatio >= 1.0f) {
-                    binding.appBarLayout.outlineProvider = ViewOutlineProvider.PADDED_BOUNDS
                 }
 
             }
@@ -180,6 +182,8 @@ class HotelDetailActivity: AppCompatActivity() {
 
                             Glide.with(this).load(hotelData.images?.get(0)).into(binding.imgHotel)
                             binding.tvAddress.text = hotelData.hotelAddress
+                            binding.ratingBar.rating = hotelData.averageRating.toFloat()
+                            binding.tvReviews.text = "(${hotelData.totalReviews})"
                             binding.tvNameHotel.text = hotelData.hotelName
                             binding.tvDescription.text = hotelData.description
 
