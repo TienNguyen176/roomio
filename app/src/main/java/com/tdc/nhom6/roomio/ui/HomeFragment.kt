@@ -18,6 +18,7 @@ import com.tdc.nhom6.roomio.model.HotReview
 import com.tdc.nhom6.roomio.model.HotReviewItem
 import com.tdc.nhom6.roomio.model.Hotel
 import com.tdc.nhom6.roomio.repository.FirebaseRepository
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -32,6 +33,8 @@ class HomeFragment : Fragment() {
     // Firebase repository for data operations
     private lateinit var firebaseRepository: FirebaseRepository
     private var hotReviews = emptyList<Hotel>()
+    private var hotReviewsListener: ListenerRegistration? = null
+    private var dealsListener: ListenerRegistration? = null
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -147,27 +150,36 @@ class HomeFragment : Fragment() {
      * This replaces sample data with real Firebase data
      */
     private fun loadDataFromFirebase() {
-        // Load hot reviews
-        firebaseRepository.getHotReviews { hotels ->
-            if (hotels.isNotEmpty()) {
+        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
+
+        if (hasPlay) {
+            // Observe hot reviews (realtime)
+            hotReviewsListener?.remove()
+            hotReviewsListener = firebaseRepository.observeHotReviews { hotels ->
                 hotReviews = hotels
                 hotReviewAdapter.updateData(hotReviews)
-                Log.d("Firebase", "Loaded ${hotReviews.size} hotels")
-            } else {
-                // If no Firebase data, show sample data
-                Log.d("Firebase", "Cannot load the hotels database")
+                Log.d("Firebase", "Realtime: ${hotReviews.size} hot reviews")
             }
-        }
 
-        // Load deals
-        firebaseRepository.getDeals { deals ->
-            if (::dealsAdapter.isInitialized) {
-                if (deals.isNotEmpty()) {
+            // Observe deals (realtime)
+            dealsListener?.remove()
+            dealsListener = firebaseRepository.observeDeals { deals ->
+                if (::dealsAdapter.isInitialized) {
                     dealsAdapter.updateData(deals.map { it.toDealItem() })
-                    Log.d("Firebase", "Loaded ${deals.size} deals")
-                } else {
-                    // If no Firebase data, show sample deals
-                    Log.d("Firebase", "Cannot load the hotels database")
+                    Log.d("Firebase", "Realtime: ${deals.size} deals")
+                }
+            }
+        } else {
+            // Fallback to one-shot loads when Play Services missing
+            firebaseRepository.getHotReviews { hotels ->
+                hotReviews = hotels
+                hotReviewAdapter.updateData(hotReviews)
+                Log.d("Firebase", "One-shot: ${hotReviews.size} hot reviews")
+            }
+            firebaseRepository.getDeals { deals ->
+                if (::dealsAdapter.isInitialized) {
+                    dealsAdapter.updateData(deals.map { it.toDealItem() })
+                    Log.d("Firebase", "One-shot: ${deals.size} deals")
                 }
             }
         }
@@ -198,6 +210,16 @@ class HomeFragment : Fragment() {
             ).show()
             println("Search navigation error: ${e.message}")
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        try {
+            hotReviewsListener?.remove()
+            dealsListener?.remove()
+        } catch (_: Exception) { }
+        hotReviewsListener = null
+        dealsListener = null
     }
 }
 

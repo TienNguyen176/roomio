@@ -1,50 +1,55 @@
-package com.tdc.nhom6.roomio
+package com.tdc.nhom6.roomio.activities
 
 import android.os.Bundle
+import android.os.StrictMode
 import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import android.content.pm.ApplicationInfo
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.FirebaseApp
+import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.ui.HomeFragment
 
-/**
- * MainActivity - The main screen of our hotel booking app
- * 
- * This is the entry point of our application. It sets up:
- * 1. The main layout with bottom navigation
- * 2. Shows the HomeFragment by default
- * 3. Handles navigation between different screens
- */
 class MainActivity : AppCompatActivity() {
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // Initialize Firebase
         try {
             FirebaseApp.initializeApp(this)
             Log.d("Firebase", "Firebase initialized successfully")
         } catch (e: Exception) {
-            Log.e("Firebase", "Failed to initialize Firebase: ${e.message}")
+            Log.e("Firebase", "Failed to initialize Firebase:${e.message}")
         }
-        
-        // Enable edge-to-edge display for modern Android look
+
+        // Enable StrictMode in debug builds only
+        try {
+            val isDebuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+            if (isDebuggable) {
+                val vmBuilder = StrictMode.VmPolicy.Builder()
+                    .detectLeakedClosableObjects()
+                    .penaltyLog()
+                StrictMode.setVmPolicy(vmBuilder.build())
+            }
+        } catch (_: Exception) { }
+
+        // Edge-to-edge
         enableEdgeToEdge()
-        
-        // Set the main layout
+
         setContentView(R.layout.activity_main)
-        
-        // Handle system bars (status bar, navigation bar) padding
+
+        // Apply window inset padding
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
 
-        // Show HomeFragment when app starts (only if no saved state)
+        // Show HomeFragment on first launch
         if (savedInstanceState == null) {
             supportFragmentManager
                 .beginTransaction()
@@ -52,26 +57,17 @@ class MainActivity : AppCompatActivity() {
                 .commit()
         }
 
-        // Set up bottom navigation
         setupBottomNavigation()
     }
-    
-    
-    /**
-     * Sets up the bottom navigation bar
-     * When user taps on different menu items, it shows different screens
-     */
+
     private fun setupBottomNavigation() {
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_nav)
-        
-        // Set the item icon tint to use our color selector (red when selected, black otherwise)
         bottomNav.itemIconTintList = resources.getColorStateList(R.color.nav_item_color)
         bottomNav.itemTextColor = resources.getColorStateList(R.color.nav_item_color)
-        
+
         bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.menu_home -> {
-                    // Show Home screen
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.nav_host_container, HomeFragment())
                         .commit()

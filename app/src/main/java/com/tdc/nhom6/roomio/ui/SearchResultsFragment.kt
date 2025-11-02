@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.model.Deal
 import com.tdc.nhom6.roomio.model.HotReview
@@ -18,6 +19,7 @@ import com.tdc.nhom6.roomio.model.RoomType
 import com.tdc.nhom6.roomio.model.SearchResultItem
 import com.tdc.nhom6.roomio.model.SearchResultType
 import com.tdc.nhom6.roomio.repository.FirebaseRepository
+import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.toObject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +30,11 @@ class SearchResultsFragment : Fragment() {
     private lateinit var firebaseRepository: FirebaseRepository
     private lateinit var searchResultsAdapter: SearchResultsAdapter
     private var searchQuery: String = ""
+    private var hotelsListener: ListenerRegistration? = null
+    private var roomTypesListener: ListenerRegistration? = null
+    private var dealsListener: ListenerRegistration? = null
+    private val roomTypesCache = mutableMapOf<String, MutableList<RoomType>>()
+    private val hotelsCache = mutableListOf<Hotel>()
 
     companion object {
         fun newInstance(query: String, location: String): SearchResultsFragment {
@@ -75,6 +82,18 @@ class SearchResultsFragment : Fragment() {
 
         // Perform search
         performSearch()
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        try {
+            hotelsListener?.remove()
+            roomTypesListener?.remove()
+            dealsListener?.remove()
+        } catch (_: Exception) { }
+        hotelsListener = null
+        roomTypesListener = null
+        dealsListener = null
     }
 
     private fun setupUI(view: View) {
@@ -217,46 +236,110 @@ class SearchResultsFragment : Fragment() {
     }
 
     private fun performFirebaseSearch() {
-        // Simple search using Firebase directly
+        // Simple search using Firebase directly with real-time updates
         val results = mutableListOf<SearchResultItem>()
+        var dealsSearchInitialized = false
 
         try {
-            // Search hotels
-            firebaseRepository.db.collection("hotels")
-            .get()
-            .addOnSuccessListener { hotelResult ->
-                val hotels = mutableListOf<Hotel>()
-                for (document in hotelResult) {
-                    try {
-                        val hotel: Hotel = document.toObject<Hotel>()
-                        if (hotel.hotelName.lowercase().contains(searchQuery.lowercase()) ||
-                            hotel.hotelAddress.lowercase().contains(searchQuery.lowercase())) {
-                            hotels.add(hotel)
-                        }
-                    } catch (e: Exception) {
-                        Log.e("Search", "Error converting hotel document ${document.id}: ${e.message}")
-                        // Skip this document and continue with others
-                    }
+            // Helper function to filter and update hotel results
+            fun updateHotelResults(hotels: List<Hotel>) {
+                val filteredHotels = hotels.filter { hotel ->
+                    searchQuery.isBlank() || 
+                    hotel.hotelName.lowercase().contains(searchQuery.lowercase()) ||
+                    hotel.hotelAddress.lowercase().contains(searchQuery.lowercase())
                 }
 
-                // Load room types to get correct prices for hotels
-                loadRoomTypesAndUpdatePrices(hotels) { hotelsWithPrices ->
-                    hotelsWithPrices.forEach { hotel ->
-                        results.add(SearchResultItem(
-                            type = SearchResultType.HOTEL,
-                            hotel = hotel,
-                            deal = null,
-                            review = null
-                        ))
-                    }
+                // Update prices using cached room types
+                val hotelsWithPrices = filteredHotels.map { hotel ->
+                    val roomTypes = roomTypesCache[hotel.hotelId] ?: emptyList()
+                    val lowestPrice = roomTypes.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
+                    val highestPrice = roomTypes.maxOfOrNull { it.pricePerNight }
 
-                    // Continue with deals search
+                    hotel.copy(
+                        pricePerNight = lowestPrice,
+                        lowestPricePerNight = if (roomTypes.isNotEmpty()) lowestPrice else null,
+                        highestPricePerNight = highestPrice
+                    )
+                }
+
+                // Remove old hotel results
+                results.removeAll { it.type == SearchResultType.HOTEL }
+                
+                // Add new hotel results
+                hotelsWithPrices.forEach { hotel ->
+                    results.add(SearchResultItem(
+                        type = SearchResultType.HOTEL,
+                        hotel = hotel,
+                        deal = null,
+                        review = null
+                    ))
+                }
+
+                // Update the adapter
+                searchResultsAdapter.updateData(results.toList())
+
+                // Continue with deals search (only once)
+                if (!dealsSearchInitialized) {
+                    dealsSearchInitialized = true
                     performDealsSearch(results)
                 }
             }
-            .addOnFailureListener { exception ->
-                android.widget.Toast.makeText(requireContext(), "Error searching hotels: ${exception.message}", Toast.LENGTH_LONG).show()
-            }
+
+            // Observe hotels in real-time
+            hotelsListener?.remove()
+            hotelsListener = firebaseRepository.db.collection("hotels")
+                .addSnapshotListener { hotelResult, error ->
+                    if (error != null) {
+                        android.widget.Toast.makeText(requireContext(), "Error searching hotels: ${error.message}", Toast.LENGTH_LONG).show()
+                        Log.e("Search", "Error observing hotels: ${error.message}")
+                        return@addSnapshotListener
+                    }
+
+                    hotelsCache.clear()
+                    if (hotelResult != null) {
+                        for (document in hotelResult) {
+                            try {
+                                val hotel: Hotel = document.toObject<Hotel>()
+                                hotelsCache.add(hotel)
+                            } catch (e: Exception) {
+                                Log.e("Search", "Error converting hotel document ${document.id}: ${e.message}")
+                            }
+                        }
+                    }
+
+                    updateHotelResults(hotelsCache)
+                }
+
+            // Observe room types in real-time
+            roomTypesListener?.remove()
+            roomTypesListener = firebaseRepository.db.collection("roomTypes")
+                .addSnapshotListener { roomTypesResult, error ->
+                    if (error != null) {
+                        Log.e("Search", "Error observing room types: ${error.message}")
+                        return@addSnapshotListener
+                    }
+
+                    roomTypesCache.clear()
+                    if (roomTypesResult != null) {
+                        for (document in roomTypesResult) {
+                            try {
+                                val roomType: RoomType = document.toObject<RoomType>()
+                                val hotelId = roomType.hotelId
+                                if (!roomTypesCache.containsKey(hotelId)) {
+                                    roomTypesCache[hotelId] = mutableListOf()
+                                }
+                                roomTypesCache[hotelId]?.add(roomType)
+                            } catch (e: Exception) {
+                                Log.e("Search", "Error converting room type ${document.id}: ${e.message}")
+                            }
+                        }
+                    }
+
+                    // Re-update hotel results with new room types using cached hotels
+                    if (hotelsCache.isNotEmpty()) {
+                        updateHotelResults(hotelsCache)
+                    }
+                }
         } catch (e: Exception) {
             android.widget.Toast.makeText(requireContext(), "Search error: ${e.message}", Toast.LENGTH_LONG).show()
             Log.e("Search", "Exception in search: ${e.message}")
@@ -287,12 +370,17 @@ class SearchResultsFragment : Fragment() {
                     }
                 }
 
-                // Update hotel prices with lowest room price
+                // Update hotel prices with lowest and highest room prices
                 val hotelsWithPrices = hotels.map { hotel ->
                     val roomTypes = roomTypesMap[hotel.hotelId] ?: emptyList()
                     val lowestPrice = roomTypes.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
+                    val highestPrice = roomTypes.maxOfOrNull { it.pricePerNight }
 
-                    hotel.copy(pricePerNight = lowestPrice)
+                    hotel.copy(
+                        pricePerNight = lowestPrice,
+                        lowestPricePerNight = if (roomTypes.isNotEmpty()) lowestPrice else null,
+                        highestPricePerNight = highestPrice
+                    )
                 }
 
                 callback(hotelsWithPrices)
@@ -305,42 +393,61 @@ class SearchResultsFragment : Fragment() {
     }
 
     private fun performDealsSearch(results: MutableList<SearchResultItem>) {
-        // Search deals
-        firebaseRepository.db.collection("deals")
-            .get()
-            .addOnSuccessListener { dealResult ->
-                for (document in dealResult) {
-                    try {
-                        val deal: Deal = document.toObject<Deal>()
-                        if (deal.hotelName.lowercase().contains(searchQuery.lowercase()) ||
-                            deal.hotelLocation.lowercase().contains(searchQuery.lowercase())) {
-                            results.add(SearchResultItem(
+        // Realtime deals based on discounts
+        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
+        if (hasPlay) {
+            dealsListener?.remove()
+            dealsListener = firebaseRepository.observeDeals { deals ->
+                try {
+                    deals.filter {
+                        it.hotelName.lowercase().contains(searchQuery.lowercase()) ||
+                        it.hotelLocation.lowercase().contains(searchQuery.lowercase())
+                    }.forEach { deal ->
+                        results.add(
+                            SearchResultItem(
                                 type = SearchResultType.DEAL,
                                 hotel = null,
                                 deal = deal,
                                 review = null
-                            ))
-                        }
-                    } catch (e: Exception) {
-                        Log.e("Search", "Error converting deal document ${document.id}: ${e.message}")
-                        // Skip this document and continue with others
+                            )
+                        )
                     }
-                }
 
-                // Update adapter with results
-                searchResultsAdapter.updateData(results)
+                    searchResultsAdapter.updateData(results)
 
-                // Show results message
-                val message = if (results.isEmpty()) {
-                    "No results found for '$searchQuery'. Try: Ares, Vung Tau, Saigon, Sapa, or Nha Trang"
-                } else {
-                    "Found ${results.size} results for '$searchQuery'"
+                    val message = if (results.isEmpty()) {
+                        "No results found for '$searchQuery'. Try: Ares, Vung Tau, Saigon, Sapa, or Nha Trang"
+                    } else {
+                        "Found ${results.size} results for '$searchQuery'"
+                    }
+                    android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(requireContext(), "Error searching deals: ${e.message}", Toast.LENGTH_LONG).show()
                 }
-                android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
             }
-            .addOnFailureListener { exception ->
-                android.widget.Toast.makeText(requireContext(), "Error searching deals: ${exception.message}", Toast.LENGTH_LONG).show()
+        } else {
+            // One-shot fallback
+            firebaseRepository.getDeals { deals ->
+                try {
+                    deals.filter {
+                        it.hotelName.lowercase().contains(searchQuery.lowercase()) ||
+                        it.hotelLocation.lowercase().contains(searchQuery.lowercase())
+                    }.forEach { deal ->
+                        results.add(
+                            SearchResultItem(
+                                type = SearchResultType.DEAL,
+                                hotel = null,
+                                deal = deal,
+                                review = null
+                            )
+                        )
+                    }
+                    searchResultsAdapter.updateData(results)
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(requireContext(), "Error searching deals: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
+        }
     }
 
     // All offline/sample search code removed
@@ -382,7 +489,7 @@ class SearchResultsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
         when (item.type) {
             SearchResultType.HOTEL -> {
                 item.hotel?.let { hotel ->
-                    img.setImageResource(getDrawableResourceId(hotel.images.firstOrNull() ?: "hotel_64260231_1"))
+                    loadImage(hotel.images.firstOrNull() ?: "hotel_64260231_1", img)
                     title.text = hotel.hotelName
                     location.text = extractLocationFromAddress(hotel.hotelAddress)
                     price.text = formatPrice(hotel.pricePerNight)
@@ -392,7 +499,7 @@ class SearchResultsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
             }
             SearchResultType.DEAL -> {
                 item.deal?.let { deal ->
-                    img.setImageResource(getDrawableResourceId(deal.imageUrl))
+                    loadImage(deal.imageUrl, img)
                     title.text = deal.hotelName
                     location.text = deal.hotelLocation
                     price.text = formatPrice(deal.discountPricePerNight)
@@ -402,7 +509,7 @@ class SearchResultsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
             }
             SearchResultType.REVIEW -> {
                 item.review?.let { review ->
-                    img.setImageResource(getDrawableResourceId(review.hotelImage))
+                    loadImage(review.hotelImage, img)
                     title.text = review.hotelName
                     location.text = review.location
                     price.text = formatPrice(review.pricePerNight)
@@ -461,16 +568,25 @@ class SearchResultsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
         }
     }
 
-    private fun getDrawableResourceId(imageName: String): Int {
-        return when (imageName) {
-            "hotel_64260231_1" -> R.drawable.hotel_64260231_1
-            "hotel_del_coronado_views_suite1600x900" -> R.drawable.hotel_del_coronado_views_suite1600x900
-            "swimming_pool_1" -> R.drawable.swimming_pool_1
-            "room_640278495" -> R.drawable.room_640278495
-            "rectangle_copy_2" -> R.drawable.rectangle_copy_2
-            "property_colombo" -> R.drawable.property_colombo
-            "dsc04512_scaled_1" -> R.drawable.dsc04512_scaled_1
-            else -> R.drawable.hotel_64260231_1
+    private fun loadImage(nameOrUrl: String, target: android.widget.ImageView) {
+        if (nameOrUrl.startsWith("http", ignoreCase = true) || nameOrUrl.contains("/")) {
+            Glide.with(target.context)
+                .load(nameOrUrl)
+                .placeholder(R.drawable.hotel_64260231_1)
+                .error(R.drawable.hotel_64260231_1)
+                .into(target)
+        } else {
+            val resId = when (nameOrUrl) {
+                "hotel_64260231_1" -> R.drawable.hotel_64260231_1
+                "hotel_del_coronado_views_suite1600x900" -> R.drawable.hotel_del_coronado_views_suite1600x900
+                "swimming_pool_1" -> R.drawable.swimming_pool_1
+                "room_640278495" -> R.drawable.room_640278495
+                "rectangle_copy_2" -> R.drawable.rectangle_copy_2
+                "property_colombo" -> R.drawable.property_colombo
+                "dsc04512_scaled_1" -> R.drawable.dsc04512_scaled_1
+                else -> R.drawable.hotel_64260231_1
+            }
+            target.setImageResource(resId)
         }
     }
 }

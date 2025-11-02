@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.model.DealItem
 
@@ -71,9 +72,13 @@ class DealsAdapter(
          * This is where we put the actual data into the UI elements
          */
         fun bind(hotelDeal: DealItem) {
-            // Set the hotel image
-            dealImage.setImageResource(hotelDeal.imageRes)
-            
+            try {
+                dealImage.setImageResource(hotelDeal.imageRes)
+            } catch (_: Exception) {
+                // As a safety, keep a placeholder
+                dealImage.setImageResource(R.drawable.hotel_64260231_1)
+            }
+
             // Set the hotel name
             dealTitle.text = hotelDeal.title
             

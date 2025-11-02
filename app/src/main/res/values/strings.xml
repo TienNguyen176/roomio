@@ -49,4 +49,14 @@
     <string name="payment_method_online">Payment method: Online</string>
     <string name="guest_name_harper">Guest name: Harper</string>
     <string name="check_in">Check-in</string>
+    <string name="plus">+</string>
+    <string name="minus">-</string>
+    <string name="number_of_guest">Number of guest:</string>
+    <string name="date_and_time">Date and time:</string>
+    <string name="ok">Ok</string>
+    <string name="cancel">Cancel</string>
+    <string name="confirm_check_in">Confirm check-in?</string>
+    <string name="confirm_check_out">Confirm check-out?</string>
+    <string name="confirm_payment">Confirm payment?</string>
+    <string name="notification">Notification</string>
 </resources>

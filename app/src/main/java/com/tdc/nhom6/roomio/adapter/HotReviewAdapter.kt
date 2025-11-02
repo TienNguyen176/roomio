@@ -59,6 +59,28 @@ class HotReviewAdapter(
     }
 
 
+    /**
+     * Formats price with dots as thousands separators (Vietnamese format)
+     * Example: 1300000 -> "1.300.000"
+     */
+    private fun formatPriceWithDots(price: Double): String {
+        val priceLong = price.toLong()
+        return String.format("%,d", priceLong).replace(',', '.')
+    }
+
+    /**
+     * Formats price range: lowest - highest
+     * If highest is null or same as lowest, shows only lowest price
+     */
+    private fun formatPriceRange(lowestPrice: Double, highestPrice: Double?): String {
+        val lowestFormatted = formatPriceWithDots(lowestPrice)
+        return if (highestPrice != null && highestPrice > lowestPrice) {
+            "$lowestFormatted - ${formatPriceWithDots(highestPrice)}"
+        } else {
+            lowestFormatted
+        }
+    }
+
     inner class HotReviewViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
         // Find the views in the layout
@@ -82,8 +104,11 @@ class HotReviewAdapter(
             // Set the rating (e.g., "4.5 (234)")
             hotelRating.text = "${hotel.averageRating} (${hotel.totalReviews})"
 
-            // Set the price (e.g., "VND 1,500,000")
-            hotelPrice.text = "VND ${String.format("%.0f", hotel.pricePerNight)}"
+            // Set the price range (e.g., "1.300.000 - 2.000.000")
+            hotelPrice.text = formatPriceRange(
+                hotel.lowestPricePerNight ?: hotel.pricePerNight,
+                hotel.highestPricePerNight
+            )
         }
     }
 }

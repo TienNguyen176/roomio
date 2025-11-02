@@ -17,7 +17,9 @@ data class Hotel(
     val images: List<String> = emptyList(),
     val averageRating: Double = 0.0,
     val totalReviews: Int = 0,
-    val pricePerNight: Double = 0.0
+    val pricePerNight: Double = 0.0,
+    val lowestPricePerNight: Double? = null, // Lowest price from room types
+    val highestPricePerNight: Double? = null  // Highest price from room types
 )
 
 data class HotelType(
