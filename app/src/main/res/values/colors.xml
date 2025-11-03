@@ -2,7 +2,7 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="red">#FF2D55</color>
+    <color name="red">#FFFF0000</color>
     <color name="transparent">#00000000</color>
     <color name="green">#30A854</color>
     <color name="calendar_primary_color">#F44336</color>

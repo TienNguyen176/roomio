@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="12dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Header -->
+        <LinearLayout
+            android:id="@+id/header"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="#D3E7F6"
+            android:gravity="center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <TextView
+                android:id="@+id/tvReservationId"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/reservation_id_r8zzpqr7"
+                android:textStyle="bold"
+                android:textColor="#2D6C8C" />
+
+            <TextView
+                android:id="@+id/tvStatusBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/deposit_paid"
+                android:textStyle="bold"
+                android:textColor="#2D6C8C" />
+        </LinearLayout>
+
+        <!-- Body -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/tvLine1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/check_in_20_09_1025_check_out_22_09_2025"
+                android:textColor="#222222" />
+
+            <TextView
+                android:id="@+id/tvLine2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/payment_method_online"
+                android:textColor="#222222" />
+
+            <TextView
+                android:id="@+id/tvLine3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/guest_name_harper"
+                android:textColor="#222222" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="end">
+
+                <TextView
+                    android:id="@+id/btnAction"
+                    android:layout_width="120dp"
+                    android:layout_height="40dp"
+                    android:gravity="center"
+                    android:text="@string/check_in"
+                    android:textStyle="bold"
+                    android:textColor="#3A3A3A"
+                    android:background="@drawable/bg_action_button" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>
+
+
+
+
+
+
+
+
+
+
+
+
