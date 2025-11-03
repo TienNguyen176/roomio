@@ -1,8 +1,8 @@
-package com.tdc.nhom6.roomio.model
+package com.tdc.nhom6.roomio.models
 
 import com.google.firebase.firestore.DocumentId
 
-data class Discount(
+data class DiscountHotel(
     @DocumentId
     val discountId: String = "",
     val hotelId: String = "",

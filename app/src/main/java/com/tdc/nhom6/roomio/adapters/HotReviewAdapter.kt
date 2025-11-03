@@ -1,7 +1,6 @@
-package com.tdc.nhom6.roomio.adapter
+package com.tdc.nhom6.roomio.adapters
 
-import android.content.Context
-import android.util.Log
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,8 +9,8 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.model.HotReviewItem
-import com.tdc.nhom6.roomio.model.Hotel
+import com.tdc.nhom6.roomio.activities.HotelDetailActivity
+import com.tdc.nhom6.roomio.models.Hotel
 
 
 class HotReviewAdapter(
@@ -35,7 +34,7 @@ class HotReviewAdapter(
      */
     override fun onBindViewHolder(holder: HotReviewViewHolder, position: Int) {
         // Get the hotel review at this position
-        val hotelReview:Hotel = hotelReviews[position]
+        val hotelReview: Hotel = hotelReviews[position]
 
         // Put the data into the view holder
         holder.bind(hotelReview)
@@ -95,7 +94,7 @@ class HotReviewAdapter(
             if (hotel.images.isNotEmpty()) {
                 Glide.with(hotelImage.context).load(hotel.images[0]).into(hotelImage)
             } else {
-                hotelImage.setImageResource(R.drawable.hotel_64260231_1)
+                hotelImage.setImageResource(R.drawable.caption)
             }
 
             // Set the hotel name
@@ -109,6 +108,11 @@ class HotReviewAdapter(
                 hotel.lowestPricePerNight ?: hotel.pricePerNight,
                 hotel.highestPricePerNight
             )
+            itemView.setOnClickListener(View.OnClickListener {
+                val intent = Intent(itemView.context,HotelDetailActivity::class.java)
+                intent.putExtra("HOTEL_ID",hotel.hotelId)
+                itemView.context.startActivity(intent)
+            })
         }
     }
 }

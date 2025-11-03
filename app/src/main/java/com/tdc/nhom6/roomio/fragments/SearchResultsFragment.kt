@@ -1,4 +1,4 @@
-package com.tdc.nhom6.roomio.ui
+package com.tdc.nhom6.roomio.fragments
 
 import android.annotation.SuppressLint
 import android.os.Bundle
@@ -12,19 +12,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.model.Deal
-import com.tdc.nhom6.roomio.model.HotReview
-import com.tdc.nhom6.roomio.model.Hotel
-import com.tdc.nhom6.roomio.model.RoomType
-import com.tdc.nhom6.roomio.model.SearchResultItem
-import com.tdc.nhom6.roomio.model.SearchResultType
+import com.tdc.nhom6.roomio.models.Hotel
+import com.tdc.nhom6.roomio.models.SearchResultItem
+import com.tdc.nhom6.roomio.models.SearchResultType
 import com.tdc.nhom6.roomio.repository.FirebaseRepository
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.toObject
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.tdc.nhom6.roomio.models.RoomType
 
 class SearchResultsFragment : Fragment() {
     private lateinit var firebaseRepository: FirebaseRepository
@@ -267,12 +261,14 @@ class SearchResultsFragment : Fragment() {
                 
                 // Add new hotel results
                 hotelsWithPrices.forEach { hotel ->
-                    results.add(SearchResultItem(
+                    results.add(
+                        SearchResultItem(
                         type = SearchResultType.HOTEL,
                         hotel = hotel,
                         deal = null,
                         review = null
-                    ))
+                    )
+                    )
                 }
 
                 // Update the adapter
@@ -572,19 +568,19 @@ class SearchResultsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
         if (nameOrUrl.startsWith("http", ignoreCase = true) || nameOrUrl.contains("/")) {
             Glide.with(target.context)
                 .load(nameOrUrl)
-                .placeholder(R.drawable.hotel_64260231_1)
-                .error(R.drawable.hotel_64260231_1)
+                .placeholder(R.drawable.caption)
+                .error(R.drawable.caption)
                 .into(target)
         } else {
             val resId = when (nameOrUrl) {
-                "hotel_64260231_1" -> R.drawable.hotel_64260231_1
+                "hotel_64260231_1" -> R.drawable.caption
                 "hotel_del_coronado_views_suite1600x900" -> R.drawable.hotel_del_coronado_views_suite1600x900
                 "swimming_pool_1" -> R.drawable.swimming_pool_1
                 "room_640278495" -> R.drawable.room_640278495
                 "rectangle_copy_2" -> R.drawable.rectangle_copy_2
                 "property_colombo" -> R.drawable.property_colombo
                 "dsc04512_scaled_1" -> R.drawable.dsc04512_scaled_1
-                else -> R.drawable.hotel_64260231_1
+                else -> R.drawable.caption
             }
             target.setImageResource(resId)
         }

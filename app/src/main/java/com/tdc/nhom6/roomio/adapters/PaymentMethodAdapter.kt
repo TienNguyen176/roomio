@@ -1,12 +1,16 @@
 package com.tdc.nhom6.roomio.adapters
 
 import android.annotation.SuppressLint
+import android.graphics.drawable.Drawable
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
@@ -112,9 +116,23 @@ class PaymentMethodAdapter(
         fun onBind(itemMethod: PaymentMethod) {
             binding.radId.text = itemMethod.paymentMethodName
 
-            val drawable = itemMethod.iconId?.let {itemView.context.getDrawable(it)}
+//            val drawable = itemMethod.iconId?.let {itemView.context.getDrawable(it)}
+            Glide.with(itemView.context).asDrawable().load(itemMethod.iconId).into(
+               object :CustomTarget<Drawable>(){
+                   override fun onResourceReady(
+                       resource: Drawable,
+                       transition: Transition<in Drawable>?
+                   ) {
+                       binding.radId.setCompoundDrawablesWithIntrinsicBounds(resource, null, null, null)
+                   }
 
-            binding.radId.setCompoundDrawablesWithIntrinsicBounds(drawable, null, null, null)
+                   override fun onLoadCleared(placeholder: Drawable?) {
+                       binding.radId.setCompoundDrawablesWithIntrinsicBounds(placeholder, null, null, null)
+                   }
+
+               }
+            )
+
 
             // ⭐ Dừng listener cũ trước khi thiết lập cái mới (quan trọng cho tái sử dụng ViewHolder)
             discountListener?.remove()

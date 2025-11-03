@@ -25,10 +25,10 @@ import com.tdc.nhom6.roomio.models.Facility
 import com.tdc.nhom6.roomio.models.FacilityAdapter
 import com.tdc.nhom6.roomio.models.FacilityPriceRateModel
 import com.tdc.nhom6.roomio.models.RoomImage
-import com.tdc.nhom6.roomio.models.RoomType
 import com.tdc.nhom6.roomio.models.Scene
 import java.util.Locale
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.tdc.nhom6.roomio.models.RoomType
 import java.util.concurrent.TimeUnit
 
 class RoomTypeAdapter(
@@ -120,7 +120,7 @@ class RoomTypeAdapter(
         }
 
         holder.facilitiesList.clear()
-        loadFacilityRatesRealtime(roomType.typeId, holder.facilitiesList, holder.facilityAdapter, holder)
+        loadFacilityRatesRealtime(roomType.roomTypeId, holder.facilitiesList, holder.facilityAdapter, holder)
 
 
         if (expandedPositions.contains(position)) {
@@ -288,7 +288,7 @@ class RoomTypeAdapter(
 
             booking = Booking(
                 customerId = customerId,
-                roomTypeId = roomType.typeId,
+                roomTypeId = roomType.roomTypeId,
                 checkInDate = startDate,
                 checkOutDate = endDate,
                 numberGuest = roomType.maxPeople,

@@ -3,7 +3,7 @@ package com.tdc.nhom6.roomio.activities
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.ui.ReceptionFragment
+import com.tdc.nhom6.roomio.fragments.ReceptionFragment
 
 class ReceptionActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

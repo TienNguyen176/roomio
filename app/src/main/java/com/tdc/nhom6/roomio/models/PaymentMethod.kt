@@ -8,7 +8,7 @@ data class PaymentMethod(
 
     val description: String? = null,
 
-    val iconId: Int? = null,
+    val iconId: String? = null,
     val discountId: String? = null
 
 )

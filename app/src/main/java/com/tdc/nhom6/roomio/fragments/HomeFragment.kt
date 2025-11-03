@@ -1,4 +1,4 @@
-package com.tdc.nhom6.roomio.ui
+package com.tdc.nhom6.roomio.fragments
 
 import android.os.Bundle
 import android.util.Log
@@ -10,18 +10,14 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.adapter.DealsAdapter
-import com.tdc.nhom6.roomio.adapter.HotReviewAdapter
-import com.tdc.nhom6.roomio.model.Deal
-import com.tdc.nhom6.roomio.model.DealItem
-import com.tdc.nhom6.roomio.model.HotReview
-import com.tdc.nhom6.roomio.model.HotReviewItem
-import com.tdc.nhom6.roomio.model.Hotel
+import com.tdc.nhom6.roomio.adapters.DealsAdapter
+import com.tdc.nhom6.roomio.adapters.HotReviewAdapter
+import com.tdc.nhom6.roomio.models.Deal
+import com.tdc.nhom6.roomio.models.DealItem
+import com.tdc.nhom6.roomio.models.HotReviewItem
+import com.tdc.nhom6.roomio.models.Hotel
 import com.tdc.nhom6.roomio.repository.FirebaseRepository
 import com.google.firebase.firestore.ListenerRegistration
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 
 class HomeFragment : Fragment() {

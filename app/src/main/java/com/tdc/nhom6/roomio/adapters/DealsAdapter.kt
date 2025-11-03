@@ -1,4 +1,4 @@
-package com.tdc.nhom6.roomio.adapter
+package com.tdc.nhom6.roomio.adapters
 
 import android.view.LayoutInflater
 import android.view.View
@@ -6,9 +6,8 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.model.DealItem
+import com.tdc.nhom6.roomio.models.DealItem
 
 
 class DealsAdapter(
@@ -76,7 +75,7 @@ class DealsAdapter(
                 dealImage.setImageResource(hotelDeal.imageRes)
             } catch (_: Exception) {
                 // As a safety, keep a placeholder
-                dealImage.setImageResource(R.drawable.hotel_64260231_1)
+                dealImage.setImageResource(R.drawable.caption)
             }
 
             // Set the hotel name

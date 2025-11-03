@@ -8,17 +8,12 @@ import com.google.firebase.firestore.ListenerRegistration
 import android.app.Activity
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
-import com.tdc.nhom6.roomio.model.Deal
-import com.tdc.nhom6.roomio.model.Discount
-import com.tdc.nhom6.roomio.model.HotReview
-import com.tdc.nhom6.roomio.model.Hotel
-import com.tdc.nhom6.roomio.model.RoomType
-import com.tdc.nhom6.roomio.model.SearchResultItem
-import com.tdc.nhom6.roomio.model.SearchResultType
+import com.tdc.nhom6.roomio.models.Deal
+import com.tdc.nhom6.roomio.models.DiscountHotel
+import com.tdc.nhom6.roomio.models.Hotel
+import com.tdc.nhom6.roomio.models.RoomType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -351,10 +346,10 @@ class FirebaseRepository {
             db.collection("discounts")
                 .get()
                 .addOnSuccessListener { discountResult ->
-                    val discounts = mutableListOf<Discount>()
+                    val discounts = mutableListOf<DiscountHotel>()
                     for (document in discountResult) {
                         try {
-                            val discount: Discount = document.toObject<Discount>()
+                            val discount: DiscountHotel = document.toObject<DiscountHotel>()
                             discounts.add(discount)
                         } catch (e: Exception) {
                             Log.e("Firebase", "Error converting discount ${document.id}: ${e.message}")
@@ -477,7 +472,7 @@ class FirebaseRepository {
      */
     fun observeDeals(callback: (List<Deal>) -> Unit): ListenerRegistration {
         // Cache for discounts, hotels, and room types
-        val discountsCache = mutableListOf<Discount>()
+        val discountsCache = mutableListOf<DiscountHotel>()
         val hotelMapCache = mutableMapOf<String, Hotel>()
         val roomTypeMapCache = mutableMapOf<String, RoomType>()
         val hotelIdToRoomTypesCache = mutableMapOf<String, MutableList<RoomType>>()
@@ -545,7 +540,7 @@ class FirebaseRepository {
                 if (discountResult != null) {
                     for (document in discountResult) {
                         try {
-                            val discount: Discount = document.toObject<Discount>()
+                            val discount: DiscountHotel = document.toObject<DiscountHotel>()
                             discountsCache.add(discount)
                         } catch (e: Exception) {
                             Log.e("Firebase", "Error converting discount ${document.id}: ${e.message}")
@@ -614,7 +609,7 @@ class FirebaseRepository {
 
     fun observeDeals(activity: Activity, callback: (List<Deal>) -> Unit): ListenerRegistration {
         // Cache for discounts, hotels, and room types
-        val discountsCache = mutableListOf<Discount>()
+        val discountsCache = mutableListOf<DiscountHotel>()
         val hotelMapCache = mutableMapOf<String, Hotel>()
         val roomTypeMapCache = mutableMapOf<String, RoomType>()
         val hotelIdToRoomTypesCache = mutableMapOf<String, MutableList<RoomType>>()
@@ -682,7 +677,7 @@ class FirebaseRepository {
                 if (discountResult != null) {
                     for (document in discountResult) {
                         try {
-                            val discount: Discount = document.toObject<Discount>()
+                            val discount: DiscountHotel = document.toObject<DiscountHotel>()
                             discountsCache.add(discount)
                         } catch (e: Exception) {
                             Log.e("Firebase", "Error converting discount ${document.id}: ${e.message}")

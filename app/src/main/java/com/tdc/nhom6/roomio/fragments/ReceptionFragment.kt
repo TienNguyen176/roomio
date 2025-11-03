@@ -1,4 +1,4 @@
-package com.tdc.nhom6.roomio.ui
+package com.tdc.nhom6.roomio.fragments
 
 import android.os.Bundle
 import android.view.LayoutInflater

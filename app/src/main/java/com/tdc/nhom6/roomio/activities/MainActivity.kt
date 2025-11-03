@@ -11,7 +11,7 @@ import android.content.pm.ApplicationInfo
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.FirebaseApp
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.ui.HomeFragment
+import com.tdc.nhom6.roomio.fragments.HomeFragment
 
 class MainActivity : AppCompatActivity() {
 

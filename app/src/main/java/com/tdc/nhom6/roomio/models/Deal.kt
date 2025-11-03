@@ -1,4 +1,4 @@
-package com.tdc.nhom6.roomio.model
+package com.tdc.nhom6.roomio.models
 
 import com.google.firebase.firestore.DocumentId
 

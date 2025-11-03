@@ -53,8 +53,9 @@ class HotelDetailActivity: AppCompatActivity() {
     private var roomTypesListener: ListenerRegistration? = null
 
 
+
     companion object {
-        val HOTEL_ID = "hotel-001"
+        lateinit var HOTEL_ID:String
         val db = FirebaseFirestore.getInstance()
     }
 
@@ -81,8 +82,7 @@ class HotelDetailActivity: AppCompatActivity() {
             insets
         }
 
-        initialLayout()
-        initialAction()
+        initial()
         setupToolbarScrollEffect()
     }
 
@@ -95,8 +95,10 @@ class HotelDetailActivity: AppCompatActivity() {
     }
 
 
-    private fun initialLayout() {
-    setSupportActionBar(binding.toolbar)
+    private fun initial() {
+        HOTEL_ID = intent.getStringExtra("HOTEL_ID").toString()
+        Log.d("Intent", HOTEL_ID)
+        setSupportActionBar(binding.toolbar)
         supportActionBar?.title = ""
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
@@ -116,9 +118,6 @@ class HotelDetailActivity: AppCompatActivity() {
         loadHotel()
         loadRoomTypes()
         loadServices()
-    }
-
-    private fun initialAction() {
     }
 
     private fun setupToolbarScrollEffect() {
@@ -331,7 +330,7 @@ class HotelDetailActivity: AppCompatActivity() {
             uploadedAt = Date().time.toFirestoreTimestamp()
         )
         val myTypeSafeRoom = RoomType(
-            typeId = ROOM_ID,
+            roomTypeId = ROOM_ID,
             hotelId = HOTEL_ID,
             typeName = "SUPERIOR DOUBLE ROOM",
             pricePerNight = 1300000.0,

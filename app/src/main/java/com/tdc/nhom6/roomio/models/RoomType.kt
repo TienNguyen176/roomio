@@ -4,7 +4,7 @@ import com.google.firebase.Timestamp
 import java.math.BigDecimal
 
 class RoomType(
-    val typeId: String = "",
+    val roomTypeId: String = "",
     val hotelId: String = "" ,
     val typeName: String = "",
     val description: String? = null,
