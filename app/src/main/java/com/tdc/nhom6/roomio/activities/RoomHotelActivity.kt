@@ -9,16 +9,13 @@ import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.RoomsAdapter
 import com.tdc.nhom6.roomio.databinding.RoomFloorsHotelLayoutBinding
 import com.tdc.nhom6.roomio.models.Room
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 class RoomHotelActivity : AppCompatActivity() {
 
@@ -26,6 +23,7 @@ class RoomHotelActivity : AppCompatActivity() {
     private lateinit var roomsAdapter: RoomsAdapter
     private val db = FirebaseFirestore.getInstance()
     private var hotelId: String? = null
+    private var roomsListener: ListenerRegistration? = null
 
     private var allRooms: List<Room> = emptyList()
     private var selectedFloor: Long? = null
@@ -128,37 +126,39 @@ class RoomHotelActivity : AppCompatActivity() {
             }
     }
 
+
     private fun loadRoomData() {
         val currentHotelId = hotelId!!
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val roomsCollectionRef = db.collection("hotels")
-                    .document(currentHotelId)
-                    .collection("rooms")
+        // Hủy listener cũ (nếu có) để tránh trùng lặp
+        roomsListener?.remove()
 
-                val snapshot = roomsCollectionRef.get().await()
+        val roomsCollectionRef = db.collection("hotels")
+            .document(currentHotelId)
+            .collection("rooms")
 
-                val roomsList = snapshot.documents.mapNotNull { document ->
-                    document.toObject(Room::class.java)
+        roomsListener = roomsCollectionRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Toast.makeText(this, "Lỗi khi lắng nghe dữ liệu: ${error.message}", Toast.LENGTH_LONG).show()
+                Log.e("RoomHotelActivity", "Firestore listener error", error)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                val roomsList = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Room::class.java)
                 }.sortedWith(compareBy<Room> { it.floor }.thenBy { it.room_number })
 
                 allRooms = roomsList
+                roomsAdapter.submitList(allRooms)
+                createFloorRadioButtons(roomsList)
+                filterRoomsByFloor()
 
-                launch(Dispatchers.Main) {
-                    roomsAdapter.submitList(allRooms)
-                    createFloorRadioButtons(roomsList)
-                    Log.d("RoomHotelActivity", "Tải thành công ${roomsList.size} phòng.")
-                }
-
-            } catch (e: Exception) {
-                launch(Dispatchers.Main) {
-                    Toast.makeText(this@RoomHotelActivity, "Lỗi tải dữ liệu phòng: ${e.message}", Toast.LENGTH_LONG).show()
-                    Log.e("RoomHotelActivity", "Lỗi Firebase khi tải phòng", e)
-                }
+                Log.d("RoomHotelActivity", "Realtime update: ${roomsList.size} phòng được cập nhật.")
             }
         }
     }
+
 
     private fun createFloorRadioButtons(rooms: List<Room>) {
         val floors = rooms.map { it.floor }.distinct().sorted()

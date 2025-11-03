@@ -9,6 +9,20 @@
     <color name="cyan">#00BCD4</color>
     <color name="light_blue">#03A9F4</color>
     <color name="purple">#9C27B0</color>
+    <color name="red_500">#E53935</color>
+    <color name="gray_500">#9E9E9E</color>
+    <color name="yellow_600">#F9A825</color>
+    <color name="blue_600">#1E88E5</color>
+
+    <color name="primaryColor">#6750A4</color> <!-- tím nhạt Material -->
+        <color name="primaryContainer">#EADDFF</color>
+        <color name="onPrimary">#FFFFFF</color>
+    <color name="backgroundLight">#EAF1FF</color>
+
+
+    <color name="surfaceLight">#FFFFFF</color>
+        <color name="onSurface">#1C1B1F</color>
+
 
 
 </resources>

@@ -27,7 +27,6 @@ class RoleManagerActivity : AppCompatActivity() {
         else -> null
     }
 
-    // Hàm ánh xạ tên vai trò tiếng Việt
     private fun mapRoleToVietnamese(role: String): String {
         return when (role) {
             "letan" -> "Lễ tân"
@@ -38,11 +37,11 @@ class RoleManagerActivity : AppCompatActivity() {
         }
     }
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = RolesHotelAdminLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
         hotelId = intent.getStringExtra("hotelId")
 
         if (hotelId.isNullOrEmpty()) {
@@ -56,9 +55,9 @@ class RoleManagerActivity : AppCompatActivity() {
         loadStaffs()
     }
 
-// ----------------------------------------------------------------------
-// QUẢN LÝ STAFFS VÀ HIỂN THỊ
-// ----------------------------------------------------------------------
+    // ----------------------------------------------------------------------
+    // HIỂN THỊ DANH SÁCH NHÂN VIÊN
+    // ----------------------------------------------------------------------
 
     private fun loadStaffs() {
         val basePath = "hotels/$hotelId/staffs"
@@ -77,14 +76,12 @@ class RoleManagerActivity : AppCompatActivity() {
                 }
                 .addOnFailureListener {
                     Log.e("RoleManager", "Lỗi tải $role", it)
-                    Toast.makeText(this, "Lỗi tải $role: ${it.message}", Toast.LENGTH_SHORT).show()
                 }
         }
     }
 
     private fun showStaffList(role: String, uids: List<String>) {
         val layout = getRoleMapping(role)?.first ?: return
-
         layout.removeAllViews()
         layout.visibility = View.GONE
 
@@ -105,7 +102,6 @@ class RoleManagerActivity : AppCompatActivity() {
                     val email = userDoc.getString("email") ?: "Không rõ email"
                     val username = userDoc.getString("username") ?: uid
 
-                    // TẠO HÀNG (NAME + BUTTON)
                     val itemRow = LinearLayout(this).apply {
                         layoutParams = LinearLayout.LayoutParams(
                             LinearLayout.LayoutParams.MATCH_PARENT,
@@ -115,46 +111,31 @@ class RoleManagerActivity : AppCompatActivity() {
                         setPadding(8, 8, 8, 8)
                     }
 
-                    // Tên nhân viên
                     val tvName = TextView(this).apply {
                         text = "• $username ($email)"
                         textSize = 15f
                         layoutParams = LinearLayout.LayoutParams(
-                            0,
-                            LinearLayout.LayoutParams.WRAP_CONTENT,
-                            1.0f
+                            0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
                         )
                     }
                     itemRow.addView(tvName)
 
-                    // Nút Hành động/Edit
                     val tvAction = TextView(this).apply {
                         text = "SỬA/XÓA"
                         textSize = 14f
                         setTextColor(0xFF2F6FD1.toInt())
                         setPadding(16, 0, 0, 0)
-                        setOnClickListener {
-                            showStaffActionDialog(uid, username, role)
-                        }
+                        setOnClickListener { showStaffActionDialog(uid, username, role) }
                     }
                     itemRow.addView(tvAction)
-
                     layout.addView(itemRow)
-                }
-                .addOnFailureListener {
-                    val tv = TextView(this).apply {
-                        text = "• (Lỗi tải) UID: $uid"
-                        textSize = 15f
-                        setPadding(8, 8, 8, 8)
-                    }
-                    layout.addView(tv)
                 }
         }
     }
 
-// ----------------------------------------------------------------------
-// LOGIC HÀNH ĐỘNG VÀ CHUYỂN VAI TRÒ
-// ----------------------------------------------------------------------
+    // ----------------------------------------------------------------------
+    // HÀNH ĐỘNG: XÓA / CHUYỂN VAI TRÒ
+    // ----------------------------------------------------------------------
 
     private fun showStaffActionDialog(userId: String, username: String, currentRole: String) {
         val options = arrayOf("Xóa nhân viên", "Chuyển vai trò")
@@ -163,20 +144,20 @@ class RoleManagerActivity : AppCompatActivity() {
             .setTitle("Hành động cho $username")
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> {
-                        androidx.appcompat.app.AlertDialog.Builder(this)
-                            .setTitle("Xác nhận xóa")
-                            .setMessage("Bạn có chắc chắn muốn xóa $username khỏi vai trò ${mapRoleToVietnamese(currentRole)} không?")
-                            .setPositiveButton("Xóa") { _, _ ->
-                                removeStaff(currentRole, userId, username)
-                            }
-                            .setNegativeButton("Hủy", null)
-                            .show()
-                    }
-                    1 -> {
-                        showRoleChangeDialog(userId, username, currentRole)
-                    }
+                    0 -> confirmRemoveStaff(userId, username, currentRole)
+                    1 -> showRoleChangeDialog(userId, username, currentRole)
                 }
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
+    }
+
+    private fun confirmRemoveStaff(userId: String, username: String, role: String) {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Xác nhận xóa")
+            .setMessage("Xóa $username khỏi vai trò ${mapRoleToVietnamese(role)}?")
+            .setPositiveButton("Xóa") { _, _ ->
+                removeStaffCompletely(userId, username, role)
             }
             .setNegativeButton("Hủy", null)
             .show()
@@ -186,17 +167,13 @@ class RoleManagerActivity : AppCompatActivity() {
         val availableRoles = roles + listOf("user")
         val displayRoles = availableRoles.map { mapRoleToVietnamese(it) }.toTypedArray()
 
-        val initialSelection = availableRoles.indexOf(currentRole)
-        var selectedIndex = initialSelection
+        var selectedIndex = availableRoles.indexOf(currentRole)
 
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("Chuyển vai trò cho $username")
-            .setSingleChoiceItems(displayRoles, initialSelection) { _, which ->
-                selectedIndex = which
-            }
+            .setSingleChoiceItems(displayRoles, selectedIndex) { _, which -> selectedIndex = which }
             .setPositiveButton("Xác nhận") { dialog, _ ->
                 val newRole = availableRoles[selectedIndex]
-
                 if (newRole != currentRole) {
                     removeStaffFromListOnly(currentRole, userId) {
                         addStaffToListOnly(newRole, userId, username)
@@ -210,8 +187,13 @@ class RoleManagerActivity : AppCompatActivity() {
             .show()
     }
 
+    // ----------------------------------------------------------------------
+    // THÊM / XÓA / CẬP NHẬT NHÂN VIÊN
+    // ----------------------------------------------------------------------
+
     private fun addStaff(email: String, role: String) {
         val currentHotelId = hotelId!!
+
         db.collection("users")
             .whereEqualTo("email", email)
             .limit(1)
@@ -221,14 +203,99 @@ class RoleManagerActivity : AppCompatActivity() {
                     Toast.makeText(this, "Không tìm thấy nhân viên với email này", Toast.LENGTH_SHORT).show()
                     return@addOnSuccessListener
                 }
+
                 val userDoc = result.documents.first()
                 val userId = userDoc.id
                 val username = userDoc.getString("username") ?: email
+                val userRole = userDoc.getString("roleId") ?: "user"
+                val userHotelId = userDoc.getString("hotelId")
+
+                if (userRole == "admin" || userRole == "owner") {
+                    Toast.makeText(this, "Không thể thêm ${mapRoleToVietnamese(userRole)}.", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
+                if (!userHotelId.isNullOrEmpty() && userHotelId != currentHotelId) {
+                    Toast.makeText(this, "Nhân viên này đã thuộc khách sạn khác.", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
 
                 addStaffToListOnly(role, userId, username)
             }
             .addOnFailureListener { e ->
                 Toast.makeText(this, "Lỗi tìm nhân viên: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun addStaffToListOnly(role: String, userId: String, username: String) {
+        val currentHotelId = hotelId!!
+        if (role == "user") {
+            updateUserRoleAndHotel(userId, "user", null, username)
+            return
+        }
+
+        // 🧩 1. Kiểm tra xem nhân viên đã nằm trong vai trò khác chưa
+        val staffsCollection = db.collection("hotels").document(currentHotelId).collection("staffs")
+
+        staffsCollection.get()
+            .addOnSuccessListener { snapshot ->
+                var alreadyExistsInRole: String? = null
+
+                for (doc in snapshot.documents) {
+                    val staffList = doc.get("staffUids") as? List<String> ?: emptyList()
+                    if (staffList.contains(userId)) {
+                        alreadyExistsInRole = doc.id
+                        break
+                    }
+                }
+
+                if (alreadyExistsInRole != null) {
+                    val viet = mapRoleToVietnamese(alreadyExistsInRole)
+                    Toast.makeText(
+                        this,
+                        "Nhân viên này đã là $viet trong khách sạn, không thể thêm vào vai trò khác.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    binding.btnAddRole.isEnabled = true
+                    return@addOnSuccessListener
+                }
+
+                // 🧩 2. Nếu chưa có trong vai trò nào → thêm mới
+                val roleDocRef = staffsCollection.document(role)
+                roleDocRef.update("staffUids", FieldValue.arrayUnion(userId))
+                    .addOnSuccessListener {
+                        updateUserRoleAndHotel(userId, role, currentHotelId, username)
+                    }
+                    .addOnFailureListener {
+                        val newData = mapOf("staffUids" to listOf(userId))
+                        roleDocRef.set(newData)
+                            .addOnSuccessListener {
+                                updateUserRoleAndHotel(userId, role, currentHotelId, username)
+                            }
+                            .addOnFailureListener { e ->
+                                Toast.makeText(this, "Lỗi thêm vào danh sách: ${e.message}", Toast.LENGTH_SHORT).show()
+                                binding.btnAddRole.isEnabled = true
+                            }
+                    }
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Lỗi kiểm tra vai trò: ${e.message}", Toast.LENGTH_SHORT).show()
+                binding.btnAddRole.isEnabled = true
+            }
+    }
+
+
+
+    private fun removeStaffCompletely(userId: String, username: String, role: String) {
+        val currentHotelId = hotelId!!
+        val roleDocRef = db.collection("hotels").document(currentHotelId)
+            .collection("staffs").document(role)
+
+        roleDocRef.update("staffUids", FieldValue.arrayRemove(userId))
+            .addOnSuccessListener {
+                updateUserRoleAndHotel(userId, "user", null, username)
+            }
+            .addOnFailureListener {
+                Toast.makeText(this, "Lỗi khi xóa nhân viên.", Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -242,104 +309,50 @@ class RoleManagerActivity : AppCompatActivity() {
             .collection("staffs").document(role)
 
         roleDocRef.update("staffUids", FieldValue.arrayRemove(userId))
-            .addOnSuccessListener {
-                onComplete()
-            }
+            .addOnSuccessListener { onComplete() }
             .addOnFailureListener {
                 Log.e("RoleManager", "Lỗi xóa khỏi list $role", it)
                 onComplete()
             }
     }
 
-    private fun addStaffToListOnly(newRole: String, userId: String, username: String) {
-        if (newRole == "user") {
-            updateUserRole(userId, newRole, username)
-            return
+    private fun updateUserRoleAndHotel(userId: String, role: String, hotelId: String?, username: String) {
+        val updates = mutableMapOf<String, Any>("roleId" to role)
+        if (hotelId != null) {
+            updates["hotelId"] = hotelId
+        } else {
+            updates["hotelId"] = FieldValue.delete()
         }
 
-        val currentHotelId = hotelId!!
-        val roleDocRef = db.collection("hotels").document(currentHotelId)
-            .collection("staffs").document(newRole)
-
-        roleDocRef.update("staffUids", FieldValue.arrayUnion(userId))
-            .addOnSuccessListener {
-                updateUserRole(userId, newRole, username)
-            }
-            .addOnFailureListener {
-                val newData = mapOf("staffUids" to listOf(userId))
-                roleDocRef.set(newData)
-                    .addOnSuccessListener {
-                        updateUserRole(userId, newRole, username)
-                    }
-                    .addOnFailureListener { e ->
-                        Toast.makeText(this, "Lỗi thêm vào list mới: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-            }
-    }
-
-    // ✅ Tối ưu: Chỉ gọi loadStaffs() ở đây sau khi mọi thay đổi Firebase hoàn tất
-    private fun updateUserRole(userId: String, role: String, username: String) {
         db.collection("users").document(userId)
-            .update("roleId", role)
+            .update(updates)
             .addOnSuccessListener {
-                Toast.makeText(this, "Đã cập nhật $username sang ${mapRoleToVietnamese(role)}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Đã cập nhật $username sang ${mapRoleToVietnamese(role)}", Toast.LENGTH_SHORT).show()
                 binding.edtAccount.text?.clear()
                 loadStaffs()
             }
-            .addOnFailureListener {
-                Toast.makeText(this, "Lỗi cập nhật vai trò cho $username", Toast.LENGTH_SHORT).show()
-            }
     }
 
-    private fun removeStaff(role: String, userId: String, username: String) {
-        val currentHotelId = hotelId!!
-        val roleDocRef = db.collection("hotels").document(currentHotelId)
-            .collection("staffs").document(role)
-
-        roleDocRef.update("staffUids", FieldValue.arrayRemove(userId))
-            .addOnSuccessListener {
-                db.collection("users").document(userId)
-                    .update("roleId", "user")
-                    .addOnSuccessListener {
-                        Toast.makeText(this, "Đã xoá $username khỏi ${mapRoleToVietnamese(role)}", Toast.LENGTH_SHORT).show()
-                        loadStaffs()
-                    }
-                    .addOnFailureListener {
-                        Toast.makeText(this, "Lỗi cập nhật vai trò người dùng sau khi xóa.", Toast.LENGTH_SHORT).show()
-                        loadStaffs()
-                    }
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Lỗi xoá nhân viên: ${it.message}", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-// ----------------------------------------------------------------------
-// QUẢN LÝ UI VÀ TRẠNG THÁI NÚT
-// ----------------------------------------------------------------------
+    // ----------------------------------------------------------------------
+    // UI
+    // ----------------------------------------------------------------------
 
     private fun setEditButtonsEnabled(enable: Boolean, excludeButton: View? = null) {
         binding.btnEditReceptionist.isEnabled = enable || (binding.btnEditReceptionist == excludeButton)
         binding.btnEditCleaner.isEnabled = enable || (binding.btnEditCleaner == excludeButton)
         binding.btnEditPayer.isEnabled = enable || (binding.btnEditPayer == excludeButton)
-
-        binding.edtAccount.isEnabled = true
-        binding.btnAddRole.isEnabled = true
     }
 
     private fun toggleSection(section: LinearLayout, button: View) {
-        val isCurrentlyVisible = (section.visibility == View.VISIBLE)
-
-        if (isCurrentlyVisible) {
+        val visible = section.visibility == View.VISIBLE
+        if (visible) {
             section.visibility = View.GONE
             setEditButtonsEnabled(true)
         } else {
             binding.sectionReceptionistDetail.visibility = View.GONE
             binding.sectionCleanerDetail.visibility = View.GONE
             binding.sectionPayerDetail.visibility = View.GONE
-
             section.visibility = View.VISIBLE
-
             setEditButtonsEnabled(false, button)
         }
     }
@@ -350,11 +363,9 @@ class RoleManagerActivity : AppCompatActivity() {
         btnEditReceptionist.setOnClickListener {
             toggleSection(sectionReceptionistDetail, btnEditReceptionist)
         }
-
         btnEditCleaner.setOnClickListener {
             toggleSection(sectionCleanerDetail, btnEditCleaner)
         }
-
         btnEditPayer.setOnClickListener {
             toggleSection(sectionPayerDetail, btnEditPayer)
         }
@@ -365,12 +376,10 @@ class RoleManagerActivity : AppCompatActivity() {
                 Toast.makeText(this@RoleManagerActivity, "Vui lòng nhập email nhân viên", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
             if (selectedRole == null) {
                 Toast.makeText(this@RoleManagerActivity, "Vui lòng chọn vai trò", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-
             addStaff(email, selectedRole!!)
         }
 
@@ -390,14 +399,12 @@ class RoleManagerActivity : AppCompatActivity() {
                 selectedRole = "letan"
             }
         }
-
         cbCleaner.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 radios.filter { it != cbCleaner }.forEach { it.isChecked = false }
                 selectedRole = "donphong"
             }
         }
-
         cbPayer.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 radios.filter { it != cbPayer }.forEach { it.isChecked = false }

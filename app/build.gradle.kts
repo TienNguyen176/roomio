@@ -71,6 +71,8 @@ dependencies {
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
     implementation("at.favre.lib:bcrypt:0.9.0")
+    implementation ("com.google.android.material:material:1.11.0")
+
 
 
 
