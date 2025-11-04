@@ -4,50 +4,74 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"> <ImageButton
-    android:id="@+id/btnBack"
-    android:layout_width="36dp"
-    android:layout_height="36dp"
-    android:contentDescription="@string/abc_action_bar_up_description"
-    android:src="@android:drawable/ic_menu_revert"
-    android:background="?attr/selectableItemBackgroundBorderless"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toTopOf="parent"
-    android:layout_marginStart="12dp"
-    android:layout_marginTop="8dp"
-    app:tint="?attr/colorOnSurface"/> <TextView
-    android:id="@+id/tvTitle"
-    android:layout_width="0dp"
-    android:layout_height="wrap_content"
-    android:text="Roomio"
-    android:textSize="24sp"
-    android:textColor="#0C6FEF"
-    android:textStyle="italic"
-    android:fontFamily="sans-serif-medium"
-    android:gravity="center"
-    app:layout_constraintStart_toEndOf="@id/btnBack"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintTop_toTopOf="@id/btnBack"
-    app:layout_constraintBottom_toBottomOf="@id/btnBack" android:layout_marginEnd="12dp"/>
+    android:background="?attr/colorSurface">
 
+    <!-- ======= Thanh tiêu đề ======= -->
+    <ImageButton
+        android:id="@+id/btnBack"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:contentDescription="@string/abc_action_bar_up_description"
+        android:src="@android:drawable/ic_menu_revert"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="8dp"
+        app:tint="?attr/colorOnSurface"/>
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Roomio"
+        android:textSize="24sp"
+        android:textColor="#0C6FEF"
+        android:textStyle="italic"
+        android:fontFamily="sans-serif-medium"
+        android:gravity="center"
+        app:layout_constraintStart_toEndOf="@id/btnBack"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/btnBack"
+        app:layout_constraintBottom_toBottomOf="@id/btnBack"
+        android:layout_marginEnd="12dp"/>
+
+    <!-- ======= Hành động thêm/ chọn loại phòng ======= -->
     <LinearLayout
-        android:id="@+id/actionBar"
+        android:id="@+id/roomTypeBar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
         android:layout_marginTop="8dp"
-        android:layout_marginHorizontal="12dp"
         app:layout_constraintTop_toBottomOf="@id/tvTitle"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        app:layout_constraintEnd_toEndOf="parent">
 
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnChooseRoomType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Chọn loại"
+            android:layout_marginEnd="8dp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAddRoomType"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Thêm loại"/>
+    </LinearLayout>
+
+    <!-- ======= Thanh chọn tầng ======= -->
     <HorizontalScrollView
         android:id="@+id/hsFloors"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:fillViewport="true"
-        app:layout_constraintTop_toBottomOf="@id/actionBar"
+        android:layout_marginTop="4dp"
+        app:layout_constraintTop_toBottomOf="@id/roomTypeBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
@@ -61,15 +85,39 @@
             android:paddingEnd="12dp"/>
     </HorizontalScrollView>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnConfirm"
+    <!-- ======= Thanh lọc loại phòng ======= -->
+    <HorizontalScrollView
+        android:id="@+id/hsRoomTypes"
         android:layout_width="0dp"
-        android:layout_height="wrap_content" android:text="Confirm"
-        android:layout_margin="16dp"
+        android:layout_height="wrap_content"
+        android:fillViewport="true"
+        android:layout_marginTop="4dp"
+        app:layout_constraintTop_toBottomOf="@id/hsFloors"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"/>
+        app:layout_constraintEnd_toEndOf="parent">
 
+        <RadioGroup
+            android:id="@+id/rgRoomTypes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"/>
+    </HorizontalScrollView>
+
+    <!-- ======= Danh sách phòng ======= -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvRooms"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:padding="12dp"
+        app:layout_constraintTop_toBottomOf="@id/hsRoomTypes"
+        app:layout_constraintBottom_toTopOf="@id/legendContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <!-- ======= Chú thích trạng thái ======= -->
     <LinearLayout
         android:id="@+id/legendContainer"
         android:layout_width="0dp"
@@ -94,7 +142,8 @@
             android:textColor="?attr/colorOnErrorContainer"/>
 
         <com.google.android.material.chip.Chip
-            style="@style/Widget.Material3.Chip.Suggestion" android:layout_width="0dp"
+            style="@style/Widget.Material3.Chip.Suggestion"
+            android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:text="Available"
@@ -125,15 +174,15 @@
             android:textColor="?attr/colorOnPrimaryContainer"/>
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvRooms"
+    <!-- ======= Nút xác nhận ======= -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnConfirm"
         android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:padding="12dp"
-        android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/hsFloors"
+        android:layout_height="wrap_content"
+        android:text="Confirm"
+        android:layout_margin="16dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/legendContainer"/>
+        app:layout_constraintBottom_toBottomOf="parent"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

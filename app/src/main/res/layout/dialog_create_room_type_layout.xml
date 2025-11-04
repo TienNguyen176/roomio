@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <EditText
+            android:id="@+id/edtRoomTypeName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Tên loại phòng"
+            android:inputType="textPersonName"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:id="@+id/edtRoomTypeArea"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Diện tích (m²)"
+            android:inputType="number"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:id="@+id/edtRoomTypePeople"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Số người tối đa"
+            android:inputType="number"
+            android:layout_marginBottom="8dp"/>
+
+        <EditText
+            android:id="@+id/edtRoomTypePrice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Giá mỗi đêm (VND)"
+            android:inputType="number"
+            android:layout_marginBottom="12dp"/>
+
+        <TextView
+            android:id="@+id/tvSelectedImages"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Chưa chọn ảnh nào"
+            android:textSize="14sp"
+            android:textColor="#666"
+            android:layout_marginBottom="8dp"/>
+
+        <Button
+            android:id="@+id/btnSelectRoomImages"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Chọn ảnh loại phòng"
+            android:layout_marginBottom="4dp"/>
+
+    </LinearLayout>
+</ScrollView>
