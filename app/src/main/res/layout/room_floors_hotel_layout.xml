@@ -163,6 +163,7 @@
             app:chipBackgroundColor="?attr/colorTertiaryContainer"
             android:textColor="?attr/colorOnTertiaryContainer"/>
 
+
         <com.google.android.material.chip.Chip
             style="@style/Widget.Material3.Chip.Suggestion"
             android:layout_width="0dp"

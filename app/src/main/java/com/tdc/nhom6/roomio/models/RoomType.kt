@@ -13,6 +13,7 @@ data class RoomType(
 )
 
 data class RoomImage(
+
     val imageUrl: String = "",
     val thumbnail: Boolean = false,
     val uploadedAt: String = ""

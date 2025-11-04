@@ -393,6 +393,7 @@ class RoomHotelActivity : AppCompatActivity() {
             return
         }
 
+
         val names = roomTypes.map { it.typeName }.toTypedArray()
 
         AlertDialog.Builder(this)

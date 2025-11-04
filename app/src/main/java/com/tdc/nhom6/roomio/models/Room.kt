@@ -11,6 +11,7 @@ data class Room(
     val room_type_id: String = "",
     val status_id: String = "room_available"
 ) {
+
     val displayCode: String
         get() = "F${floor}-${room_number}"
 
