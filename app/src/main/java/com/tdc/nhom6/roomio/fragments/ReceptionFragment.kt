@@ -9,6 +9,9 @@ import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.data.CleanerTaskRepository
+import android.content.Intent
+import com.tdc.nhom6.roomio.activities.ServiceExtraFeeActivity
 
 class ReceptionFragment : Fragment() {
     private lateinit var reservationAdapter: ReservationAdapter
@@ -280,6 +283,12 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) : Recycl
         btnConfirm.setOnClickListener {
             // Advance state after confirmation
             advanceState(position)
+            try {
+                val current = items[position]
+                // Use reservationId as a stand-in for room number if real room id not available
+                val roomId = current.reservationId
+                CleanerTaskRepository.addDirtyTask(roomId)
+            } catch (_: Exception) { }
             alert.dismiss()
         }
         btnCancel.setOnClickListener {
@@ -302,6 +311,14 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) : Recycl
         btnConfirm.setOnClickListener {
             // Advance state after confirmation
             advanceState(position)
+            // Navigate to service extra fee screen
+            try {
+                val current = items[position]
+                val roomId = current.reservationId
+                val intent = Intent(ctx, ServiceExtraFeeActivity::class.java)
+                intent.putExtra("ROOM_ID", roomId)
+                ctx.startActivity(intent)
+            } catch (_: Exception) { }
             alert.dismiss()
         }
         btnCancel.setOnClickListener {
