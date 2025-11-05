@@ -12,18 +12,17 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.firebase.firestore.FirebaseFirestore
-import com.tdc.nhom6.roomio.adapters.FacilityAdapter
 import com.tdc.nhom6.roomio.adapters.ImageListAdapter
+import com.tdc.nhom6.roomio.adapters.ServiceAdapter
 import com.tdc.nhom6.roomio.apis.CloudinaryRepository
 import com.tdc.nhom6.roomio.databinding.EditHotelLayoutBinding
-import com.tdc.nhom6.roomio.models.Facility
+import com.tdc.nhom6.roomio.models.Service
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.io.InputStream
 
 class EditHotelActivity : AppCompatActivity() {
 
@@ -35,10 +34,9 @@ class EditHotelActivity : AppCompatActivity() {
     private var currentImageUrls: MutableList<String> = mutableListOf()
     private var selectedNewUris: MutableList<Uri> = mutableListOf()
 
-    private var allFacilities: List<Facility> = emptyList()
-    private val selectedFacilityIds: MutableSet<String> = mutableSetOf()
+    private var allServices: List<Service> = emptyList()
+    private val selectedServiceRates: MutableMap<String, Double> = mutableMapOf()
 
-    // Chọn nhiều ảnh mới
     private val imagePickerLauncher = registerForActivityResult(
         ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
@@ -56,8 +54,8 @@ class EditHotelActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         cloudinaryRepository = CloudinaryRepository(this)
-
         hotelId = intent.getStringExtra("hotelId")
+
         if (hotelId.isNullOrEmpty()) {
             Toast.makeText(this, "Không tìm thấy ID khách sạn!", Toast.LENGTH_SHORT).show()
             finish()
@@ -66,7 +64,7 @@ class EditHotelActivity : AppCompatActivity() {
 
         setupListeners()
         loadHotelData()
-        loadAllFacilities()
+        loadAllServices()
     }
 
     private fun setupListeners() {
@@ -74,14 +72,15 @@ class EditHotelActivity : AppCompatActivity() {
             AlertDialog.Builder(this)
                 .setTitle("Hủy bỏ hành động")
                 .setMessage("Hành động đang được thực hiện vẫn chưa được lưu, đồng ý thoát?")
-                .setPositiveButton("Đồng ý") { _, _ ->
-                    finish()
-                }
+                .setPositiveButton("Đồng ý") { _, _ -> finish() }
                 .setNegativeButton("Hủy", null)
                 .show()
-             }
+        }
+
         binding.btnChangeImage.setOnClickListener { imagePickerLauncher.launch("image/*") }
-        binding.btnAddFacility.setOnClickListener { showAddFacilityDialog() }
+
+        binding.btnAddFacility.setOnClickListener { showAddServiceDialog() }
+
         binding.btnSave.setOnClickListener {
             AlertDialog.Builder(this)
                 .setTitle("Xác nhận lưu thay đổi")
@@ -92,9 +91,7 @@ class EditHotelActivity : AppCompatActivity() {
                 .setNegativeButton("Hủy", null)
                 .show()
         }
-
     }
-
 
     // ----------------------------------------------------
     // LOAD HOTEL DATA
@@ -105,10 +102,9 @@ class EditHotelActivity : AppCompatActivity() {
             if (doc.exists()) {
                 val name = doc.getString("hotelName")
                 val imageList = doc.get("images") as? List<String> ?: emptyList()
-                val facilityIds = doc.get("facilityIds") as? List<String> ?: emptyList()
+                val serviceIds = doc.get("serviceIds") as? List<String> ?: emptyList()
 
                 currentImageUrls = imageList.toMutableList()
-                selectedFacilityIds.addAll(facilityIds)
 
                 launch(Dispatchers.Main) {
                     binding.edtHotelName.setText(name)
@@ -117,7 +113,21 @@ class EditHotelActivity : AppCompatActivity() {
 
                     val adapter = ImageListAdapter(currentImageUrls) { url -> removeImage(url) }
                     binding.rvCurrentImages.adapter = adapter
-                    binding.rvFacilities.adapter = FacilityAdapter(allFacilities, selectedFacilityIds)
+                    binding.rvFacilities.adapter = ServiceAdapter(allServices, selectedServiceRates)
+                }
+
+                // Load giá dịch vụ
+                val rateSnapshot = db.collection("serviceRates")
+                    .whereEqualTo("hotel_id", hotelId)
+                    .get().await()
+                rateSnapshot.documents.forEach {
+                    val serviceId = it.getString("service_id") ?: return@forEach
+                    val price = it.getDouble("price") ?: 0.0
+                    selectedServiceRates[serviceId] = price
+                }
+
+                launch(Dispatchers.Main) {
+                    binding.rvFacilities.adapter = ServiceAdapter(allServices, selectedServiceRates)
                 }
             }
         } catch (e: Exception) {
@@ -125,24 +135,41 @@ class EditHotelActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadAllFacilities() = lifecycleScope.launch(Dispatchers.IO) {
+    private fun loadAllServices() = lifecycleScope.launch(Dispatchers.IO) {
         try {
-            val snapshot = db.collection("facilities").get().await()
-            allFacilities = snapshot.documents.map {
-                Facility(
+            // Dịch vụ chung
+            val globalSnap = db.collection("services").get().await()
+            val globalServices = globalSnap.documents.map {
+                Service(
                     id = it.id,
-                    facilities_name = it.getString("facilities_name") ?: "",
+                    service_name = it.getString("service_name") ?: "",
                     description = it.getString("description") ?: ""
                 )
-            }.sortedBy { it.facilities_name }
+            }
+
+            // Dịch vụ riêng của khách sạn
+            val hotelSnap = db.collection("hotels")
+                .document(hotelId!!)
+                .collection("services")
+                .get().await()
+            val hotelServices = hotelSnap.documents.map {
+                Service(
+                    id = it.id,
+                    service_name = it.getString("service_name") ?: "",
+                    description = it.getString("description") ?: ""
+                )
+            }
+
+            allServices = (globalServices + hotelServices).sortedBy { it.service_name }
 
             launch(Dispatchers.Main) {
-                binding.rvFacilities.adapter = FacilityAdapter(allFacilities, selectedFacilityIds)
+                binding.rvFacilities.adapter = ServiceAdapter(allServices, selectedServiceRates)
             }
         } catch (e: Exception) {
-            Log.e("EditHotel", "Lỗi tải tiện ích: ${e.message}")
+            Log.e("EditHotel", "Lỗi tải danh sách dịch vụ: ${e.message}")
         }
     }
+
 
     // ----------------------------------------------------
     // REMOVE IMAGE
@@ -150,52 +177,62 @@ class EditHotelActivity : AppCompatActivity() {
     private fun removeImage(url: String) {
         AlertDialog.Builder(this)
             .setTitle("Xác nhận xóa ảnh")
-            .setMessage("Bạn có chắc chắn muốn xóa ảnh này không? Ảnh sẽ chỉ bị xóa khi bạn bấm 'Lưu thay đổi'.")
+            .setMessage("Bạn có chắc chắn muốn xóa ảnh này không?")
             .setPositiveButton("Xóa") { _, _ ->
                 currentImageUrls.remove(url)
                 (binding.rvCurrentImages.adapter as? ImageListAdapter)?.notifyDataSetChanged()
-
-                Toast.makeText(this, "Đã xóa ảnh khỏi danh sách tạm. Nhấn 'Lưu thay đổi' để cập nhật.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Đã xóa ảnh khỏi danh sách tạm", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Hủy", null)
             .show()
     }
 
-
-
     // ----------------------------------------------------
-    // ADD NEW FACILITY
+    // ADD NEW SERVICE
     // ----------------------------------------------------
-    private fun showAddFacilityDialog() {
+    private fun showAddServiceDialog() {
         val input = EditText(this).apply {
-            hint = "Nhập tên tiện ích mới"
+            hint = "Nhập tên dịch vụ mới"
             setPadding(50, 50, 50, 50)
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Thêm tiện ích")
+            .setTitle("Thêm dịch vụ")
             .setView(input)
             .setPositiveButton("Thêm") { _, _ ->
                 val name = input.text.toString().trim()
-                if (name.isNotEmpty()) addNewFacility(name)
+                if (name.isNotEmpty()) addNewService(name)
                 else Toast.makeText(this, "Tên không được trống", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Hủy", null)
             .show()
     }
 
-    private fun addNewFacility(name: String) {
+    private fun addNewService(name: String) {
         val newData = hashMapOf(
-            "facilities_name" to name,
-            "description" to "Tiện ích được thêm bởi chủ khách sạn"
+            "service_name" to name,
+            "description" to "Dịch vụ riêng của khách sạn"
         )
-        db.collection("facilities").add(newData)
+
+        db.collection("hotels")
+            .document(hotelId!!)
+            .collection("services")
+            .add(newData)
             .addOnSuccessListener { ref ->
-                selectedFacilityIds.add(ref.id)
-                loadAllFacilities()
-                Toast.makeText(this, "Đã thêm '$name'", Toast.LENGTH_SHORT).show()
+                // Ghi ID dịch vụ mới vào danh sách serviceIds của khách sạn
+                db.collection("hotels").document(hotelId!!)
+                    .update("serviceIds", com.google.firebase.firestore.FieldValue.arrayUnion(ref.id))
+
+                selectedServiceRates[ref.id] = 0.0
+                loadAllServices()
+
+                Toast.makeText(this, "Đã thêm dịch vụ riêng '$name' cho khách sạn này", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener {
+                Toast.makeText(this, "Lỗi khi thêm dịch vụ!", Toast.LENGTH_SHORT).show()
             }
     }
+
 
     // ----------------------------------------------------
     // SAVE HOTEL
@@ -225,31 +262,52 @@ class EditHotelActivity : AppCompatActivity() {
 
         files.forEach { it.delete() }
         newUrls.addAll(uploaded.mapNotNull { it.secure_url })
-
-        // Gộp ảnh cũ + ảnh mới
         val allUrls = (currentImageUrls + newUrls).distinct()
+
         updateFirestore(newName, allUrls)
     }
 
     private fun updateFirestore(newName: String, imageUrls: List<String>) {
         val updates = mapOf(
             "hotelName" to newName,
-            "facilityIds" to selectedFacilityIds.toList(),
+            "serviceIds" to selectedServiceRates.keys.toList(),
             "images" to imageUrls
         )
 
         db.collection("hotels").document(hotelId!!)
             .update(updates)
             .addOnSuccessListener {
-                Toast.makeText(this, "Lưu thay đổi thành công!", Toast.LENGTH_SHORT).show()
-                setResult(Activity.RESULT_OK)
-                finish()
+                saveServiceRates()
             }
             .addOnFailureListener {
                 Toast.makeText(this, "Lỗi lưu dữ liệu!", Toast.LENGTH_SHORT).show()
             }
     }
 
+    private fun saveServiceRates() = lifecycleScope.launch(Dispatchers.IO) {
+        val batch = db.batch()
+        val collection = db.collection("serviceRates")
+
+        selectedServiceRates.forEach { (serviceId, price) ->
+            val newDoc = collection.document()
+            batch.set(newDoc, mapOf(
+                "hotel_id" to hotelId,
+                "service_id" to serviceId,
+                "price" to price
+            ))
+        }
+
+        try {
+            batch.commit().await()
+            launch(Dispatchers.Main) {
+                Toast.makeText(this@EditHotelActivity, "Lưu thay đổi thành công!", Toast.LENGTH_SHORT).show()
+                setResult(Activity.RESULT_OK)
+                finish()
+            }
+        } catch (e: Exception) {
+            Log.e("EditHotel", "Lỗi lưu serviceRates: ${e.message}")
+        }
+    }
 
     // ----------------------------------------------------
     // UTIL
