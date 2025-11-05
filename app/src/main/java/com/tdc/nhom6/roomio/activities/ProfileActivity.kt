@@ -8,13 +8,14 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Menu
-import android.view.MenuItem
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.databinding.ProfileLayoutBinding
 import com.tdc.nhom6.roomio.models.User
@@ -29,8 +30,12 @@ class ProfileActivity : AppCompatActivity() {
     private var userRoleId: String = "user"
     private var roleName: String = "User"
 
+    private var userRef: DocumentReference? = null
+    private var userListener: ListenerRegistration? = null
+    private var roleListener: ListenerRegistration? = null
+
     private var isBalanceVisible = true
-    private var currentBalance: Long = 0L
+    private var currentBalance: Double = 0.0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,11 +48,21 @@ class ProfileActivity : AppCompatActivity() {
         checkSession()
         setupActions()
         setupWalletToggle()
+
+        // Hiển thị mặc định trước khi dữ liệu Firestore load
+        binding.tvRank.text = "User"
+        updateRoleUI("user")
+        animateRoleColor("user")
+
     }
 
-    /**
-     * ✅ Kiểm tra phiên đăng nhập hợp lệ
-     */
+    override fun onStop() {
+        super.onStop()
+        userListener?.remove()
+        roleListener?.remove()
+    }
+
+    // Kiểm tra phiên đăng nhập
     private fun checkSession() {
         val firebaseUser = auth.currentUser
         val savedUid = prefs.getString("uid", null)
@@ -59,13 +74,64 @@ class ProfileActivity : AppCompatActivity() {
             return
         }
 
-        loadUserData()
-        loadWalletData()
+        val uid = firebaseUser?.uid ?: savedUid!!
+        listenUserRealtime(uid)
     }
 
-    /**
-     * 👁 Ẩn / hiện số dư ví
-     */
+    // Lắng nghe realtime thay đổi user (avatar, username, roleId, walletBalance)
+    private fun listenUserRealtime(uid: String) {
+        userRef = db.collection("users").document(uid)
+
+        userListener = userRef?.addSnapshotListener { doc, e ->
+            if (e != null || doc == null || !doc.exists()) return@addSnapshotListener
+
+            val user = doc.toObject(User::class.java) ?: return@addSnapshotListener
+
+            // 🧍 Username
+            binding.tvUsername.text = user.username.ifEmpty { "Người dùng" }
+
+            ///️ Avatar
+            if (user.avatar.isNotEmpty()) {
+                Glide.with(this)
+                    .load(user.avatar)
+                    .circleCrop()
+                    .placeholder(R.drawable.user)
+                    .into(binding.imgAvatar)
+            } else {
+                binding.imgAvatar.setImageResource(R.drawable.user)
+            }
+
+            // Wallet realtime
+            currentBalance = doc.getDouble("balance") ?: 0.0
+            binding.tvBalance.text =
+                if (isBalanceVisible) formatMoney(currentBalance) else "•••••••••"
+
+            // Role realtime
+            val newRoleId = user.roleId.ifEmpty { "user" }
+            if (newRoleId != userRoleId) {
+                userRoleId = newRoleId
+                listenRoleRealtime(userRoleId)
+            }
+        }
+    }
+
+    // Lắng nghe realtime thay đổi role
+    private fun listenRoleRealtime(roleId: String) {
+        roleListener?.remove()
+        val roleRef = db.collection("userRoles").document(roleId)
+
+        roleListener = roleRef.addSnapshotListener { doc, e ->
+            if (e != null) return@addSnapshotListener
+
+            roleName = doc?.getString("role_name") ?: roleId.replaceFirstChar { it.uppercase() }
+            binding.tvRank.text = roleName
+            updateRoleUI(roleId)
+            animateRoleColor(roleId)
+            invalidateOptionsMenu()
+        }
+    }
+
+    // Ẩn / hiện số dư ví
     private fun setupWalletToggle() {
         binding.imgEye.setOnClickListener {
             isBalanceVisible = !isBalanceVisible
@@ -79,21 +145,15 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * ⚙️ Xử lý các nút bấm
-     */
+    // Các nút bấm
     private fun setupActions() {
         binding.showProfile.setOnClickListener {
-            val intent = Intent(this, EditProfileActivity::class.java)
-            startActivityForResult(intent, 100)
+            startActivityForResult(Intent(this, EditProfileActivity::class.java), 100)
         }
 
         binding.btnSignOut.setOnClickListener {
-            // ✅ Đăng xuất hoàn toàn
             auth.signOut()
             prefs.edit().clear().apply()
-
-            Toast.makeText(this, "Đã đăng xuất thành công", Toast.LENGTH_SHORT).show()
             val intent = Intent(this, LoginActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
@@ -101,78 +161,7 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * 📥 Tải dữ liệu người dùng
-     */
-    private fun loadUserData() {
-        val uid = auth.currentUser?.uid ?: prefs.getString("uid", null) ?: return
-
-        db.collection("users").document(uid)
-            .get()
-            .addOnSuccessListener { doc ->
-                if (doc.exists()) {
-                    val user = doc.toObject(User::class.java)
-                    if (user != null) {
-                        binding.tvUsername.text = user.username.ifEmpty { "Người dùng" }
-
-                        // Ảnh đại diện
-                        if (user.avatar.isNotEmpty()) {
-                            Glide.with(this)
-                                .load(user.avatar)
-                                .circleCrop()
-                                .placeholder(R.drawable.user)
-                                .into(binding.imgAvatar)
-                        } else {
-                            binding.imgAvatar.setImageResource(R.drawable.user)
-                        }
-
-                        userRoleId = user.roleId.ifEmpty { "user" }
-
-                        // Lấy thông tin vai trò
-                        db.collection("userRoles").document(userRoleId)
-                            .get()
-                            .addOnSuccessListener { roleDoc ->
-                                roleName = roleDoc.getString("role_name") ?: userRoleId.capitalize()
-                                binding.tvRank.text = roleName
-                                updateRoleUI(userRoleId)
-                                animateRoleColor(userRoleId)
-                                invalidateOptionsMenu()
-                            }
-                            .addOnFailureListener {
-                                binding.tvRank.text = "User"
-                                updateRoleUI("user")
-                                animateRoleColor("user")
-                            }
-                    }
-                } else {
-                    Toast.makeText(this, "Không tìm thấy thông tin người dùng", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Lỗi tải dữ liệu: ${it.message}", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    /**
-     * 💰 Tải số dư ví
-     */
-    private fun loadWalletData() {
-        val uid = auth.currentUser?.uid ?: prefs.getString("uid", null) ?: return
-        db.collection("users").document(uid)
-            .get()
-            .addOnSuccessListener { doc ->
-                currentBalance = doc.getLong("balance") ?: 0L
-                binding.tvBalance.text =
-                    if (isBalanceVisible) formatMoney(currentBalance) else "•••••••••"
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Lỗi tải ví: ${it.message}", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    /**
-     * 🎨 Cập nhật giao diện vai trò
-     */
+    // Cập nhật giao diện vai trò
     private fun updateRoleUI(roleId: String) {
         val colorRes = when (roleId.lowercase()) {
             "admin" -> R.color.red
@@ -200,9 +189,7 @@ class ProfileActivity : AppCompatActivity() {
             .start()
     }
 
-    /**
-     * 🌈 Hiệu ứng chuyển màu mượt cho role
-     */
+    // Hiệu ứng màu mượt cho role
     private fun animateRoleColor(roleId: String) {
         val colorMap = mapOf(
             "admin" to Color.parseColor("#FF4C4C"),
@@ -227,10 +214,14 @@ class ProfileActivity : AppCompatActivity() {
         colorAnim.start()
     }
 
-    private fun formatMoney(amount: Long): String {
-        return String.format("%,d VNĐ", amount).replace(",", ".")
+    // Format tiền
+// Format tiền chuẩn có dấu . ngăn cách và hậu tố VNĐ
+    private fun formatMoney(amount: Double): String {
+        return String.format("%,.0f VNĐ", amount).replace(",", ".")
     }
 
+
+    // Menu theo role
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         if (userRoleId == "user") return false
 
@@ -251,7 +242,7 @@ class ProfileActivity : AppCompatActivity() {
         return true
     }
 
-//    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+    //    override fun onOptionsItemSelected(item: MenuItem): Boolean {
 //        when (item.itemId) {
 //            R.id.navAdmin -> startActivity(Intent(this, AdminActivity::class.java))
 //            R.id.navChuKS -> startActivity(Intent(this, ChuKhachSanActivity::class.java))
@@ -265,12 +256,7 @@ class ProfileActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 100 && resultCode == Activity.RESULT_OK) {
-            loadUserData()
+            // Realtime tự cập nhật nên không cần reload thủ công
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        loadUserData()
     }
 }

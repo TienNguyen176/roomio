@@ -37,7 +37,7 @@ class LoginActivity : AppCompatActivity() {
         setupPasswordEye()
         setupGoogleSignIn()
 
-        // ✅ Nếu người dùng đã đăng nhập trước đó và có "Lưu tài khoản" → bỏ qua màn login
+        // Nếu người dùng đã đăng nhập trước đó và có "Lưu tài khoản" → bỏ qua màn login
         val savedUid = prefs.getString("uid", null)
         val isSaved = prefs.getBoolean("isSaved", false)
         val currentUser = auth.currentUser
@@ -50,7 +50,7 @@ class LoginActivity : AppCompatActivity() {
                     if (doc.exists()) {
                         val email = doc.getString("email") ?: ""
                         val username = doc.getString("username") ?: "Người dùng"
-                        toast("Đã đăng nhập tự động ✅")
+                        //toast("Đã đăng nhập tự động")
                         goToProfile(email, username)
                     } else {
                         prefs.edit().clear().apply()
@@ -64,7 +64,7 @@ class LoginActivity : AppCompatActivity() {
             return
         }
 
-        // 🔹 Hiển thị email nếu trước đó có lưu
+        //  Hiển thị email nếu trước đó có lưu
         val savedEmail = prefs.getString("email", "")
         val savedChecked = prefs.getBoolean("isSaved", false)
         if (savedChecked) {
@@ -72,29 +72,29 @@ class LoginActivity : AppCompatActivity() {
             binding.saveAccount.isChecked = true
         }
 
-        // 🔹 Nút đăng nhập thường
+        // Nút đăng nhập thường
         binding.btnLogin.setOnClickListener { loginWithEmail() }
 
-        // 🔹 Đăng nhập Google
+        // Đăng nhập Google
         binding.btnGoogle.setOnClickListener {
             val signInIntent = googleSignInClient.signInIntent
             startActivityForResult(signInIntent, RC_GOOGLE_SIGN_IN)
         }
 
-        // 🔹 Chuyển sang đăng ký
+        // Chuyển sang đăng ký
         binding.tvRegister.setOnClickListener {
             startActivity(Intent(this, ProfileSignUpActivity::class.java))
         }
 
-        // 🔹 Quên mật khẩu
+        // Quên mật khẩu
         binding.tvForgotPassword.setOnClickListener {
             startActivity(Intent(this, ForgotPasswordActivity::class.java))
         }
     }
 
-    // ==============================================================
-    // ĐĂNG NHẬP EMAIL
-    // ==============================================================
+
+    // signin email
+
     private fun loginWithEmail() {
         val email = binding.edtEmail.text.toString().trim()
         val password = binding.edtPassword.text.toString().trim()
@@ -133,7 +133,7 @@ class LoginActivity : AppCompatActivity() {
                                 showLoading(false)
                                 if (userDoc.exists()) {
                                     val username = userDoc.getString("username") ?: "Người dùng"
-                                    toast("Đăng nhập thành công ✅")
+                                    //toast("Đăng nhập thành công ")
                                     goToProfile(email, username)
                                 } else {
                                     toast("Không tìm thấy hồ sơ người dùng")
@@ -143,13 +143,13 @@ class LoginActivity : AppCompatActivity() {
             }
             .addOnFailureListener {
                 showLoading(false)
-                toast("Sai email hoặc mật khẩu ❌")
+                toast("Sai email hoặc mật khẩu ")
             }
     }
 
-    // ==============================================================
-    // GOOGLE SIGN-IN
-    // ==============================================================
+
+    // google signin
+
     private fun setupGoogleSignIn() {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(getString(R.string.default_web_client_id))
@@ -171,7 +171,7 @@ class LoginActivity : AppCompatActivity() {
                             val user = result.user ?: return@addOnSuccessListener
                             val uid = user.uid
 
-                            // ✅ Lưu lại nếu có tick “Lưu tài khoản”
+                            //  Lưu lại nếu có tick “Lưu tài khoản”
                             if (binding.saveAccount.isChecked) {
                                 prefs.edit()
                                     .putString("uid", uid)
@@ -205,9 +205,9 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    // ==============================================================
+
     // CHUNG
-    // ==============================================================
+
     private fun goToProfile(email: String? = null, username: String? = null) {
         val intent = Intent(this, ProfileActivity::class.java)
         email?.let { intent.putExtra("email", it) }

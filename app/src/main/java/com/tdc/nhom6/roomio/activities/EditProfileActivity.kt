@@ -51,17 +51,17 @@ class EditProfileActivity : AppCompatActivity() {
         loadUserInfo()
 
         if (fromGoogle) {
-            // 🟠 Chỉ áp dụng khi người dùng đăng ký Google lần đầu
+            //  Chỉ áp dụng khi người dùng đăng ký Google lần đầu
             binding.imgBack.visibility = View.GONE
             binding.tvEdit.text = "Lưu"
             enableEditing(true)
             setupAutoSaveBehavior()
 
-            // 🔹 Tự động lấy email từ tài khoản Google
+            // Tự động lấy email từ tài khoản Google
             binding.edtEmail.setText(auth.currentUser?.email ?: "")
             binding.edtEmail.isEnabled = false
         } else {
-            // 🟢 Người dùng đăng nhập thường hoặc đã có tài khoản Google → giữ nguyên
+            //  Người dùng đăng nhập thường hoặc đã có tài khoản Google → giữ nguyên
             binding.imgBack.visibility = View.VISIBLE
             binding.tvEdit.text = "Sửa"
         }
@@ -96,7 +96,7 @@ class EditProfileActivity : AppCompatActivity() {
                     val emailFromAuth = auth.currentUser?.email
                     val emailFromPrefs = getSharedPreferences("user_prefs", MODE_PRIVATE).getString("email", "")
 
-                    // 🔹 Ưu tiên lấy email từ Firestore → FirebaseAuth → SharedPreferences
+                    // Ưu tiên lấy email từ Firestore → FirebaseAuth → SharedPreferences
                     val finalEmail = when {
                         !emailFromFirestore.isNullOrEmpty() -> emailFromFirestore
                         !emailFromAuth.isNullOrEmpty() -> emailFromAuth
@@ -126,7 +126,7 @@ class EditProfileActivity : AppCompatActivity() {
                         }
                     }
             }
-            .addOnFailureListener { showToast("❌ Lỗi tải dữ liệu: ${it.message}") }
+            .addOnFailureListener { showToast(" Lỗi tải dữ liệu: ${it.message}") }
     }
 
 
@@ -145,7 +145,7 @@ class EditProfileActivity : AppCompatActivity() {
         val gender = getSelectedGender()
 
         if (username.isEmpty() || phone.isEmpty()) {
-            showToast("⚠️ Vui lòng nhập đầy đủ thông tin!")
+            showToast("⚠Vui lòng nhập đầy đủ thông tin!")
             return
         }
 
@@ -164,7 +164,7 @@ class EditProfileActivity : AppCompatActivity() {
             "username" to username
         )
 
-        // 🔹 Nếu người dùng chọn ảnh → upload trước, rồi lưu Firestore
+        //  Nếu người dùng chọn ảnh → upload trước, rồi lưu Firestore
         if (imageUri != null) {
             uploadAvatar(uid, updates, phone)
         } else {
@@ -191,10 +191,10 @@ class EditProfileActivity : AppCompatActivity() {
                 val downloadUrl = uri.toString()
                 updates["avatar"] = downloadUrl
 
-                // 🔹 Lưu thông tin và đường dẫn ảnh vào Firestore
+                // Lưu thông tin và đường dẫn ảnh vào Firestore
                 updateUserAndPhone(uid, updates, phone)
 
-                // 🔹 Cập nhật ngay ảnh trên giao diện
+                //  Cập nhật ngay ảnh trên giao diện
                 Glide.with(this)
                     .load(downloadUrl)
                     .placeholder(R.drawable.user)
@@ -202,7 +202,7 @@ class EditProfileActivity : AppCompatActivity() {
             }
             .addOnFailureListener { e ->
                 Log.e("UploadError", "Firebase upload failed", e)
-                showToast("❌ Lỗi tải ảnh: ${e.message}")
+                showToast("Lỗi tải ảnh: ${e.message}")
             }
             .addOnCompleteListener {
                 binding.tvEdit.isEnabled = true
@@ -221,7 +221,7 @@ class EditProfileActivity : AppCompatActivity() {
         }.addOnSuccessListener {
             enableEditing(false)
             setResult(Activity.RESULT_OK)
-            showToast("✅ Đã lưu thay đổi!")
+            showToast("Đã lưu thay đổi!")
 
             // 🔹 Nếu là lần đầu đăng ký Google → chuyển sang ProfileActivity
             if (fromGoogle) {
@@ -230,7 +230,7 @@ class EditProfileActivity : AppCompatActivity() {
                 finish()
             }
         }.addOnFailureListener {
-            showToast("❌ Lỗi lưu: ${it.message}")
+            showToast("Lỗi lưu: ${it.message}")
         }
     }
 
