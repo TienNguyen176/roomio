@@ -137,7 +137,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Chọn tiện ích khách sạn"
+                android:text="Chọn dịch vụ khách sạn"
                 android:textSize="18sp"
                 android:fontFamily="@font/poppins_medium"
                 android:textColor="#111111" />
@@ -181,6 +181,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
+
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

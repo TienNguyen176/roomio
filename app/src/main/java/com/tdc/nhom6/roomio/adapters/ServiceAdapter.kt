@@ -79,5 +79,6 @@ class ServiceAdapter(
                 selectedRates.remove(service.id)
             }
         }
+
     }
 }
