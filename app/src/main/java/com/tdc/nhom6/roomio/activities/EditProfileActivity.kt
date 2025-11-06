@@ -4,11 +4,11 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.content.Intent
+import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Log
 import android.view.View
 import android.widget.RadioButton
 import android.widget.Toast
@@ -17,9 +17,17 @@ import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.api.CloudinaryResponse
+import com.tdc.nhom6.roomio.api.RetrofitClientCloudinary
 import com.tdc.nhom6.roomio.databinding.EditProfileLayoutBinding
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -32,6 +40,7 @@ class EditProfileActivity : AppCompatActivity() {
     private var isEditing = false
     private var currentRoleId = "user"
     private var fromGoogle = false
+    private var currentAvatarUrl = ""  // ← Lưu avatar hiện tại
 
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let {
@@ -51,22 +60,19 @@ class EditProfileActivity : AppCompatActivity() {
         loadUserInfo()
 
         if (fromGoogle) {
-            //  Chỉ áp dụng khi người dùng đăng ký Google lần đầu
             binding.imgBack.visibility = View.GONE
             binding.tvEdit.text = "Lưu"
             enableEditing(true)
             setupAutoSaveBehavior()
-
-            // Tự động lấy email từ tài khoản Google
             binding.edtEmail.setText(auth.currentUser?.email ?: "")
             binding.edtEmail.isEnabled = false
         } else {
-            //  Người dùng đăng nhập thường hoặc đã có tài khoản Google → giữ nguyên
             binding.imgBack.visibility = View.VISIBLE
             binding.tvEdit.text = "Sửa"
         }
     }
 
+    // Thiết lập các hành vi UI
     private fun setupUI() = binding.apply {
         imgBack.setOnClickListener { if (isEditing) showConfirmExitDialog() else finish() }
         tvEdit.setOnClickListener { if (!isEditing) enableEditing(true) else saveUserInfo() }
@@ -74,19 +80,19 @@ class EditProfileActivity : AppCompatActivity() {
         edtBirthDate.setOnClickListener { if (isEditing) showDatePicker() }
     }
 
+    // Auto đổi nút "Sửa" thành "Lưu" khi edit
     private fun setupAutoSaveBehavior() {
         val editTexts = listOf(binding.edtUsername, binding.edtPhone, binding.edtBirthDate)
         editTexts.forEach {
             it.addTextChangedListener(object : TextWatcher {
-                override fun afterTextChanged(s: Editable?) {
-                    binding.tvEdit.text = "Lưu"
-                }
+                override fun afterTextChanged(s: Editable?) { binding.tvEdit.text = "Lưu" }
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             })
         }
     }
 
+    // Load thông tin user từ Firestore
     private fun loadUserInfo() {
         val uid = auth.currentUser?.uid ?: return
         db.collection("users").document(uid).get()
@@ -95,8 +101,6 @@ class EditProfileActivity : AppCompatActivity() {
                     val emailFromFirestore = userDoc.getString("email")
                     val emailFromAuth = auth.currentUser?.email
                     val emailFromPrefs = getSharedPreferences("user_prefs", MODE_PRIVATE).getString("email", "")
-
-                    // Ưu tiên lấy email từ Firestore → FirebaseAuth → SharedPreferences
                     val finalEmail = when {
                         !emailFromFirestore.isNullOrEmpty() -> emailFromFirestore
                         !emailFromAuth.isNullOrEmpty() -> emailFromAuth
@@ -113,12 +117,15 @@ class EditProfileActivity : AppCompatActivity() {
                     radioFemale.isChecked = gender.equals("Nữ", true)
 
                     currentRoleId = userDoc.getString("roleId") ?: "user"
+                    currentAvatarUrl = userDoc.getString("avatar") ?: ""
 
                     Glide.with(this@EditProfileActivity)
-                        .load(userDoc.getString("avatar"))
+                        .load(currentAvatarUrl)
                         .placeholder(R.drawable.user)
                         .into(imgAvatar)
                 }
+
+                // Load phone từ collection accounts
                 db.collection("accounts").document(uid).get()
                     .addOnSuccessListener { accDoc ->
                         if (accDoc.exists()) {
@@ -126,17 +133,17 @@ class EditProfileActivity : AppCompatActivity() {
                         }
                     }
             }
-            .addOnFailureListener { showToast(" Lỗi tải dữ liệu: ${it.message}") }
+            .addOnFailureListener { showToast("Lỗi tải dữ liệu: ${it.message}") }
     }
 
-
-
+    // Bật/tắt chế độ edit
     private fun enableEditing(enable: Boolean) = binding.apply {
         isEditing = enable
         listOf(edtUsername, edtPhone, radioMale, radioFemale, edtBirthDate).forEach { it.isEnabled = enable }
         tvEdit.text = if (enable) "Lưu" else "Sửa"
     }
 
+    // Lưu dữ liệu user
     private fun saveUserInfo() {
         val uid = auth.currentUser?.uid ?: return
         val username = binding.edtUsername.text.toString().trim()
@@ -145,72 +152,82 @@ class EditProfileActivity : AppCompatActivity() {
         val gender = getSelectedGender()
 
         if (username.isEmpty() || phone.isEmpty()) {
-            showToast("⚠Vui lòng nhập đầy đủ thông tin!")
+            showToast("Vui lòng nhập đầy đủ thông tin!")
             return
         }
 
-        val createdAt = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
-            .format(Date())
+        val createdAt = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date())
 
+        // Chuẩn bị map dữ liệu cần update
         val updates = hashMapOf<String, Any>(
             "accountId" to uid,
-            "avatar" to "",
+            "username" to username,
             "birthDate" to birthDate,
             "createdAt" to createdAt,
             "email" to (auth.currentUser?.email ?: ""),
             "gender" to gender,
             "phone" to phone,
-            "roleId" to currentRoleId,
-            "username" to username
+            "roleId" to currentRoleId
         )
 
-        //  Nếu người dùng chọn ảnh → upload trước, rồi lưu Firestore
+        // Chỉ thêm avatar nếu user chọn ảnh mới
+        if (imageUri != null) updates["avatar"] = ""  // sẽ update khi upload xong
+
         if (imageUri != null) {
             uploadAvatar(uid, updates, phone)
         } else {
+            // Giữ avatar hiện tại nếu không thay đổi
+            updates["avatar"] = currentAvatarUrl
             updateUserAndPhone(uid, updates, phone)
         }
     }
 
-
+    // Upload avatar lên Cloudinary
     private fun uploadAvatar(uid: String, updates: HashMap<String, Any>, phone: String) {
-        val imageUri = imageUri ?: return
-        val storageRef = FirebaseStorage.getInstance().reference.child("avatars/$uid.jpg")
+        val uri = imageUri ?: return
+        val file = File(getRealPathFromURI(uri))
+        val requestFile = RequestBody.create("image/*".toMediaTypeOrNull(), file)
+        val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
+        val preset = RequestBody.create("text/plain".toMediaTypeOrNull(), "unsigned_preset")
 
-        // Hiển thị loading tạm thời (tuỳ bạn thêm ProgressBar hoặc disable nút)
+        val call = RetrofitClientCloudinary.instance.uploadImage(body, preset)
         binding.tvEdit.isEnabled = false
 
-        storageRef.putFile(imageUri)
-            .continueWithTask { task ->
-                if (!task.isSuccessful) {
-                    throw task.exception ?: Exception("Upload thất bại")
-                }
-                storageRef.downloadUrl
-            }
-            .addOnSuccessListener { uri ->
-                val downloadUrl = uri.toString()
-                updates["avatar"] = downloadUrl
-
-                // Lưu thông tin và đường dẫn ảnh vào Firestore
-                updateUserAndPhone(uid, updates, phone)
-
-                //  Cập nhật ngay ảnh trên giao diện
-                Glide.with(this)
-                    .load(downloadUrl)
-                    .placeholder(R.drawable.user)
-                    .into(binding.imgAvatar)
-            }
-            .addOnFailureListener { e ->
-                Log.e("UploadError", "Firebase upload failed", e)
-                showToast("Lỗi tải ảnh: ${e.message}")
-            }
-            .addOnCompleteListener {
+        call.enqueue(object : Callback<CloudinaryResponse> {
+            override fun onResponse(call: Call<CloudinaryResponse>, response: Response<CloudinaryResponse>) {
+                if (response.isSuccessful) {
+                    val imageUrl = response.body()?.secure_url ?: ""
+                    updates["avatar"] = imageUrl
+                    currentAvatarUrl = imageUrl
+                    updateUserAndPhone(uid, updates, phone)
+                    Glide.with(this@EditProfileActivity)
+                        .load(imageUrl)
+                        .placeholder(R.drawable.user)
+                        .into(binding.imgAvatar)
+                } else showToast("Tải ảnh thất bại!")
                 binding.tvEdit.isEnabled = true
             }
+
+            override fun onFailure(call: Call<CloudinaryResponse>, t: Throwable) {
+                showToast("Lỗi upload: ${t.message}")
+                binding.tvEdit.isEnabled = true
+            }
+        })
     }
 
+    // Lấy đường dẫn thực tế từ URI
+    private fun getRealPathFromURI(uri: Uri): String {
+        val cursor: Cursor? = contentResolver.query(uri, null, null, null, null)
+        return if (cursor == null) uri.path ?: "" else {
+            cursor.moveToFirst()
+            val idx = cursor.getColumnIndex("_data")
+            val path = if (idx != -1) cursor.getString(idx) else ""
+            cursor.close()
+            path
+        }
+    }
 
-
+    // Cập nhật user + phone, đồng thời trả dữ liệu avatar + username để ProfileActivity hiển thị ngay
     private fun updateUserAndPhone(uid: String, updates: HashMap<String, Any>, phone: String) {
         val userRef = db.collection("users").document(uid)
         val accRef = db.collection("accounts").document(uid)
@@ -220,10 +237,15 @@ class EditProfileActivity : AppCompatActivity() {
             batch.set(accRef, mapOf("phone" to phone), com.google.firebase.firestore.SetOptions.merge())
         }.addOnSuccessListener {
             enableEditing(false)
-            setResult(Activity.RESULT_OK)
+
+            // Trả dữ liệu avatar + username về ProfileActivity
+            val resultIntent = Intent().apply {
+                putExtra("username", updates["username"] as String)
+                putExtra("avatar", updates["avatar"] as? String ?: "")
+            }
+            setResult(Activity.RESULT_OK, resultIntent)
             showToast("Đã lưu thay đổi!")
 
-            // 🔹 Nếu là lần đầu đăng ký Google → chuyển sang ProfileActivity
             if (fromGoogle) {
                 val intent = Intent(this, ProfileActivity::class.java)
                 startActivity(intent)
@@ -236,9 +258,7 @@ class EditProfileActivity : AppCompatActivity() {
 
     private fun getSelectedGender(): String {
         val checkedId = binding.radioGender.checkedRadioButtonId
-        return if (checkedId != -1)
-            findViewById<RadioButton>(checkedId).text.toString()
-        else ""
+        return if (checkedId != -1) findViewById<RadioButton>(checkedId).text.toString() else ""
     }
 
     private fun showConfirmExitDialog() {
@@ -259,6 +279,5 @@ class EditProfileActivity : AppCompatActivity() {
         ).show()
     }
 
-    private fun showToast(msg: String) =
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    private fun showToast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 }
