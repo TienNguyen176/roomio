@@ -1,16 +1,19 @@
 package com.tdc.nhom6.roomio.activities
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.MenuItem
+import android.widget.RadioButton
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.adapters.PaymentMethodAdapter
@@ -19,6 +22,7 @@ import com.tdc.nhom6.roomio.databinding.ActivityGuestDetailBinding
 import com.tdc.nhom6.roomio.models.Booking
 import com.tdc.nhom6.roomio.models.Discount
 import com.tdc.nhom6.roomio.models.HotelModel
+import com.tdc.nhom6.roomio.models.Invoice
 import com.tdc.nhom6.roomio.models.PaymentMethod
 import com.tdc.nhom6.roomio.models.RoomType
 import java.text.SimpleDateFormat
@@ -52,7 +56,7 @@ class GuestDetailActivity : AppCompatActivity() {
     private var roomTypeListener: ListenerRegistration? = null
     private var hotelListener: ListenerRegistration? = null
     private var discountListener: ListenerRegistration? = null
-
+    private var selectedMethodId:String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,8 +74,30 @@ class GuestDetailActivity : AppCompatActivity() {
 
         booking?.let { safeBooking ->
             startDataLoading(safeBooking)
+            initial()
         } ?: run {
             Log.e("GuestDetail", "Lỗi: Không nhận được đối tượng Booking.")
+        }
+    }
+
+    private fun initial() {
+        paymentMethodAdapter = PaymentMethodAdapter(
+            listPaymentMethod,
+            requiredAmount,
+            userWalletBalance
+        )
+        binding.recyclerPaymentMethod.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+        binding.recyclerPaymentMethod.adapter = paymentMethodAdapter
+
+        paymentMethodAdapter.onPaymentMethodSelected = { selectedMethod ->
+            booking?.let { safeBooking ->
+                selectedMethodId = selectedMethod.paymentMethodId
+                handleTravelWalletDiscount(safeBooking, selectedMethod.paymentMethodName)
+            }
+        }
+
+        binding.btnPayment.setOnClickListener{
+            addBookingAndPayment(booking)
         }
     }
 
@@ -97,7 +123,6 @@ class GuestDetailActivity : AppCompatActivity() {
         }
     }
 
-
     @SuppressLint("SetTextI18n")
     private fun updateUI(booking: Booking) {
 
@@ -110,14 +135,72 @@ class GuestDetailActivity : AppCompatActivity() {
 
         binding.tvRoomType.text = currentRoomType?.typeName ?: "N/A"
 
-        binding.tvCheckIn.text = booking.checkInDate?.let { convertLongToDate(it) } ?: "N/A"
-        binding.tvCheckOut.text = booking.checkOutDate?.let { convertLongToDate(it) } ?: "N/A"
+        binding.tvCheckIn.text = booking.checkInDate?.let { convertTimestampToString(it) }
+        binding.tvCheckOut.text = booking.checkOutDate?.let { convertTimestampToString(it) } ?: "N/A"
 
         binding.tvGuest.text = "${booking.numberGuest} people"
 
         updateTotalAmount(currentDiscount)
     }
 
+    private fun addBookingAndPayment(booking: Booking?) {
+        booking?.let { bookingData ->
+
+            val checkedId = binding.groupFundAmount.checkedRadioButtonId
+
+            val radioButton = findViewById<RadioButton>(checkedId)
+
+            if (radioButton == null) {
+                Log.e("Firebase", "Lỗi: Không tìm thấy RadioButton đã chọn.")
+                return@let
+            }
+
+            val rawText = radioButton.text.toString()
+
+            val cleanedForSplit = rawText.replace("[^\\d\\.,\\s]".toRegex(), "")
+
+            val amountString = cleanedForSplit
+                .split(" ")
+                .firstOrNull { it.isNotEmpty() && it.first().isDigit() } ?: ""
+
+            val valueWithoutSeparators = amountString.replace(".", "")
+            val totalAmountValue = valueWithoutSeparators.toDoubleOrNull() ?: 0.0
+
+            val safePaymentMethodId = selectedMethodId
+            if (safePaymentMethodId == null) {
+                Log.e("Firebase", "Lỗi: Phương thức thanh toán chưa được chọn.")
+                return@let
+            }
+
+            db.collection("bookings")
+                .add(bookingData)
+                .addOnSuccessListener { documentReference ->
+                    val newBookingId = documentReference.id
+                    Log.d("Firebase","Thêm booking thành công. ID: $newBookingId")
+
+                    val invoice = Invoice(
+                        bookingId = newBookingId,
+                        totalAmount = totalAmountValue,
+                        paymentMethodId = safePaymentMethodId
+                    )
+
+                    db.collection("invoices")
+                        .add(invoice)
+                        .addOnSuccessListener { invoiceDocumentReference ->
+                            Log.d("Firebase", "Thêm invoice thành công. ID: ${invoiceDocumentReference.id}")
+                            val intent=Intent(this, PaymentActivity::class.java)
+                            intent.putExtra("BOOKING_ID",newBookingId)
+                            startActivity(intent)
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("Firebase", "Lỗi khi thêm invoice", e)
+                        }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("Firebase", "Lỗi khi thêm booking", e)
+                }
+        }
+    }
     private fun updateTotalAmount(discount: Discount?) {
         val safeBooking = booking ?: return
 
@@ -182,7 +265,7 @@ class GuestDetailActivity : AppCompatActivity() {
                 }
                 .addOnFailureListener { Log.e("Firestore", "Lỗi kiểm tra Bookings", it) }
         } else {
-            loadFinalDiscountAndRefreshUI(booking.discountId)
+            loadFinalDiscountAndRefreshUI(targetDiscountId)
         }
     }
 
@@ -358,21 +441,14 @@ class GuestDetailActivity : AppCompatActivity() {
             }
     }
 
+    fun convertTimestampToString(timestamp: Timestamp): String {
+        // 1. Chuyển Timestamp thành đối tượng Date
+        val date: Date = timestamp.toDate()
 
-    private fun convertLongToDate(time: Long?): String {
-        if (time == null) return "N/A"
-        val date = Date(time)
-        val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        return format.format(date)
-    }
+        // 2. Tạo đối tượng SimpleDateFormat với định dạng và Locale (ngôn ngữ) mong muốn
+        val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            android.R.id.home -> {
-                onBackPressedDispatcher.onBackPressed()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
+        // 3. Định dạng Date thành String
+        return dateFormat.format(date)
     }
 }

@@ -30,6 +30,8 @@ import java.util.Locale
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.tdc.nhom6.roomio.models.RoomType
 import java.util.concurrent.TimeUnit
+import com.google.firebase.Timestamp
+import java.util.Date
 
 class RoomTypeAdapter(
     private val context: Context,
@@ -39,7 +41,7 @@ class RoomTypeAdapter(
 
     private val expandedPositions = mutableSetOf<Int>()
     private lateinit var booking: Booking
-    private val customerId = "Ja4V5OpoH0QnGGvnN4jmwTCXRud2"
+    private val customerId = "5mDP6WZb1JWcuSDOgPtDycty7H53"
 
     class RoomTypeViewHolder(
         val binding: ItemRoomTypeBinding,
@@ -289,8 +291,8 @@ class RoomTypeAdapter(
             booking = Booking(
                 customerId = customerId,
                 roomTypeId = roomType.roomTypeId,
-                checkInDate = startDate,
-                checkOutDate = endDate,
+                checkInDate = Timestamp(Date(startDate)),
+                checkOutDate = Timestamp(Date(endDate)),
                 numberGuest = roomType.maxPeople,
                 totalOrigin = totalOrigin,
                 totalFinal = totalOrigin

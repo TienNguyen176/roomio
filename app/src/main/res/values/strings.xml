@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">Roomio</string>
-    
+
     <!-- Home Fragment -->
     <string name="home_title">What are you\nlooking for?</string>
     <string name="search_hint">Search</string>
@@ -11,7 +11,7 @@
     <string name="clear_firebase_data">Clear Data</string>
     <string name="test_firebase_connection">Test Connection</string>
     <string name="initialize_database">Initialize Database</string>
-    
+
     <!-- Search Results Screen -->
     <string name="back">Back</string>
     <string name="sort">Sort</string>
@@ -21,16 +21,16 @@
     <string name="location">Location</string>
     <string name="star">Star</string>
     <string name="sample_location">Vung Tau</string>
-    
+
     <!-- Hot Review Item -->
     <string name="sample_hotel_name">Ares Home</string>
     <string name="sample_rating">5.0 (500)</string>
     <string name="sample_price">VND 150.000</string>
-    
+
     <!-- Deal Item -->
     <string name="sample_deal_title">The Harmony Hotel</string>
     <string name="sample_deal_subtitle">Quận 1, TP. Hồ Chí Minh</string>
-    
+
     <!-- Common -->
     <string name="currency_vnd">VND</string>
     <string name="rating_format" formatted="false">%.1f (%d)</string>

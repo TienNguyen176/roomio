@@ -1,17 +1,21 @@
 package com.tdc.nhom6.roomio.models
 
 import com.google.firebase.Timestamp
-import java.math.BigDecimal
-import java.time.LocalDateTime
+import com.google.firebase.firestore.DocumentId
 
 data class Invoice(
+    @DocumentId
+    var invoiceId: String? = null,
 
-    val bookingId: Int,
+    var bookingId: String? = null,
 
-    val totalAmount: BigDecimal,
+    var totalAmount: Double? = 0.0,
 
-    val issuedById: Int? = null,
-    val paymentMethodId: Int? = null,
+    var paymentMethodId: String? = null,
 
-    val issuedDate: Timestamp = Timestamp.now()
+    var createdAt: Timestamp = Timestamp.now(),
+
+    var issuedById: Int? = null,
+
+    var issuedDate: Timestamp? = null
 )

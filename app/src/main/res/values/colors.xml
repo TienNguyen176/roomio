@@ -3,10 +3,13 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="red">#FFFF0000</color>
+    <color name="blue">#2466F3</color>
     <color name="transparent">#00000000</color>
     <color name="green">#30A854</color>
     <color name="calendar_primary_color">#F44336</color>
     <color name="gray">#EAECEF</color>
+    <color name="gray_700">#BEC2CE</color>
+    <color name="dark">#80000000</color>
     <color name="yellow">#FF8900</color>
     <color name="red_primary">#FF2D55</color>
     <color name="red_light_range">#FFCDD2</color>

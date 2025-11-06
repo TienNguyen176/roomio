@@ -14,7 +14,6 @@ import com.bumptech.glide.request.transition.Transition
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.GuestDetailActivity
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter.Format
 import com.tdc.nhom6.roomio.databinding.ItemPaymentMethodBinding
 import com.tdc.nhom6.roomio.models.Discount
@@ -23,15 +22,18 @@ import com.tdc.nhom6.roomio.models.PaymentMethod
 @Suppress("DEPRECATION")
 class PaymentMethodAdapter(
     private val listPaymentMethod: MutableList<PaymentMethod>,
-    private var requiredAmount: Double, // Đã chuyển thành var
-    private var userWalletBalance: Double // Đã chuyển thành var
+    private var requiredAmount: Double,
+    private var userWalletBalance: Double
 ) : RecyclerView.Adapter<PaymentMethodAdapter.ViewHolder>() {
 
-    private var selectedPosition = RecyclerView.NO_POSITION
-
+    var selectedPosition = RecyclerView.NO_POSITION
     var onPaymentMethodSelected: ((PaymentMethod) -> Unit)? = null
 
-    // 1. Hàm cập nhật số tiền yêu cầu
+    private object Payload {
+        const val CHECK_STATE = "check_state_changed"
+    }
+
+    // Cập nhật số tiền yêu cầu
     fun updateRequiredAmount(newAmount: Double) {
         if (this.requiredAmount != newAmount) {
             this.requiredAmount = newAmount
@@ -39,10 +41,20 @@ class PaymentMethodAdapter(
         }
     }
 
-    // 2. Hàm cập nhật số dư ví
+    // Cập nhật số dư ví
     fun updateWalletBalance(newBalance: Double) {
         if (this.userWalletBalance != newBalance) {
             this.userWalletBalance = newBalance
+
+            // Hủy chọn nếu số dư không đủ sau khi cập nhật
+            if (selectedPosition != RecyclerView.NO_POSITION) {
+                val selectedItem = listPaymentMethod.getOrNull(selectedPosition)
+                val isWalletMethod = selectedItem?.paymentMethodName.equals("Travel wallet", ignoreCase = true)
+
+                if (isWalletMethod && newBalance < this.requiredAmount) {
+                    selectedPosition = RecyclerView.NO_POSITION
+                }
+            }
             notifyDataSetChanged()
         }
     }
@@ -56,49 +68,31 @@ class PaymentMethodAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = listPaymentMethod[position]
 
+        // 1. Tính trạng thái
         val isWalletMethod = item.paymentMethodName.equals("Travel wallet", ignoreCase = true)
+        val isSufficientBalance = userWalletBalance >= requiredAmount
+        val isEnabled = isSufficientBalance || !isWalletMethod // Chỉ disable khi là Ví và không đủ tiền
 
-        var isSufficientBalance = true
-
-        if (isWalletMethod) {
-            isSufficientBalance = userWalletBalance >= requiredAmount
-
-            holder.binding.tvBalance.isVisible = true
-            holder.binding.tvBalance.text = "Balance: ${Format.formatCurrency(userWalletBalance)}"
-
-            val colorResId = if (isSufficientBalance) R.color.green else R.color.red
-            holder.binding.tvBalance.setTextColor(ContextCompat.getColor(holder.itemView.context, colorResId))
-
-            // Nếu không đủ tiền, hủy chọn phương thức ví nếu nó đang được chọn
-            if (!isSufficientBalance && selectedPosition == position) {
-                selectedPosition = RecyclerView.NO_POSITION
-            }
-
-        } else {
-            holder.binding.tvBalance.isVisible = false
-        }
-
-        // Vô hiệu Hóa (Disable) Item và Radio Button
-        holder.itemView.isEnabled = isSufficientBalance || !isWalletMethod
-        holder.itemView.alpha = if (isSufficientBalance || !isWalletMethod) 1.0f else 0.4f
-        holder.binding.radId.isEnabled = isSufficientBalance || !isWalletMethod
-        
-        // Chỉ chọn item nếu nó là item được chọn và không bị disable (hoặc không phải là ví)
-        holder.binding.radId.isChecked = position == selectedPosition && (isSufficientBalance || !isWalletMethod)
-
-        holder.onBind(item)
+        // 2. Truyền dữ liệu vào onBind
+        holder.onBind(
+            item,
+            requiredAmount,
+            userWalletBalance,
+            position == selectedPosition,
+            isEnabled
+        )
 
         holder.itemView.setOnClickListener {
-            if (holder.itemView.isEnabled) {
+            if (isEnabled) {
                 val previousSelectedPosition = selectedPosition
 
                 selectedPosition = holder.adapterPosition
 
                 if (previousSelectedPosition != RecyclerView.NO_POSITION) {
-                    notifyItemChanged(previousSelectedPosition)
+                    notifyItemChanged(previousSelectedPosition, Payload.CHECK_STATE)
                 }
 
-                notifyItemChanged(selectedPosition)
+                notifyItemChanged(selectedPosition, Payload.CHECK_STATE)
 
                 onPaymentMethodSelected?.invoke(item)
             }
@@ -112,51 +106,75 @@ class PaymentMethodAdapter(
 
         private var discountListener: ListenerRegistration? = null
 
+        fun updateCheckStateOnly(isChecked: Boolean) {
+            binding.radId.isChecked = isChecked
+        }
+
         @SuppressLint("UseCompatLoadingForDrawables")
-        fun onBind(itemMethod: PaymentMethod) {
-            binding.radId.text = itemMethod.paymentMethodName
+        fun onBind(
+            item: PaymentMethod,
+            requiredAmount: Double,
+            userWalletBalance: Double,
+            isSelected: Boolean,
+            isEnabled: Boolean
+        ) {
+            binding.radId.text = item.paymentMethodName
 
-//            val drawable = itemMethod.iconId?.let {itemView.context.getDrawable(it)}
-            Glide.with(itemView.context).asDrawable().load(itemMethod.iconId).into(
-               object :CustomTarget<Drawable>(){
-                   override fun onResourceReady(
-                       resource: Drawable,
-                       transition: Transition<in Drawable>?
-                   ) {
-                       binding.radId.setCompoundDrawablesWithIntrinsicBounds(resource, null, null, null)
-                   }
+            // --- Logic Load Icon (Giữ nguyên) ---
+            Glide.with(itemView.context).asDrawable().load(item.iconId).into(
+                object :CustomTarget<Drawable>(){
+                    override fun onResourceReady(
+                        resource: Drawable,
+                        transition: Transition<in Drawable>?
+                    ) {
+                        binding.radId.setCompoundDrawablesWithIntrinsicBounds(resource, null, null, null)
+                    }
 
-                   override fun onLoadCleared(placeholder: Drawable?) {
-                       binding.radId.setCompoundDrawablesWithIntrinsicBounds(placeholder, null, null, null)
-                   }
-
-               }
+                    override fun onLoadCleared(placeholder: Drawable?) {
+                        binding.radId.setCompoundDrawablesWithIntrinsicBounds(placeholder, null, null, null)
+                    }
+                }
             )
 
-
-            // ⭐ Dừng listener cũ trước khi thiết lập cái mới (quan trọng cho tái sử dụng ViewHolder)
             discountListener?.remove()
 
-            if(itemMethod.discountId != null){
-                itemMethod.discountId?.let { id ->
-                    // ⭐ Gọi hàm load Realtime
+            if(item.discountId != null){
+                item.discountId?.let { id ->
                     discountListener = loadDiscountDescription(id) { description ->
-                        // Cập nhật mô tả nếu có
                         if (!description.isNullOrEmpty()) {
                             binding.tvDiscountDescription.text = description
                         } else {
-                            binding.tvDiscountDescription.text = itemMethod.description
+                            binding.tvDiscountDescription.text = item.description
                         }
                     }
                 }
+            } else {
+                binding.tvDiscountDescription.text = item.description
             }
-            else{
-                binding.tvDiscountDescription.text = itemMethod.description
+
+            val isWalletMethod = item.paymentMethodName.equals("Travel wallet", ignoreCase = true)
+
+            if (isWalletMethod) {
+                val isSufficientBalance = userWalletBalance >= requiredAmount
+
+                binding.tvBalance.isVisible = true
+                binding.tvBalance.text = "Balance: ${Format.formatCurrency(userWalletBalance)}"
+
+                val colorResId = if (isSufficientBalance) R.color.green else R.color.red
+                binding.tvBalance.setTextColor(ContextCompat.getColor(itemView.context, colorResId))
+
+            } else {
+                binding.tvBalance.isVisible = false
             }
+
+            itemView.isEnabled = isEnabled
+            itemView.alpha = if (isEnabled) 1.0f else 0.4f
+            binding.radId.isEnabled = isEnabled
+
+            binding.radId.isChecked = isSelected
         }
 
         private fun loadDiscountDescription(discountId: String, onResult: (String?) -> Unit): ListenerRegistration {
-            // Sử dụng FirebaseFirestore.getInstance() để độc lập với Activity
             return FirebaseFirestore.getInstance().collection("discounts")
                 .document(discountId)
                 .addSnapshotListener { dataSnapshot, exception ->
