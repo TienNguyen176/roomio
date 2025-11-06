@@ -54,6 +54,11 @@ class ProfileActivity : AppCompatActivity() {
         updateRoleUI("user")
         animateRoleColor("user")
 
+        binding.userBank.setOnClickListener {
+            startActivity(Intent(this, ManageBanksActivity::class.java))
+        }
+
+
     }
 
     override fun onStop() {

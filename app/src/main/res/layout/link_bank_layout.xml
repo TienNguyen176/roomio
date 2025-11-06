@@ -1,0 +1,100 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="#FFFFFF"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Chọn ngân hàng -->
+    <LinearLayout
+        android:id="@+id/layoutSelectBank"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp">
+
+        <ImageView
+            android:id="@+id/imgBankLogo"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/nganhang" />
+
+        <TextView
+            android:id="@+id/tvBankName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="12dp"
+            android:text="Chọn ngân hàng"
+            android:textColor="#555"
+            android:textSize="16sp" />
+    </LinearLayout>
+
+<!--    <com.google.android.material.textfield.TextInputLayout-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"-->
+<!--        android:layout_marginTop="5dp"-->
+<!--        android:hint="Email"-->
+<!--        android:textColorHint="#AAAAAA"-->
+<!--        app:boxBackgroundMode="outline"-->
+<!--        app:boxStrokeWidth="2dp"-->
+<!--        app:boxStrokeColor="@color/textfield_stroke_color">-->
+
+<!--        <com.google.android.material.textfield.TextInputEditText-->
+<!--            android:id="@+id/edtEmail"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:textColor="#FFFFFF"-->
+<!--            android:inputType="textEmailAddress" />-->
+<!--    </com.google.android.material.textfield.TextInputLayout>-->
+
+<!--    &lt;!&ndash; Họ và tên &ndash;&gt;-->
+<!--    <com.google.android.material.textfield.TextInputLayout-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"-->
+<!--        android:layout_marginTop="5dp"-->
+<!--        android:hint="Họ và tên"-->
+<!--        android:textColorHint="#AAAAAA"-->
+<!--        app:boxBackgroundMode="outline"-->
+<!--        app:boxStrokeWidth="2dp"-->
+<!--        app:boxStrokeColor="@color/textfield_stroke_color">-->
+
+<!--        <com.google.android.material.textfield.TextInputEditText-->
+<!--            android:id="@+id/edtUsername"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:textColor="#FFFFFF"-->
+<!--            android:inputType="textPersonName" />-->
+<!--    </com.google.android.material.textfield.TextInputLayout>-->
+
+
+
+    <!-- Nhập thông tin tài khoản -->
+    <EditText
+        android:id="@+id/edtAccountNumber"
+        android:hint="Số tài khoản"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="number"
+        android:layout_marginTop="20dp" />
+
+    <EditText
+        android:id="@+id/edtAccountHolder"
+        android:hint="Tên chủ tài khoản"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp" />
+
+    <!-- Nút xác nhận -->
+    <Button
+        android:id="@+id/btnLinkBank"
+        android:text="Xác nhận liên kết"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:backgroundTint="#03A9F4"
+        android:textColor="#FFF" />
+</LinearLayout>
