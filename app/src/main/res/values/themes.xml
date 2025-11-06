@@ -9,7 +9,7 @@
     </style>
 
     <style name="RatingBarColor" parent="Theme.Roomio" >
-        <item name="colorControlNormal">@color/gray</item>
+        <item name="colorControlNormal">@color/dark</item>
         <item name="colorControlActivated">@color/yellow</item>
     </style>
 
