@@ -1,5 +1,7 @@
 package com.tdc.nhom6.roomio.models
 
+import com.google.firebase.Timestamp
+
 data class RoomType(
     val roomTypeId: String = "",
     val typeName: String = "",
@@ -9,6 +11,7 @@ data class RoomType(
     val maxPeople: Int = 0,
     val pricePerNight: Long = 0,
     val roomImages: List<RoomImage> = emptyList(),
+    val facilityPrices: List<FacilityPrice> = emptyList(),
     val viewId: String = "0"
 )
 
@@ -16,5 +19,5 @@ data class RoomImage(
 
     val imageUrl: String = "",
     val thumbnail: Boolean = false,
-    val uploadedAt: String = ""
+    val uploadedAt:  Any? = null
 )

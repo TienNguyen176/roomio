@@ -13,16 +13,22 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.RoomsAdapter
 import com.tdc.nhom6.roomio.apis.CloudinaryRepository
+import com.tdc.nhom6.roomio.databinding.DialogCreateRoomTypeLayoutBinding
 import com.tdc.nhom6.roomio.databinding.RoomFloorsHotelLayoutBinding
+import com.tdc.nhom6.roomio.dialogs.FacilityPriceSelectorDialog
+import com.tdc.nhom6.roomio.models.DamageLossPrice
+import com.tdc.nhom6.roomio.models.FacilityPrice
 import com.tdc.nhom6.roomio.models.Room
 import com.tdc.nhom6.roomio.models.RoomType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -49,6 +55,9 @@ class RoomHotelActivity : AppCompatActivity() {
     private val selectedRooms = mutableSetOf<Room>()
 
     private var selectedRoomTypeUris: MutableList<Uri> = mutableListOf()
+    private val selectedFacilityPrices = mutableListOf<FacilityPrice>()
+    private val selectedDamagePrices  = mutableListOf<DamageLossPrice>()
+
 
     // Chọn ảnh loại phòng
     private val roomTypeImagePickerLauncher =
@@ -292,41 +301,63 @@ class RoomHotelActivity : AppCompatActivity() {
     // ==============================================
 
     private fun showCreateRoomTypeDialog() {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_create_room_type_layout, null)
-        val edtName = dialogView.findViewById<EditText>(R.id.edtRoomTypeName)
-        val edtArea = dialogView.findViewById<EditText>(R.id.edtRoomTypeArea)
-        val edtPeople = dialogView.findViewById<EditText>(R.id.edtRoomTypePeople)
-        val edtPrice = dialogView.findViewById<EditText>(R.id.edtRoomTypePrice)
-        val btnSelectImages = dialogView.findViewById<Button>(R.id.btnSelectRoomImages)
-        val tvSelected = dialogView.findViewById<TextView>(R.id.tvSelectedImages)
+        val dialogBinding = DialogCreateRoomTypeLayoutBinding.inflate(layoutInflater)
 
-        btnSelectImages.setOnClickListener {
-            roomTypeImagePickerLauncher.launch("image/*")
-            tvSelected.text = "Đã chọn ${selectedRoomTypeUris.size} ảnh"
-        }
-
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Thêm loại phòng mới")
-            .setView(dialogView)
-            .setPositiveButton("Lưu") { dialog, _ ->
-                val name = edtName.text.toString().trim()
-                val area = edtArea.text.toString().toIntOrNull() ?: 0
-                val people = edtPeople.text.toString().toIntOrNull() ?: 1
-                val price = edtPrice.text.toString().toLongOrNull() ?: 0
+            .setView(dialogBinding.root)
+            .setPositiveButton("Lưu", null)
+            .setNegativeButton("Hủy", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialogBinding.btnSelectRoomImages.setOnClickListener {
+                roomTypeImagePickerLauncher.launch("image/*")
+                dialogBinding.tvSelectedImages.text =
+                    "Đã chọn ${selectedRoomTypeUris.size} ảnh"
+            }
+
+            dialogBinding.btnSelectFacilities.setOnClickListener {
+                FacilityPriceSelectorDialog(
+                    context = this@RoomHotelActivity,
+                    scope = lifecycleScope,
+                    preselected = selectedFacilityPrices
+                ) { selectedRates ->
+                    // nhận đủ 2 loại giá từ dialog
+                    selectedFacilityPrices.clear()
+                    selectedFacilityPrices.addAll(selectedRates.facilityRates)
+
+                    selectedDamagePrices.clear()
+                    selectedDamagePrices.addAll(selectedRates.damageLossRates)
+
+                    dialogBinding.tvSelectedFacilities.text =
+                        "Đã chọn ${selectedRates.facilityRates.size} tiện ích"
+                }.show()
+            }
+
+
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val name = dialogBinding.edtRoomTypeName.text.toString().trim()
+                val area = dialogBinding.edtRoomTypeArea.text.toString().toIntOrNull() ?: 0
+                val people = dialogBinding.edtRoomTypePeople.text.toString().toIntOrNull() ?: 1
+                val price = dialogBinding.edtRoomTypePrice.text.toString().toLongOrNull() ?: 0
+                val desc = dialogBinding.edtRoomTypeDescription.text.toString().trim()
 
                 if (name.isEmpty()) {
                     Toast.makeText(this, "Tên loại phòng không được để trống", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+                    return@setOnClickListener
                 }
 
                 lifecycleScope.launch(Dispatchers.Main) {
                     val uploadedImages = uploadRoomTypeImages()
-                    saveRoomTypeToFirestore(name, area, people, price, uploadedImages)
+                    saveRoomTypeToFirestore(name, area, people, price, desc, uploadedImages)
                     dialog.dismiss()
                 }
             }
-            .setNegativeButton("Hủy", null)
-            .show()
+
+        }
+
+        dialog.show()
     }
 
     private suspend fun uploadRoomTypeImages(): List<Map<String, Any>> {
@@ -341,8 +372,7 @@ class RoomHotelActivity : AppCompatActivity() {
         }
 
         files.forEach { it.delete() }
-
-        val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault()).format(Date())
+        val now = com.google.firebase.Timestamp.now()
 
         return uploaded.map {
             mapOf(
@@ -353,35 +383,80 @@ class RoomHotelActivity : AppCompatActivity() {
         }
     }
 
+
     private fun saveRoomTypeToFirestore(
         name: String,
         area: Int,
         people: Int,
         price: Long,
+        description: String,
         roomImages: List<Map<String, Any>>
     ) {
         val newId = db.collection("roomTypes").document().id
+        val roomTypeRef = db.collection("roomTypes").document(newId)
 
-        val data = linkedMapOf(
+        val data = mapOf(
+            "roomTypeId" to newId,
+            "typeName" to name,
             "area" to area,
-            "description" to null,
+            "description" to description,
             "hotelId" to hotelId,
             "maxPeople" to people,
             "pricePerNight" to price,
             "roomImages" to roomImages,
-            "roomTypeId" to newId,
-            "typeName" to name,
             "viewId" to "0"
         )
 
-        db.collection("roomTypes").document(newId).set(data)
+        roomTypeRef.set(data)
             .addOnSuccessListener {
-                Toast.makeText(this, "Đã thêm loại phòng thành công!", Toast.LENGTH_SHORT).show()
+                // sau khi tạo document, lưu subcollections
+                lifecycleScope.launch(Dispatchers.IO) {
+                    saveFacilityRates(roomTypeRef)
+                    saveDamageLossRates(roomTypeRef)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@RoomHotelActivity, "Đã thêm loại phòng thành công!", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
             .addOnFailureListener {
                 Toast.makeText(this, "Lỗi khi lưu loại phòng!", Toast.LENGTH_SHORT).show()
             }
     }
+
+    // Lưu tiện ích sử dụng (facilityRates)
+    private suspend fun saveFacilityRates(roomTypeRef: DocumentReference) {
+        val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
+            .format(Date())
+
+        selectedFacilityPrices.forEach { fp ->
+            val doc = mapOf(
+                "facilityId" to fp.facilityId,
+                "price" to fp.price,
+                "updateDate" to now
+            )
+            roomTypeRef.collection("facilityRates").add(doc).await()
+        }
+    }
+
+
+    private suspend fun saveDamageLossRates(roomTypeRef: DocumentReference) {
+        val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
+            .format(Date())
+
+        selectedDamagePrices.forEach { dp ->
+            val doc = mapOf(
+                "facilityId" to dp.facilityId,
+                "price" to dp.price,
+                "statusId" to (dp.statusId.ifEmpty { "0" }),
+                "updateDate" to now
+            )
+            roomTypeRef.collection("damageLossRates").add(doc).await()
+        }
+    }
+
+
+
+
 
     // ==============================================
     // =========== GÁN LOẠI PHÒNG CHO PHÒNG =========
@@ -392,7 +467,6 @@ class RoomHotelActivity : AppCompatActivity() {
             Toast.makeText(this, "Chưa có loại phòng nào. Hãy thêm loại mới!", Toast.LENGTH_SHORT).show()
             return
         }
-
 
         val names = roomTypes.map { it.typeName }.toTypedArray()
 
