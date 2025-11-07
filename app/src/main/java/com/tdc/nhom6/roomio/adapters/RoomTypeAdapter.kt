@@ -31,6 +31,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.tdc.nhom6.roomio.models.RoomType
 import java.util.concurrent.TimeUnit
 import com.google.firebase.Timestamp
+import com.tdc.nhom6.roomio.databinding.DialogPaymentBinding
+import com.tdc.nhom6.roomio.databinding.DialogPaymentConfirmBinding
 import java.util.Date
 
 class RoomTypeAdapter(

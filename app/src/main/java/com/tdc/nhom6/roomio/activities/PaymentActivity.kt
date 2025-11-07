@@ -1,21 +1,20 @@
 package com.tdc.nhom6.roomio.activities
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.bumptech.glide.Glide
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ListenerRegistration
-import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.activities.HotelDetailActivity.Companion.db
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter
 import com.tdc.nhom6.roomio.databinding.ActivityPaymentBinding
+import com.tdc.nhom6.roomio.models.BankInfo
 import com.tdc.nhom6.roomio.models.Booking
-import com.tdc.nhom6.roomio.models.Discount
 import com.tdc.nhom6.roomio.models.HotelModel
 import com.tdc.nhom6.roomio.models.Invoice
 import com.tdc.nhom6.roomio.models.RoomType
@@ -35,7 +34,7 @@ class PaymentActivity : AppCompatActivity() {
     private var invoicesListener: ListenerRegistration? = null
     private var roomTypeListener: ListenerRegistration? = null
     private var hotelListener: ListenerRegistration? = null
-
+    private var currentOwnerBankInfo: BankInfo? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding=ActivityPaymentBinding.inflate(layoutInflater)
@@ -77,11 +76,11 @@ class PaymentActivity : AppCompatActivity() {
                 val guestCount = loadedBooking.numberGuest
                 binding.tvBookingDetail.text =  "${roomTypeName} (${numberOfNights} night, ${guestCount} people )"
 
-                binding.tvTotalAfter.text ="Total: VND ${RoomTypeAdapter.Format.formatCurrency(loadedBooking.totalFinal)}"
+                binding.tvTotalAfter.text ="Total: ${RoomTypeAdapter.Format.formatCurrency(loadedBooking.totalFinal)}"
 
                 if (invoices.isNotEmpty()) {
                     val invoice:Invoice = invoices.first()
-                    binding.tvInvoiceId.text = invoice.invoiceId
+                    binding.tvInvoiceId.text = "#ID: ${invoice.invoiceId}"
                     binding.tvCreateAt.text = convertTimestampToString(invoice.createdAt)
 
                     val bookingTotal = loadedBooking.totalFinal
@@ -92,10 +91,11 @@ class PaymentActivity : AppCompatActivity() {
                     } else 0.0
 
                     val formattedPercent = String.format("%.2f", percentagePaid)
-                    binding.tvAmountPayment.text = "Payment: VND ${RoomTypeAdapter.Format.formatCurrency(
+                    binding.tvAmountPayment.text = "Payment: ${RoomTypeAdapter.Format.formatCurrency(
                         invoice.totalAmount!!
                     )} (${formattedPercent}%)"
 
+                    generateQRPayment(invoice)
                 } else {
                     Log.w("PaymentActivity", "No invoices found for Booking ID: $bookingId.")
                     binding.tvInvoiceId.text = "N/A"
@@ -103,6 +103,46 @@ class PaymentActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun generateQRPayment(invoice: Invoice) {
+        currentHotel?.let {
+            db.collection("users")
+                .document(it.ownerId)
+                .collection("bank_info")
+                .whereEqualTo("default",true)
+                .addSnapshotListener { snapShot, error ->
+
+                    if (error != null) {
+                        Log.e("Firebase", "Lỗi lắng nghe Bank Info: ", error)
+                        return@addSnapshotListener
+                    }
+
+                    // CHỈ XỬ LÝ KHI CÓ DỮ LIỆU (snapShot không rỗng)
+                    if (snapShot != null && !snapShot.isEmpty) {
+
+                        // Lấy DocumentSnapshot đầu tiên (tài khoản mặc định) một cách an toàn
+                        val documentSnapshot = snapShot.documents.firstOrNull()
+
+                        try {
+                            currentOwnerBankInfo = documentSnapshot?.toObject(BankInfo::class.java)
+
+                            currentOwnerBankInfo?.let { info ->
+                                val QR_URL =
+                                    "https://img.vietqr.io/image/${currentOwnerBankInfo!!.bank_code}-${currentOwnerBankInfo!!.account_number}-compact2.png?amount=${invoice.totalAmount}&addInfo=Roomio_${invoice.invoiceId}"
+                                Glide.with(this).load(QR_URL).into(binding.ivQrCode)
+                                binding.tvTimer
+                                Log.d("QR code", "Hien thi thanh cong ${QR_URL}")
+                            }
+                        } catch (ex: Exception) {
+                            Log.e("Firebase", "Lỗi chuyển đổi dữ liệu cho BankInfo", ex)
+                        }
+                    } else {
+                        Log.w("Firebase", "BankInfo không tồn tại.")
+                    }
+                }
+        }
+
     }
 
     private fun loadBooking(bookingId: String, onComplete: () -> Unit) { // MODIFIED: onComplete instead of onLoaded(Booking)

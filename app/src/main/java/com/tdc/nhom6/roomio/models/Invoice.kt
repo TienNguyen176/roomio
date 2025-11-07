@@ -7,11 +7,11 @@ data class Invoice(
     @DocumentId
     var invoiceId: String? = null,
 
-    var bookingId: String? = null,
+    var bookingId: String = "",
 
-    var totalAmount: Double? = 0.0,
+    var totalAmount: Double = 0.0,
 
-    var paymentMethodId: String? = null,
+    var paymentMethodId: String = "",
 
     var createdAt: Timestamp = Timestamp.now(),
 
