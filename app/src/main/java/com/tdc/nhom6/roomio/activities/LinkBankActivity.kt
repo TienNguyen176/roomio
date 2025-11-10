@@ -42,6 +42,9 @@ class LinkBankActivity : AppCompatActivity() {
 
         binding.layoutSelectBank.setOnClickListener { showBankList() }
         binding.btnLinkBank.setOnClickListener { linkBankAccount() }
+        binding.btnBack.setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
     }
 
     private fun showBankList() {

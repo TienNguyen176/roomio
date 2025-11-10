@@ -49,10 +49,15 @@
             android:gravity="center"
             android:orientation="vertical">
 
-            <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/nganhang" />
+            <TextView
+                android:id="@+id/edtEdit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Edit"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColorHint="#E53935"
+                android:gravity="center" />
         </LinearLayout>
     </LinearLayout>
 

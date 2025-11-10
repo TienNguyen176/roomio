@@ -1,6 +1,7 @@
 package com.tdc.nhom6.roomio.activities
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -17,6 +18,7 @@ class ManageBanksActivity : AppCompatActivity() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val banks = mutableListOf<Bank>()
+    private var isEditing = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,6 +35,20 @@ class ManageBanksActivity : AppCompatActivity() {
         binding.btnBack.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
+        binding.edtEdit.setOnClickListener {
+            isEditing = !isEditing // đảo trạng thái
+            if (isEditing) {
+                binding.edtEdit.text = "Save"
+                binding.edtEdit.setTextColor(Color.parseColor("#E53935")) // đỏ
+            } else {
+                binding.edtEdit.text = "Edit"
+                binding.edtEdit.setTextColor(Color.parseColor("#E53935")) // đỏ
+                saveAllChanges() // khi nhấn save thì cập nhật firestore
+            }
+
+            //(binding.recyclerLinkedBanks.adapter as? LinkedBankAdapter)?.setEditing(isEditing)
+        }
+
 
     }
 
@@ -40,8 +56,8 @@ class ManageBanksActivity : AppCompatActivity() {
         val uid = auth.currentUser?.uid ?: return
         db.collection("users").document(uid)
             .collection("bank_info")
-            .get()
-            .addOnSuccessListener { result ->
+            .addSnapshotListener { result, e ->
+                if (e != null || result == null) return@addSnapshotListener
                 banks.clear()
                 for (doc in result) {
                     val bank = Bank(
@@ -58,10 +74,33 @@ class ManageBanksActivity : AppCompatActivity() {
                     banks,
                     onDelete = { deleteBank(it) },
                     onSetDefault = { setDefaultBank(it) }
-                )
+                ).apply {
+                    setEditingPosition(if (isEditing) 0 else null)
+                }
+
             }
+
     }
 
+    //edit
+    private fun saveAllChanges() {
+        val uid = auth.currentUser?.uid ?: return
+        val ref = db.collection("users").document(uid).collection("bank_info")
+
+        for (bank in banks) {
+            if (bank.id.isNotEmpty()) {
+                val updates = mapOf(
+                    "bank_name" to bank.name,
+                    "account_number" to bank.accountNumber
+                )
+                ref.document(bank.id).update(updates)
+            }
+        }
+
+        Toast.makeText(this, "Đã lưu thay đổi", Toast.LENGTH_SHORT).show()
+    }
+
+    //destroy
     private fun deleteBank(bank: Bank) {
         val uid = auth.currentUser?.uid ?: return
         if (bank.id.isEmpty()) return
@@ -75,6 +114,7 @@ class ManageBanksActivity : AppCompatActivity() {
             }
     }
 
+    //them
     private fun setDefaultBank(bank: Bank) {
         val uid = auth.currentUser?.uid ?: return
         if (bank.id.isEmpty()) return

@@ -37,6 +37,22 @@
             android:textColor="#666666"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
+
+        <!-- Dùng khi chỉnh sửa -->
+<!--        <EditText-->
+<!--            android:id="@+id/edtBankName"-->
+<!--            android:enabled="false"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:hint="Tên ngân hàng"-->
+<!--            android:visibility="gone"/>-->
+
+        <EditText
+            android:id="@+id/edtAccountNumber"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Số tài khoản"
+            android:visibility="gone"/>
     </LinearLayout>
 
     <Button
