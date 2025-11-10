@@ -14,7 +14,7 @@ data class Booking(
     val roomTypeId: String = "",
     var discountId: String? = null,
 
-    val status: String = "pending",
+    var status: String = "pending",
 
     val totalOrigin: Double = 0.0,
     var totalFinal: Double = 0.0,

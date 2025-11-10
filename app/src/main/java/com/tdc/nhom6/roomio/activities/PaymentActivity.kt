@@ -2,6 +2,7 @@ package com.tdc.nhom6.roomio.activities
 
 import android.annotation.SuppressLint
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -10,6 +11,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.bumptech.glide.Glide
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.type.DateTime
 import com.tdc.nhom6.roomio.activities.HotelDetailActivity.Companion.db
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter
 import com.tdc.nhom6.roomio.databinding.ActivityPaymentBinding
@@ -26,6 +28,7 @@ import java.util.concurrent.TimeUnit
 class PaymentActivity : AppCompatActivity() {
     private lateinit var binding: ActivityPaymentBinding
     private lateinit var bookingId: String
+    private lateinit var countDownTimer: CountDownTimer
     private var currentHotel: HotelModel? = null
     private var currentBooking: Booking?= null
     private val invoices: MutableList<Invoice> = mutableListOf()
@@ -35,6 +38,8 @@ class PaymentActivity : AppCompatActivity() {
     private var roomTypeListener: ListenerRegistration? = null
     private var hotelListener: ListenerRegistration? = null
     private var currentOwnerBankInfo: BankInfo? = null
+    private val DURATION_24_HOURS_MS = 86400000L
+    private val INTERVAL_MS = 1000L
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding=ActivityPaymentBinding.inflate(layoutInflater)
@@ -95,6 +100,7 @@ class PaymentActivity : AppCompatActivity() {
                         invoice.totalAmount!!
                     )} (${formattedPercent}%)"
 
+                    setupTimer(invoice.createdAt)
                     generateQRPayment(invoice)
                 } else {
                     Log.w("PaymentActivity", "No invoices found for Booking ID: $bookingId.")
@@ -118,21 +124,26 @@ class PaymentActivity : AppCompatActivity() {
                         return@addSnapshotListener
                     }
 
-                    // CHỈ XỬ LÝ KHI CÓ DỮ LIỆU (snapShot không rỗng)
                     if (snapShot != null && !snapShot.isEmpty) {
 
-                        // Lấy DocumentSnapshot đầu tiên (tài khoản mặc định) một cách an toàn
                         val documentSnapshot = snapShot.documents.firstOrNull()
 
                         try {
                             currentOwnerBankInfo = documentSnapshot?.toObject(BankInfo::class.java)
 
                             currentOwnerBankInfo?.let { info ->
+                                // Giả định 'info' là currentOwnerBankInfo
                                 val QR_URL =
-                                    "https://img.vietqr.io/image/${currentOwnerBankInfo!!.bank_code}-${currentOwnerBankInfo!!.account_number}-compact2.png?amount=${invoice.totalAmount}&addInfo=Roomio_${invoice.invoiceId}"
+                                    "https://img.vietqr.io/image/${info.bank_code}-${info.account_number}-compact.png" +
+                                            "?amount=${invoice.totalAmount}" +
+                                            "&addInfo=Roomio_${invoice.invoiceId}" +
+                                            "&accountName=${info.account_holder}"
                                 Glide.with(this).load(QR_URL).into(binding.ivQrCode)
-                                binding.tvTimer
-                                Log.d("QR code", "Hien thi thanh cong ${QR_URL}")
+                                binding.tvBankName.text = "Bank: ${info.bank_name ?: info.bank_code}"
+                                binding.tvAccountNumber.text = "Account: ${info.account_number}"
+                                binding.tvAccountName.text = "Account Name: ${info.account_holder}"
+                                binding.tvAmount.text = "Amount: ${RoomTypeAdapter.Format.formatCurrency(invoice.totalAmount)}"
+                                binding.tvContent.text = "Content: Roomio_${invoice.invoiceId}"
                             }
                         } catch (ex: Exception) {
                             Log.e("Firebase", "Lỗi chuyển đổi dữ liệu cho BankInfo", ex)
@@ -143,6 +154,32 @@ class PaymentActivity : AppCompatActivity() {
                 }
         }
 
+    }
+
+    private fun setupTimer(createdAt: Timestamp) {
+        val now = System.currentTimeMillis()
+        val createdAtMs = createdAt.toDate().time
+        val elapsedTimeMs = DURATION_24_HOURS_MS - (now - createdAtMs)
+        countDownTimer = object : CountDownTimer(elapsedTimeMs, INTERVAL_MS){
+            override fun onTick(millisUntilFinished: Long) {
+                val seconds = TimeUnit.MILLISECONDS.toSeconds(millisUntilFinished)
+
+                val hours = seconds / 3600
+                val minutes = (seconds % 3600) / 60
+                val remainingSeconds = seconds % 60
+
+                val formattedTime = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, remainingSeconds)
+
+                binding.tvTimer.text = formattedTime
+                Log.d("Timer", formattedTime)
+            }
+
+            override fun onFinish() {
+                binding.tvTimer.text = "Time expired!"
+            }
+
+        }
+        countDownTimer.start()
     }
 
     private fun loadBooking(bookingId: String, onComplete: () -> Unit) { // MODIFIED: onComplete instead of onLoaded(Booking)

@@ -95,12 +95,22 @@ class GuestDetailActivity : AppCompatActivity() {
             booking?.let { safeBooking ->
                 this.selectedMethod = selectedMethod
                 handleTravelWalletDiscount(safeBooking, selectedMethod)
+                binding.btnPayment.setOnClickListener{
+                    if (selectedMethod!!.paymentMethodName == "Travel wallet"){
+                        currentHotel?.let {
+                            booking?.let { it1 ->
+                                openDialogPaymentConfirm(
+                                    it1.customerId,
+                                    it.ownerId)
+                            }
+                        }
+                    }else{
+                        addBookingAndPayment(booking)
+                    }
+                }
             }
         }
 
-        binding.btnPayment.setOnClickListener{
-            addBookingAndPayment(booking)
-        }
     }
 
     override fun onDestroy() {
@@ -147,30 +157,8 @@ class GuestDetailActivity : AppCompatActivity() {
 
     private fun addBookingAndPayment(booking: Booking?) {
         booking?.let { bookingData ->
-            val checkedId = binding.groupFundAmount.checkedRadioButtonId
 
-            val radioButton = findViewById<RadioButton>(checkedId)
-
-            if (radioButton == null) {
-                Log.e("Firebase", "Lỗi: Không tìm thấy RadioButton đã chọn.")
-                return@let
-            }
-
-            val rawText = radioButton.text.toString()
-
-            val cleanedForSplit = rawText.replace("[^\\d\\.,\\s]".toRegex(), "")
-            Log.d("cleanedForSplit", cleanedForSplit)
-
-            val amountString = cleanedForSplit
-                .split(" ")
-                .firstOrNull { it.isNotEmpty() && it.first().isDigit() } ?: ""
-            Log.d("amountString", amountString)
-
-            val valueWithoutSeparators = amountString.replace(",".toRegex(), "")
-            Log.d("valueWithoutSeparators", valueWithoutSeparators)
-
-            val totalAmountValue = valueWithoutSeparators.toDoubleOrNull() ?: 0.0
-            Log.d("totalAmountValue", totalAmountValue.toString())
+            val totalAmountValue = getAmountPayment()
 
             val safePaymentMethod = selectedMethod
             if (safePaymentMethod == null) {
@@ -197,16 +185,10 @@ class GuestDetailActivity : AppCompatActivity() {
                             .add(invoice)
                             .addOnSuccessListener { invoiceDocumentReference ->
                                 Log.d("Firebase", "Thêm invoice thành công. ID: ${invoiceDocumentReference.id}")
-                                if (safePaymentMethod.paymentMethodName == "Travel wallet"){
-                                    currentHotel?.let {
-                                        openDialogPaymentConfirm(invoice,booking.customerId,
-                                            it.ownerId)
-                                    }
-                                }else{
                                     val intent=Intent(this, PaymentActivity::class.java)
                                     intent.putExtra("BOOKING_ID",newBookingId)
                                     startActivity(intent)
-                                }
+
                             }
                             .addOnFailureListener { e ->
                                 Log.e("Firebase", "Lỗi khi thêm invoice", e)
@@ -219,9 +201,38 @@ class GuestDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun openDialogPaymentConfirm(invoice: Invoice, customerId: String, ownerId: String) {
+    private fun getAmountPayment():Double {
+        val checkedId = binding.groupFundAmount.checkedRadioButtonId
+
+        val radioButton = findViewById<RadioButton>(checkedId)
+
+        if (radioButton == null) {
+            Log.e("Firebase", "Lỗi: Không tìm thấy RadioButton đã chọn.")
+            return 0.0
+        }
+
+        val rawText = radioButton.text.toString()
+
+        val cleanedForSplit = rawText.replace("[^\\d\\.,\\s]".toRegex(), "")
+        Log.d("cleanedForSplit", cleanedForSplit)
+
+        val amountString = cleanedForSplit
+            .split(" ")
+            .firstOrNull { it.isNotEmpty() && it.first().isDigit() } ?: ""
+        Log.d("amountString", amountString)
+
+        val valueWithoutSeparators = amountString.replace(",".toRegex(), "")
+        Log.d("valueWithoutSeparators", valueWithoutSeparators)
+
+        val totalAmountValue = valueWithoutSeparators.toDoubleOrNull() ?: 0.0
+        Log.d("totalAmountValue", totalAmountValue.toString())
+        return totalAmountValue
+    }
+
+    private fun openDialogPaymentConfirm(customerId: String, ownerId: String) {
+        val amount=getAmountPayment()
         val viewBinding = DialogPaymentConfirmBinding.inflate(layoutInflater)
-        viewBinding.tvAmountPayment.text= invoice.totalAmount?.let { Format.formatCurrency(it) }
+        viewBinding.tvAmountPayment.text= Format.formatCurrency(amount)
 
         val dialog = AlertDialog.Builder(this)
             .setView(viewBinding.root)
@@ -236,7 +247,6 @@ class GuestDetailActivity : AppCompatActivity() {
                 val ownerSnapshot=transition.get(ownerRef)
                 val currentCustomerBalance=userSnapshot.getDouble("walletBalance")
                 val currentOwnerBalance=ownerSnapshot.getDouble("walletBalance")
-                val amount=invoice.totalAmount?:0.0
                 val newCustomerBalance = currentCustomerBalance?.minus(amount)
                 val newOwnerBalance = currentOwnerBalance?.plus(amount)
                 transition.update(userRef,"walletBalance",newCustomerBalance)
@@ -244,7 +254,9 @@ class GuestDetailActivity : AppCompatActivity() {
             }
                 .addOnSuccessListener {
                     Log.d("Payment", "Transaction success!")
-                    openDialogPaymentSuccess(invoice)
+                    booking?.status="confirm"
+                    addBookingAndPayment(booking)
+                    openDialogPaymentSuccess(amount)
                 }.addOnFailureListener { e ->
                     Log.w("Payment", "Transaction failure.", e)
                 }
@@ -255,9 +267,9 @@ class GuestDetailActivity : AppCompatActivity() {
         }
         dialog.show()
     }
-    private fun openDialogPaymentSuccess(invoice: Invoice){
+    private fun openDialogPaymentSuccess(amount: Double){
         val viewBinding = DialogPaymentSuccessBinding.inflate(layoutInflater)
-        viewBinding.tvAmountPayment.text= invoice.totalAmount?.let { Format.formatCurrency(it) }
+        viewBinding.tvAmountPayment.text=  Format.formatCurrency(amount)
         val dialog = AlertDialog.Builder(this)
             .setView(viewBinding.root)
             .create()

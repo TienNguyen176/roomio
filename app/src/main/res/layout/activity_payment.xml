@@ -135,21 +135,77 @@
                     android:id="@+id/tv_timer"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="04:59"
+                    android:text="00:00:00"
                     android:textColor="@android:color/holo_red_dark"
+                    android:textSize="24sp"
                     android:textStyle="bold"
                     android:layout_centerHorizontal="true"
                     android:paddingBottom="8dp" />
 
                 <ImageView
                     android:id="@+id/iv_qr_code"
-                    android:layout_width="250dp"
-                    android:layout_height="250dp"
+                    android:layout_width="350dp"
+                    android:layout_height="wrap_content"
                     android:layout_below="@id/tv_timer"
+                    android:layout_centerHorizontal="true"
                     android:background="#E0E0E0"
-                    android:scaleType="fitXY"
+                    android:layout_marginTop="8dp"
                     android:contentDescription="QR Code for payment" />
 
+                <TextView
+                    android:id="@+id/tv_Amount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/iv_qr_code"
+                    android:text="Amount: 1,000,000 VND"
+                    android:layout_centerHorizontal="true"
+                    android:paddingTop="16dp" />
+
+                <TextView
+                    android:id="@+id/tv_Content"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/tv_Amount"
+                    android:text="Content: Roomio_#INV123"
+                    android:layout_centerHorizontal="true"
+                    android:paddingTop="4dp" />
+
+                <TextView
+                    android:id="@+id/tv_AccountNumber"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/tv_Content"
+                    android:textStyle="bold"
+                    android:text="Account Number: 123456789"
+                    android:layout_centerHorizontal="true"
+                    android:paddingTop="8dp" />
+
+                <TextView
+                    android:id="@+id/tv_AccountName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/tv_AccountNumber"
+                    android:text="Account Name: Nhom 6"
+                    android:layout_centerHorizontal="true"
+                    android:paddingTop="4dp" />
+
+                <TextView
+                    android:id="@+id/tv_BankName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/tv_AccountName"
+                    android:text="Bank: Vietcombank"
+                    android:layout_centerHorizontal="true"
+                    android:paddingTop="4dp" />
+
+                <TextView
+                    android:id="@+id/tv_Branch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/tv_BankName"
+                    android:text="Branch: HCM"
+                    android:layout_centerHorizontal="true"
+                    android:paddingBottom="8dp" />
             </RelativeLayout>
             <TextView
                 android:layout_width="match_parent"
