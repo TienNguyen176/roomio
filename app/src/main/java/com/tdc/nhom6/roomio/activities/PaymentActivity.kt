@@ -132,18 +132,17 @@ class PaymentActivity : AppCompatActivity() {
                             currentOwnerBankInfo = documentSnapshot?.toObject(BankInfo::class.java)
 
                             currentOwnerBankInfo?.let { info ->
-                                // Giả định 'info' là currentOwnerBankInfo
-                                val QR_URL =
+                                 val QR_URL =
                                     "https://img.vietqr.io/image/${info.bank_code}-${info.account_number}-compact.png" +
                                             "?amount=${invoice.totalAmount}" +
                                             "&addInfo=Roomio_${invoice.invoiceId}" +
                                             "&accountName=${info.account_holder}"
                                 Glide.with(this).load(QR_URL).into(binding.ivQrCode)
-                                binding.tvBankName.text = "Bank: ${info.bank_name ?: info.bank_code}"
-                                binding.tvAccountNumber.text = "Account: ${info.account_number}"
-                                binding.tvAccountName.text = "Account Name: ${info.account_holder}"
-                                binding.tvAmount.text = "Amount: ${RoomTypeAdapter.Format.formatCurrency(invoice.totalAmount)}"
-                                binding.tvContent.text = "Content: Roomio_${invoice.invoiceId}"
+                                binding.tvBankName.text = info.bank_name ?: info.bank_code
+                                binding.tvAccountNumber.text = info.account_number
+                                binding.tvAccountName.text = info.account_holder
+                                binding.tvAmount.text = RoomTypeAdapter.Format.formatCurrency(invoice.totalAmount)
+                                binding.tvContent.text = "Roomio_${invoice.invoiceId}"
                             }
                         } catch (ex: Exception) {
                             Log.e("Firebase", "Lỗi chuyển đổi dữ liệu cho BankInfo", ex)
