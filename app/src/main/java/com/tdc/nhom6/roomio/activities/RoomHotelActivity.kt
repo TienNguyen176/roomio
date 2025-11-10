@@ -4,12 +4,15 @@ import android.app.AlertDialog
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import android.widget.*
+import android.widget.EditText
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
@@ -34,6 +37,11 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import android.text.InputFilter
+import android.text.InputType
+import android.text.Editable
+import android.text.TextWatcher
+import java.util.Locale
 
 class RoomHotelActivity : AppCompatActivity() {
 
@@ -58,8 +66,7 @@ class RoomHotelActivity : AppCompatActivity() {
     private val selectedFacilityPrices = mutableListOf<FacilityPrice>()
     private val selectedDamagePrices  = mutableListOf<DamageLossPrice>()
 
-
-    // Chọn ảnh loại phòng
+    // Picker ảnh loại phòng
     private val roomTypeImagePickerLauncher =
         registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
             if (uris.isNotEmpty()) {
@@ -83,6 +90,11 @@ class RoomHotelActivity : AppCompatActivity() {
             return
         }
 
+        // Load prefix đã lưu cho hotel
+        val prefs = getSharedPreferences("roomio_prefs", MODE_PRIVATE)
+        val savedPrefix = prefs.getString("room_prefix_${hotelId}", "F") ?: "F"
+        Room.prefix = savedPrefix
+
         setupRecyclerView()
         setupListeners()
         listenRoomsRealtime()
@@ -95,9 +107,7 @@ class RoomHotelActivity : AppCompatActivity() {
         roomTypesListener?.remove()
     }
 
-    // ==============================================
-    // =========== SETUP GIAO DIỆN =================
-    // ==============================================
+    // ===================== UI =====================
 
     private fun setupRecyclerView() {
         roomsAdapter = RoomsAdapter { room -> showStatusUpdateDialog(room) }
@@ -110,8 +120,38 @@ class RoomHotelActivity : AppCompatActivity() {
     private fun setupListeners() = with(binding) {
         btnBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
-        btnChooseRoomType.setOnClickListener { showRoomTypeSelector() }
-        btnAddRoomType.setOnClickListener { showCreateRoomTypeDialog() }
+        btnMenu.setOnClickListener { view ->
+            val popup = PopupMenu(this@RoomHotelActivity, view)
+            popup.menuInflater.inflate(R.menu.menu_room_hotel_layout, popup.menu)
+
+            popup.setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.btnChooseRoomType -> {
+                        showRoomTypeSelector()
+                        true
+                    }
+                    R.id.btnAddRoomType -> {
+                        showCreateRoomTypeDialog()
+                        true
+                    }
+                    R.id.btnAddFloor -> {
+                        showAddFloorDialog()
+                        true
+                    }
+                    R.id.btnDeleteRooms -> {
+                        showDeleteRoomsDialog()
+                        true
+                    }
+                    R.id.btnUpdateRoomName -> {
+                        showUpdateRoomNameDialog()
+                        true
+                    }
+                    else -> false
+                }
+            }
+
+            popup.show()
+        }
 
         rgFloors.setOnCheckedChangeListener { _, checkedId ->
             val checkedRadioButton = rgFloors.findViewById<RadioButton>(checkedId)
@@ -120,9 +160,7 @@ class RoomHotelActivity : AppCompatActivity() {
         }
     }
 
-    // ==============================================
-    // =========== REALTIME DỮ LIỆU =================
-    // ==============================================
+    // ================== REALTIME ==================
 
     private fun listenRoomsRealtime() {
         val currentHotelId = hotelId!!
@@ -166,9 +204,7 @@ class RoomHotelActivity : AppCompatActivity() {
             }
     }
 
-    // ==============================================
-    // =========== TẠO NÚT CHỌN TẦNG & LỌC ==========
-    // ==============================================
+    // ========== Radio tầng & loại phòng ==========
 
     private fun createFloorRadioButtons(rooms: List<Room>) = with(binding) {
         val floors = rooms.map { it.floor }.distinct().sorted()
@@ -196,16 +232,12 @@ class RoomHotelActivity : AppCompatActivity() {
         ).apply { marginEnd = resources.getDimensionPixelSize(R.dimen.margin_small) }
 
         button.buttonDrawable = null
-        button.gravity = Gravity.CENTER
+        button.gravity = android.view.Gravity.CENTER
         button.setPadding(30, 15, 30, 15)
         button.setBackgroundResource(R.drawable.bg_radio_floor_selector)
         button.setTextColor(ContextCompat.getColorStateList(this, R.color.text_radio_floor_selector))
         return button
     }
-
-    // ==============================================
-    // =========== TẠO NÚT LỌC LOẠI PHÒNG ===========
-    // ==============================================
 
     private fun createRoomTypeFilterButtons(roomTypes: List<RoomType>) = with(binding) {
         rgRoomTypes.removeAllViews()
@@ -238,16 +270,12 @@ class RoomHotelActivity : AppCompatActivity() {
         ).apply { marginEnd = resources.getDimensionPixelSize(R.dimen.margin_small) }
 
         button.buttonDrawable = null
-        button.gravity = Gravity.CENTER
+        button.gravity = android.view.Gravity.CENTER
         button.setPadding(30, 15, 30, 15)
         button.setBackgroundResource(R.drawable.bg_radio_floor_selector)
         button.setTextColor(ContextCompat.getColorStateList(this, R.color.text_radio_floor_selector))
         return button
     }
-
-    // ==============================================
-    // =========== LỌC PHÒNG (TẦNG + LOẠI) ==========
-    // ==============================================
 
     private fun filterRoomsCombined() {
         var filtered = allRooms
@@ -263,9 +291,7 @@ class RoomHotelActivity : AppCompatActivity() {
         roomsAdapter.submitList(filtered)
     }
 
-    // ==============================================
-    // =========== CẬP NHẬT TRẠNG THÁI ==============
-    // ==============================================
+    // ========== Cập nhật trạng thái phòng ==========
 
     private fun showStatusUpdateDialog(room: Room) {
         val roomStatuses = listOf("room_available", "room_occupied", "room_pending", "room_fixed")
@@ -296,9 +322,7 @@ class RoomHotelActivity : AppCompatActivity() {
             }
     }
 
-    // ==============================================
-    // =========== THÊM LOẠI PHÒNG MỚI ==============
-    // ==============================================
+    // ========== Thêm loại phòng mới ==========
 
     private fun showCreateRoomTypeDialog() {
         val dialogBinding = DialogCreateRoomTypeLayoutBinding.inflate(layoutInflater)
@@ -323,7 +347,6 @@ class RoomHotelActivity : AppCompatActivity() {
                     scope = lifecycleScope,
                     preselected = selectedFacilityPrices
                 ) { selectedRates ->
-                    // nhận đủ 2 loại giá từ dialog
                     selectedFacilityPrices.clear()
                     selectedFacilityPrices.addAll(selectedRates.facilityRates)
 
@@ -334,7 +357,6 @@ class RoomHotelActivity : AppCompatActivity() {
                         "Đã chọn ${selectedRates.facilityRates.size} tiện ích"
                 }.show()
             }
-
 
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val name = dialogBinding.edtRoomTypeName.text.toString().trim()
@@ -354,7 +376,6 @@ class RoomHotelActivity : AppCompatActivity() {
                     dialog.dismiss()
                 }
             }
-
         }
 
         dialog.show()
@@ -383,7 +404,6 @@ class RoomHotelActivity : AppCompatActivity() {
         }
     }
 
-
     private fun saveRoomTypeToFirestore(
         name: String,
         area: Int,
@@ -409,12 +429,15 @@ class RoomHotelActivity : AppCompatActivity() {
 
         roomTypeRef.set(data)
             .addOnSuccessListener {
-                // sau khi tạo document, lưu subcollections
                 lifecycleScope.launch(Dispatchers.IO) {
                     saveFacilityRates(roomTypeRef)
                     saveDamageLossRates(roomTypeRef)
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(this@RoomHotelActivity, "Đã thêm loại phòng thành công!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@RoomHotelActivity,
+                            "Đã thêm loại phòng thành công!",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                 }
             }
@@ -423,7 +446,6 @@ class RoomHotelActivity : AppCompatActivity() {
             }
     }
 
-    // Lưu tiện ích sử dụng (facilityRates)
     private suspend fun saveFacilityRates(roomTypeRef: DocumentReference) {
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
             .format(Date())
@@ -437,7 +459,6 @@ class RoomHotelActivity : AppCompatActivity() {
             roomTypeRef.collection("facilityRates").add(doc).await()
         }
     }
-
 
     private suspend fun saveDamageLossRates(roomTypeRef: DocumentReference) {
         val now = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.getDefault())
@@ -454,13 +475,7 @@ class RoomHotelActivity : AppCompatActivity() {
         }
     }
 
-
-
-
-
-    // ==============================================
-    // =========== GÁN LOẠI PHÒNG CHO PHÒNG =========
-    // ==============================================
+    // ========== Gán loại phòng ==========
 
     private fun showRoomTypeSelector() {
         if (roomTypes.isEmpty()) {
@@ -523,9 +538,372 @@ class RoomHotelActivity : AppCompatActivity() {
         selectedRooms.clear()
     }
 
-    // ==============================================
-    // =========== HỖ TRỢ FILE & UPLOAD =============
-    // ==============================================
+    // ========== Thêm tầng + phòng ==========
+
+    private fun showAddFloorDialog() {
+        val view = LayoutInflater.from(this)
+            .inflate(R.layout.dialog_add_floor_layout, null, false)
+
+        val edtFloorNumber = view.findViewById<EditText>(R.id.edtFloorNumber)
+        val edtRoomCount  = view.findViewById<EditText>(R.id.edtRoomCount)
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Thêm tầng mới")
+            .setView(view)
+            .setPositiveButton("Tạo", null)
+            .setNegativeButton("Hủy", null)
+            .create()
+
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val floor = edtFloorNumber.text.toString().trim().toIntOrNull()
+                val roomCount = edtRoomCount.text.toString().trim().toIntOrNull()
+
+                if (floor == null) {
+                    edtFloorNumber.error = "Vui lòng nhập số tầng hợp lệ"
+                    return@setOnClickListener
+                }
+
+                if (roomCount == null || roomCount <= 0) {
+                    edtRoomCount.error = "Vui lòng nhập số phòng > 0"
+                    return@setOnClickListener
+                }
+
+                createRoomsForNewFloor(floor, roomCount)
+                dialog.dismiss()
+            }
+        }
+
+        dialog.show()
+    }
+
+    // build mã phòng theo prefix hiện tại (F, HTL, ...)
+    private fun buildRoomDisplayCode(floor: Int, roomNumber: String, prefix: String = Room.prefix): String {
+        val p = prefix.ifBlank { "F" }
+        val floorStr = floor.toString().padStart(2, '0')
+        val blockChar = ('A'.code + (floor - 1)).toChar()
+        val roomStr = roomNumber.padStart(2, '0')
+        return "${p}${floorStr}${blockChar}${roomStr}"
+    }
+
+    private fun createRoomsForNewFloor(floor: Int, roomCount: Int) {
+        val hotel = hotelId ?: return
+        val roomsCollection = db.collection("hotels")
+            .document(hotel)
+            .collection("rooms")
+
+        val existingCodes = allRooms.map { it.displayCode }.toSet()
+
+        val batch = db.batch()
+        var createdCount = 0
+
+        for (i in 1..roomCount) {
+            val roomNumber = String.format("%02d", i)
+            val displayCode = buildRoomDisplayCode(floor, roomNumber)
+
+            if (existingCodes.contains(displayCode)) {
+                continue
+            }
+
+            val docRef = roomsCollection.document(displayCode)
+
+            val roomData = mapOf(
+                "room_id"      to displayCode,
+                "floor"        to floor,
+                "room_number"  to roomNumber,
+                "room_type_id" to "",
+                "status_id"    to "room_available"
+            )
+
+            batch.set(docRef, roomData)
+            createdCount++
+        }
+
+        if (createdCount == 0) {
+            Toast.makeText(
+                this,
+                "Tất cả phòng của tầng $floor đã tồn tại, không có phòng mới nào được tạo.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        batch.commit()
+            .addOnSuccessListener {
+                Toast.makeText(
+                    this,
+                    "Đã tạo $createdCount phòng cho tầng $floor",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(
+                    this,
+                    "Lỗi khi tạo tầng/phòng: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+    }
+
+    // ========== Xóa phòng ==========
+
+    private fun deleteRoomsWithValidation(
+        roomsToDelete: List<Room>,
+        titleForConfirm: String
+    ) {
+        if (roomsToDelete.isEmpty()) {
+            Toast.makeText(this, "Không có phòng nào để xóa", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val blockedStatuses = setOf("room_occupied", "room_pending")
+
+        val blockedRooms = roomsToDelete.filter { it.status_id in blockedStatuses }
+
+        if (blockedRooms.isNotEmpty()) {
+            val msg = buildString {
+                append("Không thể xóa vì các phòng sau đang được sử dụng/đang được đặt:\n")
+                append(blockedRooms.joinToString(", ") { it.displayCode })
+            }
+
+            AlertDialog.Builder(this)
+                .setTitle("Không thể xóa")
+                .setMessage(msg)
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
+
+        val message = buildString {
+            append("Bạn có chắc muốn xóa ")
+            append(roomsToDelete.size)
+            append(" phòng?\n\n")
+            append(roomsToDelete.joinToString(", ") { it.displayCode })
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle(titleForConfirm)
+            .setMessage(message)
+            .setPositiveButton("Xóa") { _, _ ->
+                performDeleteRooms(roomsToDelete)
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
+    }
+
+    private fun performDeleteRooms(rooms: List<Room>) {
+        val hotel = hotelId ?: return
+        val roomsCollection = db.collection("hotels")
+            .document(hotel)
+            .collection("rooms")
+
+        val batch = db.batch()
+
+        rooms.forEach { room ->
+            val docRef = roomsCollection.document(room.room_id)
+            batch.delete(docRef)
+        }
+
+        batch.commit()
+            .addOnSuccessListener {
+                Toast.makeText(
+                    this,
+                    "Đã xóa ${rooms.size} phòng",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(
+                    this,
+                    "Lỗi khi xóa phòng: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+    }
+
+    private fun showDeleteRoomsDialog() {
+        val roomsList = if (selectedFloor != null && selectedFloor != 0) {
+            allRooms.filter { it.floor == selectedFloor }
+        } else {
+            allRooms
+        }
+
+        if (roomsList.isEmpty()) {
+            Toast.makeText(this, "Không có phòng nào để xóa", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val roomNames = roomsList.map { it.displayCode }.toTypedArray()
+        val checked = BooleanArray(roomsList.size)
+        val selectedRooms = mutableListOf<Room>()
+
+        AlertDialog.Builder(this)
+            .setTitle("Chọn phòng cần xóa")
+            .setMultiChoiceItems(roomNames, checked) { _, which, isChecked ->
+                val room = roomsList[which]
+                if (isChecked) {
+                    if (!selectedRooms.contains(room)) {
+                        selectedRooms.add(room)
+                    }
+                } else {
+                    selectedRooms.remove(room)
+                }
+            }
+            .setPositiveButton("Xóa") { _, _ ->
+                if (selectedRooms.isEmpty()) {
+                    Toast.makeText(this, "Bạn chưa chọn phòng nào", Toast.LENGTH_SHORT).show()
+                } else {
+                    deleteRoomsWithValidation(selectedRooms, "Xóa phòng đã chọn")
+                }
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
+    }
+
+    // ========== Đổi tiền tố mã phòng ==========
+
+    private fun showUpdateRoomNameDialog() {
+        val editText = EditText(this).apply {
+            filters = arrayOf(InputFilter.LengthFilter(3))
+            inputType = InputType.TYPE_CLASS_TEXT
+            setText(Room.prefix)
+            setSelection(text.length)
+
+            addTextChangedListener(object : TextWatcher {
+                private var internalChange = false
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    if (internalChange) return
+                    val current = s?.toString() ?: ""
+                    val upper = current.uppercase(Locale.getDefault())
+                    if (upper != current) {
+                        internalChange = true
+                        setText(upper)
+                        setSelection(upper.length)
+                        internalChange = false
+                    }
+                }
+            })
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Đổi tiền tố mã phòng")
+            .setMessage("Nhập tiền tố mới (tối đa 3 ký tự). Ví dụ: F, HTL, RM...")
+            .setView(editText)
+            .setPositiveButton("Lưu") { _, _ ->
+                val input = editText.text.toString()
+                    .trim()
+                    .uppercase(Locale.getDefault())
+                    .take(3)
+
+                if (input.isEmpty()) {
+                    Toast.makeText(this, "Tiền tố không được để trống", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                Room.prefix = input
+
+                val hotel = hotelId
+                if (hotel != null) {
+                    val prefs = getSharedPreferences("roomio_prefs", MODE_PRIVATE)
+                    prefs.edit()
+                        .putString("room_prefix_$hotel", input)
+                        .apply()
+                }
+
+                // Đổi luôn trên Firestore
+                applyPrefixChangeOnFirestore(input)
+
+                // Refresh UI tức thì
+                roomsAdapter.submitList(allRooms.toList())
+
+                Toast.makeText(this, "Đã đổi tiền tố thành \"$input\"", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
+    }
+
+    // build code mới từ Room + prefix chỉ định (dùng khi đổi Firestore)
+    private fun buildRoomCodeWithPrefix(prefix: String, room: Room): String {
+        val p = prefix.ifBlank { "F" }
+        val floorStr = room.floor.toString().padStart(2, '0')
+        val patternWithBlock = Regex("^[A-Z]\\d{2}$")
+
+        return if (patternWithBlock.matches(room.room_number)) {
+            "${p}${floorStr}${room.room_number}"
+        } else {
+            val blockChar = ('A'.code + (room.floor - 1)).toChar()
+            val roomStr = room.room_number.padStart(2, '0')
+            "${p}${floorStr}${blockChar}${roomStr}"
+        }
+    }
+
+    // Đổi prefix cho toàn bộ rooms trong Firestore
+    private fun applyPrefixChangeOnFirestore(newPrefix: String) {
+        val hotel = hotelId ?: return
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val roomsSnap = db.collection("hotels")
+                    .document(hotel)
+                    .collection("rooms")
+                    .get()
+                    .await()
+
+                if (roomsSnap.isEmpty) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@RoomHotelActivity,
+                            "Không có phòng nào để đổi tiền tố",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    return@launch
+                }
+
+                val batch = db.batch()
+                var changedCount = 0
+
+                for (doc in roomsSnap.documents) {
+                    val room = doc.toObject(Room::class.java) ?: continue
+                    val oldId = doc.id
+
+                    val newId = buildRoomCodeWithPrefix(newPrefix, room)
+                    val newDocRef = doc.reference.parent.document(newId)
+                    val data = (doc.data ?: continue).toMutableMap()
+                    data["room_id"] = newId
+
+                    batch.set(newDocRef, data)
+
+                    if (newId != oldId) {
+                        batch.delete(doc.reference)
+                        changedCount++
+                    }
+                }
+
+                batch.commit().await()
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@RoomHotelActivity,
+                        "Đã đổi tiền tố trên Firestore cho $changedCount phòng",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@RoomHotelActivity,
+                        "Lỗi khi đổi tiền tố: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
+    // ========== Hỗ trợ file upload ==========
 
     private fun uriToFile(uri: Uri): File? {
         val tempFile = File(cacheDir, "upload_${System.currentTimeMillis()}.jpg")

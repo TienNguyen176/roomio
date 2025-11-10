@@ -20,7 +20,7 @@ class RoomsAdapter(private val onItemClicked: (Room) -> Unit) :
         )
         return RoomViewHolder(binding)
     }
-
+    
     override fun onBindViewHolder(holder: RoomViewHolder, position: Int) {
         val room = getItem(position)
         holder.bind(room, onItemClicked)
