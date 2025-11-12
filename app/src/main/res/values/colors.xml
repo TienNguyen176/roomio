@@ -2,13 +2,20 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="red">#FFFF0000</color>
     <color name="transparent">#00000000</color>
-    <color name="green">#30A854</color>
     <color name="calendar_primary_color">#F44336</color>
     <color name="gray">#EAECEF</color>
     <color name="yellow">#FF8900</color>
     <color name="red_primary">#FF2D55</color>
     <color name="red_light_range">#FFCDD2</color>
     <color name="text_dark_gray">#424242</color>
+    <color name="red">#E53935</color>
+    <color name="orange">#FB8C00</color>
+    <color name="green">#43A047</color>
+    <color name="dark_gray">#9E9E9E</color>
+    <color name="cyan">#00BCD4</color>
+    <color name="light_blue">#03A9F4</color>
+    <color name="purple">#9C27B0</color>
+
+
 </resources>
