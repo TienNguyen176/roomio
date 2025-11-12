@@ -161,7 +161,7 @@ class RoomTypeAdapter(
         }
 
         recyclerImage.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-         recyclerImage.adapter = ImageListAdapter(images, nextItemClickListener)
+         recyclerImage.adapter = RoomImageListAdapter(images, nextItemClickListener)
 
         val dialog = AlertDialog.Builder(context)
             .setView(view)

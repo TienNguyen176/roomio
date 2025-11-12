@@ -51,9 +51,10 @@
             android:exported="true" />
         <activity
             android:name=".activities.EditHotelActivity"
-            android:exported="true" /><activity
-        android:name=".activities.RoleManagerActivity"
-        android:exported="true" />
+            android:exported="true" />
+        <activity
+            android:name=".activities.RoleManagerActivity"
+            android:exported="true" />
 
         <activity
             android:name=".activities.LoginActivity"

@@ -343,9 +343,9 @@ class RoomHotelActivity : AppCompatActivity() {
 
             dialogBinding.btnSelectFacilities.setOnClickListener {
                 FacilityPriceSelectorDialog(
-                    context = this@RoomHotelActivity,
-                    scope = lifecycleScope,
-                    preselected = selectedFacilityPrices
+                    this@RoomHotelActivity,
+                    lifecycleScope,
+                    selectedFacilityPrices
                 ) { selectedRates ->
                     selectedFacilityPrices.clear()
                     selectedFacilityPrices.addAll(selectedRates.facilityRates)

@@ -1,6 +1,3 @@
-package com.tdc.nhom6.roomio.models
-
-import android.content.Context
 package com.tdc.nhom6.roomio.adapters
 
 import android.app.AlertDialog
@@ -10,50 +7,31 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.tdc.nhom6.roomio.databinding.ItemFacilityBinding
 import com.tdc.nhom6.roomio.databinding.ItemServiceLayoutBinding
 import com.tdc.nhom6.roomio.models.Service
 
 class ServiceAdapter(
-    private val context: Context,
-    private val listFacility: List<Service>
-) : RecyclerView.Adapter<ServiceAdapter.FacilityViewHolder>() {
     private val services: List<Service>,
     private val selectedRates: MutableMap<String, Double>
 ) : RecyclerView.Adapter<ServiceAdapter.ViewHolder>() {
 
-    class FacilityViewHolder(val binding: ItemFacilityBinding) :
-    inner class ViewHolder(val binding: ItemServiceLayoutBinding) :
-        RecyclerView.ViewHolder(binding.root)
+    override fun getItemCount() = services.size
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FacilityViewHolder {
-        val binding = ItemFacilityBinding.inflate(
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val binding = ItemServiceLayoutBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
         )
-        return FacilityViewHolder(binding)
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val binding = ItemServiceLayoutBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return ViewHolder(binding)
     }
-
-    override fun onBindViewHolder(holder: FacilityViewHolder, position: Int) {
-        val facility = listFacility[position]
-    override fun getItemCount() = services.size
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val service = services[position]
         val binding = holder.binding
 
-        holder.binding.tvFacilityName.text = facility.service_name
         binding.tvServiceName.text = service.service_name
 
-        Glide.with(context)
-            .load(facility.iconUrl)
-            .into(holder.binding.iconFacility)
-    }
         // Khởi tạo trạng thái ban đầu
         val isSelected = selectedRates.containsKey(service.id)
         binding.cbSelected.isChecked = isSelected
@@ -102,7 +80,8 @@ class ServiceAdapter(
                 selectedRates.remove(service.id)
             }
         }
-
-    override fun getItemCount(): Int = listFacility.size
     }
+
+    inner class ViewHolder(val binding: ItemServiceLayoutBinding) :
+        RecyclerView.ViewHolder(binding.root)
 }

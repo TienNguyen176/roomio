@@ -1,4 +1,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="CustomDayDisabled" parent="Widget.MaterialComponents.MaterialCalendar.Day">
+        <item name="itemTextColor">#33000000</item>
+    </style>
+
+    <!-- Base application theme (đã đúng Material3) -->
+    <style name="Base.Theme.Roomio" parent="Theme.Material3.DayNight.NoActionBar">
     <style name="Base.Theme.Roomio" parent="Theme.MaterialComponents.DayNight.NoActionBar"/>
     <style name="Theme.Roomio" parent="Base.Theme.Roomio" >
     </style>
@@ -66,6 +73,7 @@
 
     <style name="CustomDayDisabled" parent="Widget.MaterialComponents.MaterialCalendar.Day">
         <item name="itemTextColor">#33000000</item>
+    </style>
 
     <!-- Base application theme (đã đúng Material3) -->
     <style name="Base.Theme.Roomio" parent="Theme.Material3.DayNight.NoActionBar">
@@ -142,4 +150,8 @@
         <item name="android:fontFamily">sans-serif-medium</item>
     </style>
 
+ <!-- This closing tag was missing -->
+
+    <!-- Base application theme (đã đúng Material3) -->
+    <!-- <style name="Base.Theme.Roomio" parent="Theme.Material3.DayNight.NoActionBar"></style> -->
 </resources>

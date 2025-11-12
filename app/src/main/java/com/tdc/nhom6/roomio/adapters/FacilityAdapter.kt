@@ -1,71 +1,55 @@
-package com.tdc.nhom6.roomio.models
-
-import android.content.Context
-// adapters/FacilityAdapter.kt
-
 package com.tdc.nhom6.roomio.adapters
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.tdc.nhom6.roomio.databinding.ItemFacilityBinding
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.databinding.ItemFacilityLayoutBinding
 import com.tdc.nhom6.roomio.models.Facility
 
 class FacilityAdapter(
     private val context: Context,
-    private val listFacility: List<Facility>
-    private val facilities: List<Facility>,
-    // Set này dùng để lưu các ID của tiện ích được chọn
-    private val selectedFacilityIds: MutableSet<String>
+    private val facilities: List<Facility>
 ) : RecyclerView.Adapter<FacilityAdapter.FacilityViewHolder>() {
 
-    class FacilityViewHolder(val binding: ItemFacilityBinding) :
+    private val selectedFacilityIds: MutableSet<String> = mutableSetOf()
+
+    class FacilityViewHolder(val binding: ItemFacilityLayoutBinding) :
         RecyclerView.ViewHolder(binding.root)
-    class FacilityViewHolder(val binding: ItemFacilityLayoutBinding) : RecyclerView.ViewHolder(binding.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FacilityViewHolder {
-        val binding = ItemFacilityBinding.inflate(
+        val binding = ItemFacilityLayoutBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
         )
-        val binding = ItemFacilityLayoutBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return FacilityViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: FacilityViewHolder, position: Int) {
-        val facility = listFacility[position]
         val facility = facilities[position]
         val isSelected = selectedFacilityIds.contains(facility.id)
 
         holder.binding.tvFacilityName.text = facility.facilities_name
         holder.binding.cbSelected.isChecked = isSelected
 
-        // Thiết lập giao diện CardView khi được chọn/không được chọn
-        val context = holder.itemView.context
-        // Giả định bạn có màu blue_light và white trong res/values/colors.xml
+        // Set CardView background color based on selection
         val colorRes = if (isSelected) R.color.light_blue else R.color.white
-
-        // Giả định ItemFacilityBinding có CardView ID là 'cardFacility'
         holder.binding.cardFacility.setCardBackgroundColor(context.getColor(colorRes))
 
-        Glide.with(context)
-            .load(facility.iconUrl)
-            .into(holder.binding.iconFacility)
         holder.binding.root.setOnClickListener {
-            // Xử lý logic chọn/bỏ chọn
+            // Toggle selection
             if (selectedFacilityIds.contains(facility.id)) {
                 selectedFacilityIds.remove(facility.id)
             } else {
                 selectedFacilityIds.add(facility.id)
             }
-            notifyItemChanged(position) // Cập nhật giao diện của item hiện tại
+            notifyItemChanged(position) // Update UI for this item
         }
     }
 
-    override fun getItemCount(): Int = listFacility.size
     override fun getItemCount() = facilities.size
+
+    fun getSelectedFacilityIds(): Set<String> = selectedFacilityIds.toSet()
 }
