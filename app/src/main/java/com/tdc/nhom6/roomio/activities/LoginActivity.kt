@@ -51,7 +51,7 @@ class LoginActivity : AppCompatActivity() {
                         val email = doc.getString("email") ?: ""
                         val username = doc.getString("username") ?: "Người dùng"
                         toast("Đã đăng nhập tự động ✅")
-                        goToProfile(email, username)
+                        goToHome(email, username)
                     } else {
                         prefs.edit().clear().apply()
                         toast("Không tìm thấy hồ sơ người dùng, vui lòng đăng nhập lại")
@@ -134,7 +134,7 @@ class LoginActivity : AppCompatActivity() {
                                 if (userDoc.exists()) {
                                     val username = userDoc.getString("username") ?: "Người dùng"
                                     toast("Đăng nhập thành công ✅")
-                                    goToProfile(email, username)
+                                    goToHome(email, username)
                                 } else {
                                     toast("Không tìm thấy hồ sơ người dùng")
                                 }
@@ -183,7 +183,7 @@ class LoginActivity : AppCompatActivity() {
                             db.collection("users").document(uid).get()
                                 .addOnSuccessListener { doc ->
                                     if (doc.exists()) {
-                                        goToProfile(user.email ?: "")
+                                        goToHome(user.email ?: "")
                                     } else {
                                         val intent = Intent(this, EditProfileActivity::class.java)
                                         intent.putExtra("fromGoogle", true)
@@ -208,10 +208,12 @@ class LoginActivity : AppCompatActivity() {
     // ==============================================================
     // CHUNG
     // ==============================================================
-    private fun goToProfile(email: String? = null, username: String? = null) {
-        val intent = Intent(this, ProfileActivity::class.java)
-        email?.let { intent.putExtra("email", it) }
-        username?.let { intent.putExtra("username", it) }
+    private fun goToHome(email: String? = null, username: String? = null) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            email?.let { putExtra("email", it) }
+            username?.let { putExtra("username", it) }
+        }
         startActivity(intent)
         finish()
     }
