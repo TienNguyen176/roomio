@@ -637,6 +637,9 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) : Recycl
                 intent.putExtra("CHECK_OUT", outText)
                 intent.putExtra("RESERVATION_AMOUNT", 450000.0)
                 ctx.startActivity(intent)
+                val docId = items[position].documentId
+                Firebase.firestore.collection("bookings").document(docId)
+                    .update("status", " pending_payment")
             } catch (_: Exception) { }
             alert.dismiss()
         }
