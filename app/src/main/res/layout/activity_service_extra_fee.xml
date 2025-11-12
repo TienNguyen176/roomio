@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <ImageView
+        android:id="@+id/btnBack"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_back"
+        android:contentDescription="Back" />
+
+    <!-- Guest/Reservation summary at top -->
+    <TextView
+        android:id="@+id/tvResId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Reservation ID:"
+        android:paddingTop="8dp"/>
+
+    <TextView
+        android:id="@+id/tvGuestName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Guest name:"/>
+
+    <TextView
+        android:id="@+id/tvCheckIn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Check-in:"/>
+
+    <TextView
+        android:id="@+id/tvCheckOut"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Check-out:"/>
+
+    <TextView
+        android:id="@+id/tvReservationAmount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Reservation amount:"
+        android:textStyle="bold"
+        android:textColor="#164B8A"
+        android:paddingBottom="8dp"/>
+
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Extra fee:"
+        android:textStyle="bold"
+        android:paddingTop="8dp"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvServices"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+    <TextView
+        android:id="@+id/tvCleaningFee"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Total cleaning fee: 0VND"/>
+
+    <TextView
+        android:id="@+id/tvExtraServices"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Total additional chargers: 0VND"/>
+
+    <TextView
+        android:id="@+id/tvTotalAmount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Total amount: 0VND"
+        android:textStyle="bold"
+        android:textColor="#D32F2F"
+        android:paddingTop="4dp"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnNext"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Next"
+        android:textColor="#FFFFFF"
+        app:cornerRadius="20dp"
+        app:backgroundTint="#2D6C8C"
+        android:layout_marginTop="8dp"/>
+
+</LinearLayout>
+
+
