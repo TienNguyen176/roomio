@@ -80,4 +80,11 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
     implementation ("com.google.android.gms:play-services-auth:20.7.0")
     implementation("at.favre.lib:bcrypt:0.9.0")
+    implementation ("com.google.android.material:material:1.11.0")
+
+
+
+
+
+
 }

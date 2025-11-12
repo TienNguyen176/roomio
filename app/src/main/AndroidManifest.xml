@@ -44,6 +44,18 @@
             android:name=".activities.ForgotPasswordActivity"
             android:exported="false" />
         <activity
+            android:name=".activities.AdminHotelActivity"
+            android:exported="true" />
+        <activity
+            android:name=".activities.RoomHotelActivity"
+            android:exported="true" />
+        <activity
+            android:name=".activities.EditHotelActivity"
+            android:exported="true" /><activity
+        android:name=".activities.RoleManagerActivity"
+        android:exported="true" />
+
+        <activity
             android:name=".activities.LoginActivity"
             android:exported="true">
             <intent-filter>

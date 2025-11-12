@@ -68,4 +68,6 @@
     <string name="start">Start</string>
     <string name="complete">Complete</string>
     <string name="default_web_client_id">230796417369-7fh174mc1aga69ko8eltnrbm5lql193l.apps.googleusercontent.com</string>
+    <string name="cloudinary_cloud_name">dgxcjxzqi</string>
+    <string name="cloudinary_upload_preset">upload_images</string>
 </resources>
