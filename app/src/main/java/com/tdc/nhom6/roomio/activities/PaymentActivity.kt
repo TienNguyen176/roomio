@@ -1,6 +1,7 @@
 package com.tdc.nhom6.roomio.activities
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
@@ -76,6 +77,7 @@ class PaymentActivity : AppCompatActivity() {
 
                 binding.tvHotelName.text = currentHotel?.hotelName ?: ""
                 binding.ratingBar.rating = (currentHotel?.averageRating ?: 0).toFloat()
+                binding.tvReviews.text = "${currentHotel?.totalReviews} reviews"
 
                 val roomTypeName = currentRoomType?.typeName
                 val guestCount = loadedBooking.numberGuest
@@ -85,8 +87,8 @@ class PaymentActivity : AppCompatActivity() {
 
                 if (invoices.isNotEmpty()) {
                     val invoice:Invoice = invoices.first()
-                    binding.tvInvoiceId.text = "#ID: ${invoice.invoiceId}"
-                    binding.tvCreateAt.text = convertTimestampToString(invoice.createdAt)
+                    binding.tvInvoiceId.text = "#ID: ${bookingId}"
+                    binding.tvCreateAt.text = currentBooking?.let { convertTimestampToString(it.createdAt) }
 
                     val bookingTotal = loadedBooking.totalFinal
                     val invoiceAmount = invoice.totalAmount
@@ -95,10 +97,9 @@ class PaymentActivity : AppCompatActivity() {
                         (invoiceAmount?.div(bookingTotal))!! * 100.0
                     } else 0.0
 
-                    val formattedPercent = String.format("%.2f", percentagePaid)
                     binding.tvAmountPayment.text = "Payment: ${RoomTypeAdapter.Format.formatCurrency(
                         invoice.totalAmount!!
-                    )} (${formattedPercent}%)"
+                    )} (${percentagePaid.toInt()}%)"
 
                     setupTimer(invoice.createdAt)
                     generateQRPayment(invoice)
@@ -106,6 +107,13 @@ class PaymentActivity : AppCompatActivity() {
                     Log.w("PaymentActivity", "No invoices found for Booking ID: $bookingId.")
                     binding.tvInvoiceId.text = "N/A"
                     binding.tvAmountPayment.text = "Payment required"
+                }
+                binding.btnDone.setOnClickListener{
+                    val intent=Intent(this,BookingDetailActivity::class.java).apply {
+                        flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    }
+                    intent.putExtra("BOOKING_ID",bookingId)
+                    startActivity(intent)
                 }
             }
         }
@@ -170,7 +178,6 @@ class PaymentActivity : AppCompatActivity() {
                 val formattedTime = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, remainingSeconds)
 
                 binding.tvTimer.text = formattedTime
-                Log.d("Timer", formattedTime)
             }
 
             override fun onFinish() {

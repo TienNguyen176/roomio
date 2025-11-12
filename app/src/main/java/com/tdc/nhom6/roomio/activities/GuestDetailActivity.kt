@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.widget.RadioButton
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -59,6 +60,8 @@ class GuestDetailActivity : AppCompatActivity() {
     private var hotelListener: ListenerRegistration? = null
     private var discountListener: ListenerRegistration? = null
     private var selectedMethod:PaymentMethod? = null
+
+    private lateinit var newBookingId:String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -169,7 +172,7 @@ class GuestDetailActivity : AppCompatActivity() {
             db.collection("bookings")
                 .add(bookingData)
                 .addOnSuccessListener { documentReference ->
-                    val newBookingId = documentReference.id
+                    newBookingId = documentReference.id
                     Log.d("Firebase","Thêm booking thành công. ID: $newBookingId")
 
                     val invoice = safePaymentMethod.paymentMethodId?.let {
@@ -185,10 +188,14 @@ class GuestDetailActivity : AppCompatActivity() {
                             .add(invoice)
                             .addOnSuccessListener { invoiceDocumentReference ->
                                 Log.d("Firebase", "Thêm invoice thành công. ID: ${invoiceDocumentReference.id}")
-                                    val intent=Intent(this, PaymentActivity::class.java)
-                                    intent.putExtra("BOOKING_ID",newBookingId)
+                                binding.progressBar.visibility = View.GONE
+                                if (selectedMethod!!.paymentMethodName == "Travel wallet") {
+                                    openDialogPaymentSuccess(invoice.totalAmount,newBookingId)
+                                }else{
+                                    val intent = Intent(this, PaymentActivity::class.java)
+                                    intent.putExtra("BOOKING_ID", newBookingId)
                                     startActivity(intent)
-
+                                }
                             }
                             .addOnFailureListener { e ->
                                 Log.e("Firebase", "Lỗi khi thêm invoice", e)
@@ -214,18 +221,14 @@ class GuestDetailActivity : AppCompatActivity() {
         val rawText = radioButton.text.toString()
 
         val cleanedForSplit = rawText.replace("[^\\d\\.,\\s]".toRegex(), "")
-        Log.d("cleanedForSplit", cleanedForSplit)
 
         val amountString = cleanedForSplit
             .split(" ")
             .firstOrNull { it.isNotEmpty() && it.first().isDigit() } ?: ""
-        Log.d("amountString", amountString)
 
-        val valueWithoutSeparators = amountString.replace(",".toRegex(), "")
-        Log.d("valueWithoutSeparators", valueWithoutSeparators)
+        val valueWithoutSeparators = amountString.replace("\\.".toRegex(), "")
 
         val totalAmountValue = valueWithoutSeparators.toDoubleOrNull() ?: 0.0
-        Log.d("totalAmountValue", totalAmountValue.toString())
         return totalAmountValue
     }
 
@@ -240,6 +243,7 @@ class GuestDetailActivity : AppCompatActivity() {
 
         viewBinding.btnYes.setOnClickListener {
             dialog.dismiss()
+            binding.progressBar.visibility = View.VISIBLE
             db.runTransaction { transition ->
                 val userRef=db.collection("users").document(customerId)
                 val ownerRef=db.collection("users").document(ownerId)
@@ -247,16 +251,22 @@ class GuestDetailActivity : AppCompatActivity() {
                 val ownerSnapshot=transition.get(ownerRef)
                 val currentCustomerBalance=userSnapshot.getDouble("walletBalance")
                 val currentOwnerBalance=ownerSnapshot.getDouble("walletBalance")
+                if (currentCustomerBalance == null || currentOwnerBalance == null || amount == 0.0) {
+                    throw IllegalStateException("Missing balance or amount data for payment.")
+                }
+
+                if (currentCustomerBalance < amount) {
+                    throw IllegalStateException("Customer has insufficient balance for payment.")
+                }
                 val newCustomerBalance = currentCustomerBalance?.minus(amount)
                 val newOwnerBalance = currentOwnerBalance?.plus(amount)
                 transition.update(userRef,"walletBalance",newCustomerBalance)
                 transition.update(ownerRef,"walletBalance",newOwnerBalance)
+                booking?.status="confirmed"
             }
                 .addOnSuccessListener {
-                    Log.d("Payment", "Transaction success!")
-                    booking?.status="confirm"
                     addBookingAndPayment(booking)
-                    openDialogPaymentSuccess(amount)
+                    Log.d("Payment", "Transaction success!")
                 }.addOnFailureListener { e ->
                     Log.w("Payment", "Transaction failure.", e)
                 }
@@ -267,7 +277,7 @@ class GuestDetailActivity : AppCompatActivity() {
         }
         dialog.show()
     }
-    private fun openDialogPaymentSuccess(amount: Double){
+    private fun openDialogPaymentSuccess(amount: Double, bookingId: String?){
         val viewBinding = DialogPaymentSuccessBinding.inflate(layoutInflater)
         viewBinding.tvAmountPayment.text=  Format.formatCurrency(amount)
         val dialog = AlertDialog.Builder(this)
@@ -276,16 +286,18 @@ class GuestDetailActivity : AppCompatActivity() {
 
         viewBinding.btnOK.setOnClickListener{
             dialog.dismiss()
-            val intent=Intent(this,MainActivity::class.java).apply {
+            val intent=Intent(this,BookingDetailActivity::class.java).apply {
                 flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
+            intent.putExtra("BOOKING_ID",bookingId)
             startActivity(intent)
         }
         dialog.setOnCancelListener{
             dialog.dismiss()
-            val intent=Intent(this,MainActivity::class.java).apply {
+            val intent=Intent(this,BookingDetailActivity::class.java).apply {
                 flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
+            intent.putExtra("BOOKING_ID",bookingId)
             startActivity(intent)
         }
 
