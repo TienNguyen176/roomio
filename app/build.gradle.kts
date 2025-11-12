@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.google.gms.google.services)
     id("kotlin-parcelize")
 }
-
 android {
     namespace = "com.tdc.nhom6.roomio"
     compileSdk = 35
@@ -34,13 +33,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_1_8
     }
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "1.8"
     }
     buildFeatures {
         viewBinding = true
     }
 }
-
 dependencies {
 
     implementation(libs.androidx.core.ktx)
@@ -82,9 +80,4 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
     implementation ("com.google.android.gms:play-services-auth:20.7.0")
     implementation("at.favre.lib:bcrypt:0.9.0")
-
-
-
-
-
 }
