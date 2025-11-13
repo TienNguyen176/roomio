@@ -24,7 +24,7 @@
             android:name=".activities.HotelDetailActivity"
             android:exported="false" />
         <activity
-            android:name=".activities.LoginActivity"
+            android:name=".activities.ReceptionActivity"
             android:exported="false">
         </activity>
         <activity
@@ -62,7 +62,7 @@
             android:exported="true" />
 
         <activity
-            android:name=".activities.ReceptionActivity"
+            android:name=".activities.LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -89,7 +89,6 @@
         <activity
             android:name=".activities.GuestDetailActivity"
             android:exported="false" />
-            android:exported="false"/>
         <activity
             android:name=".activities.ServiceExtraFeeActivity"
             android:exported="false"

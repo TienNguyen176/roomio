@@ -549,13 +549,11 @@ class GuestDetailActivity : AppCompatActivity() {
     }
 
     fun convertTimestampToString(timestamp: Timestamp): String {
-        // 1. Chuyển Timestamp thành đối tượng Date
         val date: Date = timestamp.toDate()
 
-        // 2. Tạo đối tượng SimpleDateFormat với định dạng và Locale (ngôn ngữ) mong muốn
-        val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val dateFormatter = SimpleDateFormat("dd MMM", Locale.getDefault())
 
-        // 3. Định dạng Date thành String
-        return dateFormat.format(date)
+        return dateFormatter.format(date)
     }
+
 }

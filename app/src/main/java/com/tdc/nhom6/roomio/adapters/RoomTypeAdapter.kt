@@ -31,6 +31,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.tdc.nhom6.roomio.models.RoomType
 import java.util.concurrent.TimeUnit
 import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
 import java.util.Date
 
 class RoomTypeAdapter(
@@ -41,7 +42,8 @@ class RoomTypeAdapter(
 
     private val expandedPositions = mutableSetOf<Int>()
     private lateinit var booking: Booking
-    private val customerId = "5mDP6WZb1JWcuSDOgPtDycty7H53"
+    private val auth = FirebaseAuth.getInstance()
+    private val customerId = auth.currentUser?.uid?:""
 
     class RoomTypeViewHolder(
         val binding: ItemRoomTypeBinding,
@@ -155,15 +157,21 @@ class RoomTypeAdapter(
         val view = LayoutInflater.from(context).inflate(R.layout.dialog_image_list, null)
         val recyclerImage = view.findViewById<RecyclerView>(R.id.recycleListImage)
 
+
+
+        val imageUrls: MutableList<String> = images.map { roomImage ->
+            roomImage.imageUrl
+        }.toMutableList()
+
         val nextItemClickListener: (Int) -> Unit = { currentPosition ->
             val nextPosition = currentPosition + 1
-            if (nextPosition < images.size) {
+            if (nextPosition < imageUrls.size) {
                 recyclerImage.smoothScrollToPosition(nextPosition)
             }
         }
 
         recyclerImage.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-         recyclerImage.adapter = ImageListAdapter(images, nextItemClickListener)
+         recyclerImage.adapter = ImageListAdapter(imageUrls, nextItemClickListener)
 
         val dialog = AlertDialog.Builder(context)
             .setView(view)
