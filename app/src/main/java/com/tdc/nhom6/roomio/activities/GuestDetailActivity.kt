@@ -1,24 +1,30 @@
 package com.tdc.nhom6.roomio.activities
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.MenuItem
+import android.widget.RadioButton
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.adapters.PaymentMethodAdapter
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter.Format
 import com.tdc.nhom6.roomio.databinding.ActivityGuestDetailBinding
+import com.tdc.nhom6.roomio.databinding.DialogPaymentConfirmBinding
+import com.tdc.nhom6.roomio.databinding.DialogPaymentSuccessBinding
 import com.tdc.nhom6.roomio.models.Booking
 import com.tdc.nhom6.roomio.models.Discount
 import com.tdc.nhom6.roomio.models.HotelModel
+import com.tdc.nhom6.roomio.models.Invoice
 import com.tdc.nhom6.roomio.models.PaymentMethod
 import com.tdc.nhom6.roomio.models.RoomType
 import java.text.SimpleDateFormat
@@ -52,7 +58,7 @@ class GuestDetailActivity : AppCompatActivity() {
     private var roomTypeListener: ListenerRegistration? = null
     private var hotelListener: ListenerRegistration? = null
     private var discountListener: ListenerRegistration? = null
-
+    private var selectedMethod:PaymentMethod? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,9 +76,41 @@ class GuestDetailActivity : AppCompatActivity() {
 
         booking?.let { safeBooking ->
             startDataLoading(safeBooking)
+            initial()
         } ?: run {
             Log.e("GuestDetail", "Lỗi: Không nhận được đối tượng Booking.")
         }
+    }
+
+    private fun initial() {
+        paymentMethodAdapter = PaymentMethodAdapter(
+            listPaymentMethod,
+            requiredAmount,
+            userWalletBalance
+        )
+        binding.recyclerPaymentMethod.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+        binding.recyclerPaymentMethod.adapter = paymentMethodAdapter
+
+        paymentMethodAdapter.onPaymentMethodSelected = { selectedMethod ->
+            booking?.let { safeBooking ->
+                this.selectedMethod = selectedMethod
+                handleTravelWalletDiscount(safeBooking, selectedMethod)
+                binding.btnPayment.setOnClickListener{
+                    if (selectedMethod!!.paymentMethodName == "Travel wallet"){
+                        currentHotel?.let {
+                            booking?.let { it1 ->
+                                openDialogPaymentConfirm(
+                                    it1.customerId,
+                                    it.ownerId)
+                            }
+                        }
+                    }else{
+                        addBookingAndPayment(booking)
+                    }
+                }
+            }
+        }
+
     }
 
     override fun onDestroy() {
@@ -97,7 +135,6 @@ class GuestDetailActivity : AppCompatActivity() {
         }
     }
 
-
     @SuppressLint("SetTextI18n")
     private fun updateUI(booking: Booking) {
 
@@ -110,14 +147,150 @@ class GuestDetailActivity : AppCompatActivity() {
 
         binding.tvRoomType.text = currentRoomType?.typeName ?: "N/A"
 
-        binding.tvCheckIn.text = booking.checkInDate?.let { convertLongToDate(it) } ?: "N/A"
-        binding.tvCheckOut.text = booking.checkOutDate?.let { convertLongToDate(it) } ?: "N/A"
+        binding.tvCheckIn.text = booking.checkInDate?.let { convertTimestampToString(it) }
+        binding.tvCheckOut.text = booking.checkOutDate?.let { convertTimestampToString(it) } ?: "N/A"
 
         binding.tvGuest.text = "${booking.numberGuest} people"
 
         updateTotalAmount(currentDiscount)
     }
 
+    private fun addBookingAndPayment(booking: Booking?) {
+        booking?.let { bookingData ->
+
+            val totalAmountValue = getAmountPayment()
+
+            val safePaymentMethod = selectedMethod
+            if (safePaymentMethod == null) {
+                Log.e("Firebase", "Lỗi: Phương thức thanh toán chưa được chọn.")
+                return@let
+            }
+
+            db.collection("bookings")
+                .add(bookingData)
+                .addOnSuccessListener { documentReference ->
+                    val newBookingId = documentReference.id
+                    Log.d("Firebase","Thêm booking thành công. ID: $newBookingId")
+
+                    val invoice = safePaymentMethod.paymentMethodId?.let {
+                        Invoice(
+                            bookingId = newBookingId,
+                            totalAmount = totalAmountValue,
+                            paymentMethodId = it
+                        )
+                    }
+
+                    if (invoice != null) {
+                        db.collection("invoices")
+                            .add(invoice)
+                            .addOnSuccessListener { invoiceDocumentReference ->
+                                Log.d("Firebase", "Thêm invoice thành công. ID: ${invoiceDocumentReference.id}")
+                                    val intent=Intent(this, PaymentActivity::class.java)
+                                    intent.putExtra("BOOKING_ID",newBookingId)
+                                    startActivity(intent)
+
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("Firebase", "Lỗi khi thêm invoice", e)
+                            }
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e("Firebase", "Lỗi khi thêm booking", e)
+                }
+        }
+    }
+
+    private fun getAmountPayment():Double {
+        val checkedId = binding.groupFundAmount.checkedRadioButtonId
+
+        val radioButton = findViewById<RadioButton>(checkedId)
+
+        if (radioButton == null) {
+            Log.e("Firebase", "Lỗi: Không tìm thấy RadioButton đã chọn.")
+            return 0.0
+        }
+
+        val rawText = radioButton.text.toString()
+
+        val cleanedForSplit = rawText.replace("[^\\d\\.,\\s]".toRegex(), "")
+        Log.d("cleanedForSplit", cleanedForSplit)
+
+        val amountString = cleanedForSplit
+            .split(" ")
+            .firstOrNull { it.isNotEmpty() && it.first().isDigit() } ?: ""
+        Log.d("amountString", amountString)
+
+        val valueWithoutSeparators = amountString.replace(",".toRegex(), "")
+        Log.d("valueWithoutSeparators", valueWithoutSeparators)
+
+        val totalAmountValue = valueWithoutSeparators.toDoubleOrNull() ?: 0.0
+        Log.d("totalAmountValue", totalAmountValue.toString())
+        return totalAmountValue
+    }
+
+    private fun openDialogPaymentConfirm(customerId: String, ownerId: String) {
+        val amount=getAmountPayment()
+        val viewBinding = DialogPaymentConfirmBinding.inflate(layoutInflater)
+        viewBinding.tvAmountPayment.text= Format.formatCurrency(amount)
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(viewBinding.root)
+            .create()
+
+        viewBinding.btnYes.setOnClickListener {
+            dialog.dismiss()
+            db.runTransaction { transition ->
+                val userRef=db.collection("users").document(customerId)
+                val ownerRef=db.collection("users").document(ownerId)
+                val userSnapshot=transition.get(userRef)
+                val ownerSnapshot=transition.get(ownerRef)
+                val currentCustomerBalance=userSnapshot.getDouble("walletBalance")
+                val currentOwnerBalance=ownerSnapshot.getDouble("walletBalance")
+                val newCustomerBalance = currentCustomerBalance?.minus(amount)
+                val newOwnerBalance = currentOwnerBalance?.plus(amount)
+                transition.update(userRef,"walletBalance",newCustomerBalance)
+                transition.update(ownerRef,"walletBalance",newOwnerBalance)
+            }
+                .addOnSuccessListener {
+                    Log.d("Payment", "Transaction success!")
+                    booking?.status="confirm"
+                    addBookingAndPayment(booking)
+                    openDialogPaymentSuccess(amount)
+                }.addOnFailureListener { e ->
+                    Log.w("Payment", "Transaction failure.", e)
+                }
+        }
+
+        viewBinding.btnNo.setOnClickListener {
+            dialog.dismiss()
+        }
+        dialog.show()
+    }
+    private fun openDialogPaymentSuccess(amount: Double){
+        val viewBinding = DialogPaymentSuccessBinding.inflate(layoutInflater)
+        viewBinding.tvAmountPayment.text=  Format.formatCurrency(amount)
+        val dialog = AlertDialog.Builder(this)
+            .setView(viewBinding.root)
+            .create()
+
+        viewBinding.btnOK.setOnClickListener{
+            dialog.dismiss()
+            val intent=Intent(this,MainActivity::class.java).apply {
+                flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            startActivity(intent)
+        }
+        dialog.setOnCancelListener{
+            dialog.dismiss()
+            val intent=Intent(this,MainActivity::class.java).apply {
+                flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            startActivity(intent)
+        }
+
+        dialog.show()
+    }
     private fun updateTotalAmount(discount: Discount?) {
         val safeBooking = booking ?: return
 
@@ -154,10 +327,10 @@ class GuestDetailActivity : AppCompatActivity() {
         binding.radFund100.text = Format.formatCurrency(finalPrice) + " (Full)"
     }
 
-    private fun handleTravelWalletDiscount(booking: Booking, selectedMethodName: String) {
+    private fun handleTravelWalletDiscount(booking: Booking, selectedMethod: PaymentMethod) {
         var targetDiscountId = booking.discountId
 
-        if (selectedMethodName == "Travel wallet") {
+        if (selectedMethod.paymentMethodName == "Travel wallet") {
             db.collection("bookings")
                 .whereEqualTo("customerId", booking.customerId)
                 .limit(1)
@@ -182,7 +355,7 @@ class GuestDetailActivity : AppCompatActivity() {
                 }
                 .addOnFailureListener { Log.e("Firestore", "Lỗi kiểm tra Bookings", it) }
         } else {
-            loadFinalDiscountAndRefreshUI(booking.discountId)
+            loadFinalDiscountAndRefreshUI(targetDiscountId)
         }
     }
 
@@ -215,7 +388,7 @@ class GuestDetailActivity : AppCompatActivity() {
 
             paymentMethodAdapter.onPaymentMethodSelected = { selectedMethod ->
                 booking?.let { safeBooking ->
-                    handleTravelWalletDiscount(safeBooking, selectedMethod.paymentMethodName)
+                    handleTravelWalletDiscount(safeBooking, selectedMethod)
                 }
             }
         } else {
@@ -358,21 +531,14 @@ class GuestDetailActivity : AppCompatActivity() {
             }
     }
 
+    fun convertTimestampToString(timestamp: Timestamp): String {
+        // 1. Chuyển Timestamp thành đối tượng Date
+        val date: Date = timestamp.toDate()
 
-    private fun convertLongToDate(time: Long?): String {
-        if (time == null) return "N/A"
-        val date = Date(time)
-        val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-        return format.format(date)
-    }
+        // 2. Tạo đối tượng SimpleDateFormat với định dạng và Locale (ngôn ngữ) mong muốn
+        val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            android.R.id.home -> {
-                onBackPressedDispatcher.onBackPressed()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
+        // 3. Định dạng Date thành String
+        return dateFormat.format(date)
     }
 }

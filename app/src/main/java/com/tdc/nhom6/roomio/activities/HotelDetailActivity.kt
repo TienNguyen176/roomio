@@ -100,7 +100,7 @@ class HotelDetailActivity: AppCompatActivity() {
         HOTEL_ID = intent.getStringExtra("HOTEL_ID").toString()
         Log.d("Intent", HOTEL_ID)
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.title = ""
+        supportActionBar?.title = "Guest Detail"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         serviceAdapter = ServiceAdapter(listServices, selectedServiceRates)

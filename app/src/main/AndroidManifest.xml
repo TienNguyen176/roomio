@@ -15,9 +15,14 @@
         android:theme="@style/Theme.Roomio"
         tools:targetApi="31">
         <activity
+            android:name=".activities.BookingDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.PaymentActivity"
+            android:exported="false" />
+        <activity
             android:name=".activities.HotelDetailActivity"
-            android:exported="false">
-        </activity>
+            android:exported="false" />
         <activity
             android:name=".activities.LoginActivity"
             android:exported="false">
@@ -83,6 +88,7 @@
             android:label="Reception" />
         <activity
             android:name=".activities.GuestDetailActivity"
+            android:exported="false" />
             android:exported="false"/>
         <activity
             android:name=".activities.ServiceExtraFeeActivity"
