@@ -29,7 +29,7 @@ import com.tdc.nhom6.roomio.models.HotelModel
 import com.tdc.nhom6.roomio.models.RoomImage
 import com.tdc.nhom6.roomio.models.RoomType
 import com.tdc.nhom6.roomio.models.Service
-import com.tdc.nhom6.roomio.models.ServiceAdapter
+import com.tdc.nhom6.roomio.models.ServiceHotelAdapter
 import com.tdc.nhom6.roomio.models.ServiceRate
 import java.util.Date
 
@@ -40,7 +40,7 @@ class HotelDetailActivity: AppCompatActivity() {
     private var listRoomType: MutableList<RoomType> = mutableListOf()
     private var listServices: MutableList<Service> = mutableListOf()
     private lateinit var hotelData: HotelModel
-    private lateinit var serviceAdapter: ServiceAdapter
+    private lateinit var serviceAdapter: ServiceHotelAdapter
     private lateinit var photoGridAdapter: PhotoGridAdapter
     private var systemBarsInsets: Insets? = null
 
@@ -99,7 +99,7 @@ class HotelDetailActivity: AppCompatActivity() {
         supportActionBar?.title = "Guest Detail"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        serviceAdapter = ServiceAdapter(this, listServices)
+        serviceAdapter = ServiceHotelAdapter(this, listServices)
         val spanCount = 3
         binding.gridServices.layoutManager = GridLayoutManager(this, spanCount)
         binding.gridServices.adapter = serviceAdapter

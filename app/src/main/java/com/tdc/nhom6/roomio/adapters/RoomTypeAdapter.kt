@@ -22,7 +22,7 @@ import com.tdc.nhom6.roomio.activities.HotelDetailActivity
 import com.tdc.nhom6.roomio.databinding.ItemRoomTypeBinding
 import com.tdc.nhom6.roomio.models.Booking
 import com.tdc.nhom6.roomio.models.Facility
-import com.tdc.nhom6.roomio.models.FacilityAdapter
+import com.tdc.nhom6.roomio.models.FacilityHotelAdapter
 import com.tdc.nhom6.roomio.models.FacilityPriceRateModel
 import com.tdc.nhom6.roomio.models.RoomImage
 import com.tdc.nhom6.roomio.models.Scene
@@ -49,7 +49,7 @@ class RoomTypeAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         val facilitiesList: MutableList<Facility> = mutableListOf()
-        val facilityAdapter = FacilityAdapter(context, facilitiesList)
+        val facilityAdapter = FacilityHotelAdapter(context, facilitiesList)
 
         var facilityRatesListener: ListenerRegistration? = null
         var viewListener: ListenerRegistration? = null
@@ -175,7 +175,7 @@ class RoomTypeAdapter(
         dialog.show()
     }
 
-    private fun loadFacilityRatesRealtime(roomTypeId: String, list: MutableList<Facility>, adapter: FacilityAdapter, holder: RoomTypeViewHolder) {
+    private fun loadFacilityRatesRealtime(roomTypeId: String, list: MutableList<Facility>, adapter: FacilityHotelAdapter, holder: RoomTypeViewHolder) {
         val ratesCollectionPath = "roomTypes/${roomTypeId}/facilityRates"
 
         holder.facilityRatesListener?.remove()
@@ -229,7 +229,7 @@ class RoomTypeAdapter(
     }
 
 
-    private fun loadFacilityDetailsOneTime(ids: Set<String>, list: MutableList<Facility>, adapter: FacilityAdapter) {
+    private fun loadFacilityDetailsOneTime(ids: Set<String>, list: MutableList<Facility>, adapter: FacilityHotelAdapter) {
         list.clear()
 
         if (ids.isEmpty()) {
