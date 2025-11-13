@@ -144,6 +144,9 @@ class CleanerFragment : Fragment() {
                 try {
                     val intent = Intent(requireContext(), CleaningInspectionActivity::class.java)
                     intent.putExtra("ROOM_ID", task.roomId)
+                    intent.putExtra("BOOKING_ID", task.bookingDocId ?: task.roomId)
+                    intent.putExtra("ROOM_TYPE_ID", task.roomTypeId ?: "")
+                    intent.putExtra("HOTEL_ID", task.hotelId ?: "")
                     startActivity(intent)
                 } catch (_: Exception) { }
             }
@@ -192,7 +195,10 @@ data class CleanerTask(
     val id: String,
     val roomId: String,
     val status: TaskStatus,
-    val timestamp: String
+    val timestamp: String,
+    val bookingDocId: String? = null,
+    val roomTypeId: String? = null,
+    val hotelId: String? = null
 )
 
 enum class TaskStatus {

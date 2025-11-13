@@ -32,7 +32,8 @@ class RoomImageListAdapter(
 
     override fun getItemCount() = images.size
 
-    class ImageViewHolder(private val binding: ItemRoomImageBinding) :
+    class ImageViewHolder(val binding: ItemRoomImageBinding) :
         RecyclerView.ViewHolder(binding.root)
 }
+
 

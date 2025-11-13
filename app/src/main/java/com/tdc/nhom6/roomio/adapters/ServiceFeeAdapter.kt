@@ -36,6 +36,15 @@ class ServiceFeeAdapter(
 
     private fun total(): Double = items.filter { it.checked }.sumOf { it.price }
 
+    fun replaceItems(newItems: List<ServiceItem>) {
+        items.clear()
+        items.addAll(newItems)
+        notifyDataSetChanged()
+        onTotalChanged(total())
+    }
+
+    fun currentTotal(): Double = total()
+
     class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val icon: ImageView = itemView.findViewById(R.id.ivIcon)
         private val name: TextView = itemView.findViewById(R.id.tvName)
@@ -54,6 +63,7 @@ class ServiceFeeAdapter(
         }
     }
 }
+
 
 
 

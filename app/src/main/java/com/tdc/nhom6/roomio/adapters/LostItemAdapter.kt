@@ -32,6 +32,13 @@ class LostItemAdapter(
         holder.bind(items[position]) { onChange() }
     }
 
+    fun replaceItems(newItems: List<LostItem>) {
+        items.clear()
+        items.addAll(newItems)
+        notifyDataSetChanged()
+        onChange()
+    }
+
     fun totalCharges(): Double = items.sumOf { (if (it.checked) it.quantity else 0) * it.pricePerItem }
 
     class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {

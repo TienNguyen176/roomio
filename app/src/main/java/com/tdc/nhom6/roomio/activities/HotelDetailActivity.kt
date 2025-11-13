@@ -32,7 +32,7 @@ import com.tdc.nhom6.roomio.models.HotelModel
 import com.tdc.nhom6.roomio.models.RoomImage
 import com.tdc.nhom6.roomio.models.RoomType
 import com.tdc.nhom6.roomio.models.Service
-import com.tdc.nhom6.roomio.models.ServiceAdapter
+import com.tdc.nhom6.roomio.adapters.ServiceAdapter
 import com.tdc.nhom6.roomio.models.ServiceRate
 import java.util.Date
 
@@ -42,6 +42,7 @@ class HotelDetailActivity: AppCompatActivity() {
     private lateinit var roomTypeAdapter: RoomTypeAdapter
     private var listRoomType: MutableList<RoomType> = mutableListOf()
     private var listServices: MutableList<Service> = mutableListOf()
+    private var selectedServiceRates: MutableMap<String, Double> = mutableMapOf()
     private lateinit var hotelData: HotelModel
     private lateinit var serviceAdapter: ServiceAdapter
     private lateinit var photoGridAdapter: PhotoGridAdapter
@@ -102,7 +103,7 @@ class HotelDetailActivity: AppCompatActivity() {
         supportActionBar?.title = ""
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        serviceAdapter = ServiceAdapter(this, listServices)
+        serviceAdapter = ServiceAdapter(listServices, selectedServiceRates)
         val spanCount = 3
         binding.gridServices.layoutManager = GridLayoutManager(this, spanCount)
         binding.gridServices.adapter = serviceAdapter
@@ -216,13 +217,24 @@ class HotelDetailActivity: AppCompatActivity() {
 
                 if (querySnapshot != null) {
                     listServices.clear()
+                    selectedServiceRates.clear()
 
-                    val serviceIdsToFetch = querySnapshot.documents.mapNotNull { it.getString("service_id") }
+                    // Extract service IDs and prices from serviceRates
+                    val serviceRateMap = querySnapshot.documents.associate { doc ->
+                        val serviceId = doc.getString("service_id") ?: ""
+                        val price = doc.getDouble("price") ?: 0.0
+                        serviceId to price
+                    }
+
+                    val serviceIdsToFetch = serviceRateMap.keys.filter { it.isNotEmpty() }
 
                     if (serviceIdsToFetch.isEmpty()) {
                         serviceAdapter.notifyDataSetChanged()
                         return@addSnapshotListener
                     }
+
+                    // Populate selectedServiceRates with prices
+                    selectedServiceRates.putAll(serviceRateMap)
 
                     var fetchCount = 0
                     for (serviceId in serviceIdsToFetch) {
@@ -326,8 +338,8 @@ class HotelDetailActivity: AppCompatActivity() {
 
         val newImage = RoomImage(
             imageUrl = "https://cf.bstatic.com/xdata/images/hotel/max1024x768/738129545.jpg?k=e715bb89becf44df04deb39a73a43cdc6048c6fd1f04eda71630eba62d771337&o=",
-            isThumbnail = true,
-            uploadedAt = Date().time.toFirestoreTimestamp()
+            thumbnail = true,
+            uploadedAt = Date().time
         )
         val myTypeSafeRoom = RoomType(
             roomTypeId = ROOM_ID,

@@ -22,7 +22,6 @@ import com.tdc.nhom6.roomio.activities.HotelDetailActivity
 import com.tdc.nhom6.roomio.databinding.ItemRoomTypeBinding
 import com.tdc.nhom6.roomio.models.Booking
 import com.tdc.nhom6.roomio.models.Facility
-import com.tdc.nhom6.roomio.models.FacilityAdapter
 import com.tdc.nhom6.roomio.models.FacilityPriceRateModel
 import com.tdc.nhom6.roomio.models.RoomImage
 import com.tdc.nhom6.roomio.models.Scene

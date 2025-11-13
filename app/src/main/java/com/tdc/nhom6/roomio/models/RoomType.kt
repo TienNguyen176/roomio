@@ -18,18 +18,3 @@ data class RoomType(
     val facilityPrices: List<FacilityPrice> = emptyList()
 ) : Parcelable
 
-@Parcelize
-data class RoomImage(
-    val imageUrl: String = "",
-    val thumbnail: Boolean = false,
-    // Using a Parcelable type is better than 'Any?'. String or Long for timestamp is common.
-    val uploadedAt: Long? = null
-) : Parcelable
-
-// You will also need to define the FacilityPrice data class.
-// Assuming it's simple, it might look like this.
-@Parcelize
-data class FacilityPrice(
-    val facilityId: String = "",
-    val price: Double = 0.0
-) : Parcelable

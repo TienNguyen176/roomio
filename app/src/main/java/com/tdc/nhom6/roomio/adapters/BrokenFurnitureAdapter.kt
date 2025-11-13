@@ -32,6 +32,13 @@ class BrokenFurnitureAdapter(
         holder.bind(items[position]) { onChange() }
     }
 
+    fun replaceItems(newItems: List<BrokenItem>) {
+        items.clear()
+        items.addAll(newItems)
+        notifyDataSetChanged()
+        onChange()
+    }
+
     fun totalCharges(): Double {
         // If prices are not set, broken items contribute 0 by default
         return items.filter { it.checked }.sumOf { it.pricePerItem }
@@ -59,6 +66,7 @@ class BrokenFurnitureAdapter(
         }
     }
 }
+
 
 
 

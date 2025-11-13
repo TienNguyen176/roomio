@@ -22,13 +22,12 @@
     <color name="blue_600">#1E88E5</color>
 
     <color name="primaryColor">#6750A4</color> <!-- tím nhạt Material -->
-        <color name="primaryContainer">#EADDFF</color>
-        <color name="onPrimary">#FFFFFF</color>
+    <color name="primaryContainer">#EADDFF</color>
+    <color name="onPrimary">#FFFFFF</color>
     <color name="backgroundLight">#EAF1FF</color>
 
-
     <color name="surfaceLight">#FFFFFF</color>
-        <color name="onSurface">#1C1B1F</color>
+    <color name="onSurface">#1C1B1F</color>
 
 
 

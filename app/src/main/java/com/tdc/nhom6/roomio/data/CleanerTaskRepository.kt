@@ -21,13 +21,22 @@ object CleanerTaskRepository {
 
     fun getCleaningFee(roomId: String): Double = roomIdToCleaningFee[roomId] ?: 0.0
 
-    fun addDirtyTask(roomId: String, createdAt: Long = System.currentTimeMillis()) {
+    fun addDirtyTask(
+        roomId: String,
+        bookingDocId: String? = null,
+        roomTypeId: String? = null,
+        hotelId: String? = null,
+        createdAt: Long = System.currentTimeMillis()
+    ) {
         val displayTime = SimpleDateFormat("d MMM hh.mm a", Locale.getDefault()).format(Date(createdAt))
         val task = CleanerTask(
             id = UUID.randomUUID().toString(),
             roomId = roomId,
             status = TaskStatus.DIRTY,
-            timestamp = displayTime
+            timestamp = displayTime,
+            bookingDocId = bookingDocId,
+            roomTypeId = roomTypeId,
+            hotelId = hotelId
         )
         tasksInternal.add(0, task)
         tasksLiveData.postValue(tasksInternal.toList())
