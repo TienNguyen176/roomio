@@ -7,10 +7,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.databinding.ItemFacilityBinding
 
-class ServiceAdapter(
+class ServiceHotelAdapter(
     private val context: Context,
     private val listFacility: List<Service>
-) : RecyclerView.Adapter<ServiceAdapter.FacilityViewHolder>() {
+) : RecyclerView.Adapter<ServiceHotelAdapter.FacilityViewHolder>() {
 
     class FacilityViewHolder(val binding: ItemFacilityBinding) :
         RecyclerView.ViewHolder(binding.root)

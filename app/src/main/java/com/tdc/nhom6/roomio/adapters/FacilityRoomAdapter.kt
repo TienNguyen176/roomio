@@ -7,10 +7,10 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.databinding.ItemFacilityBinding
 
-class FacilityAdapter(
+class FacilityRoomAdapter(
     private val context: Context,
     private val listFacility: List<Facility>
-) : RecyclerView.Adapter<FacilityAdapter.FacilityViewHolder>() {
+) : RecyclerView.Adapter<FacilityRoomAdapter.FacilityViewHolder>() {
 
     class FacilityViewHolder(val binding: ItemFacilityBinding) :
         RecyclerView.ViewHolder(binding.root)
