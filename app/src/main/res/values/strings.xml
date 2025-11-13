@@ -59,4 +59,15 @@
     <string name="confirm_check_out">Confirm check-out?</string>
     <string name="confirm_payment">Confirm payment?</string>
     <string name="notification">Notification</string>
+
+    <!-- Cleaner Screen -->
+    <string name="cleaner_tasks">Cleaner | Tasks</string>
+    <string name="room_to_clean">Room to clean</string>
+    <string name="dirty">Dirty</string>
+    <string name="in_progress">In progress</string>
+    <string name="start">Start</string>
+    <string name="complete">Complete</string>
+    <string name="default_web_client_id">230796417369-7fh174mc1aga69ko8eltnrbm5lql193l.apps.googleusercontent.com</string>
+    <string name="cloudinary_cloud_name">dgxcjxzqi</string>
+    <string name="cloudinary_upload_preset">upload_images</string>
 </resources>

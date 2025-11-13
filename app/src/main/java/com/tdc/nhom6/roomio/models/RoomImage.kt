@@ -1,9 +1,12 @@
 package com.tdc.nhom6.roomio.models
 
-import com.google.firebase.Timestamp
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 
+@Parcelize
 data class RoomImage(
     val imageUrl: String = "",
-    val isThumbnail: Boolean = false,
-    val uploadedAt: Timestamp? = null
-)
+    val thumbnail: Boolean = false,
+    val uploadedAt: Long? = null
+) : Parcelable
+

@@ -1,5 +1,6 @@
 package com.tdc.nhom6.roomio.activities
 
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.os.StrictMode
 import android.util.Log
@@ -7,13 +8,20 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import android.content.pm.ApplicationInfo
+import androidx.fragment.app.Fragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.FirebaseApp
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.fragments.HomeFragment
+import com.tdc.nhom6.roomio.fragments.ProfileFragment
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        private const val TAG_HOME = "tag_home"
+        private const val TAG_PROFILE = "tag_profile"
+        private const val KEY_CURRENT_TAG = "current_fragment_tag"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,32 +57,62 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        // Show HomeFragment on first launch
-        if (savedInstanceState == null) {
-            supportFragmentManager
-                .beginTransaction()
-                .replace(R.id.nav_host_container, HomeFragment())
-                .commit()
-        }
-
-        setupBottomNavigation()
+        val initialTag = savedInstanceState?.getString(KEY_CURRENT_TAG) ?: TAG_HOME
+        showFragment(initialTag)
+        setupBottomNavigation(initialTag)
     }
 
-    private fun setupBottomNavigation() {
+    private fun setupBottomNavigation(initialTag: String) {
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_nav)
         bottomNav.itemIconTintList = resources.getColorStateList(R.color.nav_item_color)
         bottomNav.itemTextColor = resources.getColorStateList(R.color.nav_item_color)
+        bottomNav.selectedItemId = if (initialTag == TAG_PROFILE) R.id.menu_profile else R.id.menu_home
 
         bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.menu_home -> {
-                    supportFragmentManager.beginTransaction()
-                        .replace(R.id.nav_host_container, HomeFragment())
-                        .commit()
+                    showFragment(TAG_HOME)
+                    true
+                }
+                R.id.menu_profile -> {
+                    showFragment(TAG_PROFILE)
                     true
                 }
                 else -> false
             }
         }
+    }
+
+    private fun showFragment(tag: String) {
+        val fragmentManager = supportFragmentManager
+        val fragment = fragmentManager.findFragmentByTag(tag) ?: createFragmentForTag(tag)
+
+        fragmentManager.beginTransaction().apply {
+            setReorderingAllowed(true)
+            fragmentManager.fragments.forEach { existing ->
+                if (existing.isAdded && existing != fragment) {
+                    hide(existing)
+                }
+            }
+            if (fragment.isAdded) {
+                show(fragment)
+            } else {
+                add(R.id.nav_host_container, fragment, tag)
+            }
+            setPrimaryNavigationFragment(fragment)
+            commit()
+        }
+    }
+
+    private fun createFragmentForTag(tag: String): Fragment = when (tag) {
+        TAG_HOME -> HomeFragment()
+        TAG_PROFILE -> ProfileFragment()
+        else -> throw IllegalArgumentException("Unknown fragment tag: $tag")
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        val currentTag = supportFragmentManager.primaryNavigationFragment?.tag ?: TAG_HOME
+        outState.putString(KEY_CURRENT_TAG, currentTag)
     }
 }

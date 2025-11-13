@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.google.gms.google.services)
     id("kotlin-parcelize")
 }
-
 android {
     namespace = "com.tdc.nhom6.roomio"
     compileSdk = 35
@@ -30,18 +29,18 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "11"
     }
     buildFeatures {
         viewBinding = true
     }
 }
-
 dependencies {
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
@@ -73,10 +72,19 @@ dependencies {
     implementation(libs.firebase.messaging)
     // Google Play services base (for availability checks)
     implementation("com.google.android.gms:play-services-base:18.5.0")
-    
+
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
     // Firebase coroutines extension
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation ("com.google.android.gms:play-services-auth:20.7.0")
+    implementation("at.favre.lib:bcrypt:0.9.0")
+    implementation ("com.google.android.material:material:1.11.0")
+
+
+
+
+
+
 }

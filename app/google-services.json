@@ -7,12 +7,25 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:230796417369:android:ddb7254581dfa945725448",
+        "mobilesdk_app_id": "1:230796417369:android:2bce707b31f21c62725448",
         "android_client_info": {
-          "package_name": "com.tdc.nhom6.roomio"
+          "package_name": "com.example.roomio"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "230796417369-oqs9h6gpiqsie9ba8h1c9380ekbi3bjg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.roomio",
+            "certificate_hash": "b7ea13a1cba2007f6ca10d724bfb1393925fb201"
+          }
+        },
+        {
+          "client_id": "230796417369-k137g4hjcgo5qscqtfkm4g15nluff0bu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC5YpHTTaDUEe9PVGQQkz20X3S7c_99lfM"
@@ -20,7 +33,78 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "230796417369-7fh174mc1aga69ko8eltnrbm5lql193l.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:230796417369:android:b3afc5b18ec6b85f725448",
+        "android_client_info": {
+          "package_name": "com.example.rooomio"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "230796417369-k137g4hjcgo5qscqtfkm4g15nluff0bu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5YpHTTaDUEe9PVGQQkz20X3S7c_99lfM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "230796417369-7fh174mc1aga69ko8eltnrbm5lql193l.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:230796417369:android:ddb7254581dfa945725448",
+        "android_client_info": {
+          "package_name": "com.tdc.nhom6.roomio"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "230796417369-tm0oi5aqvh88evf33847k1hpv1eefmnt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tdc.nhom6.roomio",
+            "certificate_hash": "b7ea13a1cba2007f6ca10d724bfb1393925fb201"
+          }
+        },
+        {
+          "client_id": "230796417369-k137g4hjcgo5qscqtfkm4g15nluff0bu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5YpHTTaDUEe9PVGQQkz20X3S7c_99lfM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "230796417369-7fh174mc1aga69ko8eltnrbm5lql193l.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

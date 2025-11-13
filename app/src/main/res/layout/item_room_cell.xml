@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/cardRoom"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp"> <TextView
+    android:id="@+id/tvRoomCode"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center"
+    android:paddingVertical="20dp" android:textSize="14sp"
+    android:textStyle="bold"
+    tools:text="F1A01"
+
+    android:background="?attr/colorSurfaceVariant"
+    android:textColor="?attr/colorOnSurfaceVariant" />
+
+</com.google.android.material.card.MaterialCardView>

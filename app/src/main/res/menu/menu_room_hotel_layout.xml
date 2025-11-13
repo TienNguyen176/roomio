@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/btnChooseRoomType"
+        android:title="Chọn loại phòng" />
+
+    <item
+        android:id="@+id/btnAddRoomType"
+        android:title="Thêm loại phòng" />
+
+    <item
+        android:id="@+id/btnAddFloor"
+        android:title="Thêm tầng mới" />
+    <item
+        android:id="@+id/btnDeleteRooms"
+        android:title="Xóa phòng" />
+    <item
+        android:id="@+id/btnUpdateRoomName"
+        android:title="Đổi tên chung" />
+
+</menu>
