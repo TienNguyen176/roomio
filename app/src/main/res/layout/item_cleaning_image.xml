@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="120dp"
+    android:layout_height="120dp"
+    android:layout_margin="4dp">
+
+    <ImageView
+        android:id="@+id/ivCleaningImage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:background="#F5F5F5" />
+
+    <View
+        android:id="@+id/viewUploadProgress"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#80000000"
+        android:visibility="gone"
+        android:gravity="center">
+        <ProgressBar
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:indeterminateTint="#FFFFFF" />
+    </View>
+
+    <ImageView
+        android:id="@+id/btnRemoveImage"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_gravity="top|end"
+        android:src="@android:drawable/ic_menu_delete"
+        android:background="#CC000000"
+        android:padding="4dp"
+        android:layout_margin="4dp"
+        app:tint="#FFFFFF" />
+
+</FrameLayout>
+

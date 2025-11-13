@@ -22,6 +22,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Locale
+import com.tdc.nhom6.roomio.models.HeaderColor
+import com.tdc.nhom6.roomio.models.ReservationStatus
+import com.tdc.nhom6.roomio.utils.ReservationColorHelper
 
 class ReceptionFragment : Fragment() {
     private lateinit var reservationAdapter: ReservationAdapter
@@ -116,6 +119,31 @@ class ReceptionFragment : Fragment() {
                     if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
                         return@launch
                     }
+                    
+                    // Track cleaning completion changes for notifications
+                    val cleaningNotifications = mutableListOf<Pair<String, String>>() // reservationId to roomType
+                    
+                    // Process document changes to detect real-time updates
+                    for (change in snapshots.documentChanges) {
+                        if (change.type == com.google.firebase.firestore.DocumentChange.Type.MODIFIED) {
+                            val doc = change.document
+                            val documentId = doc.id
+                            val previousReservation = allReservations.find { it.documentId == documentId }
+                            val previousCleaningMillis = previousReservation?.cleaningCompletedAtMillis
+                            val newCleaningMillis = valueToMillis(doc.get("cleaningCompletedAt"))
+                            
+                            // Only notify if cleaning was just completed (null -> not null)
+                            if (previousCleaningMillis == null && newCleaningMillis != null) {
+                                val reservationId = doc.getString("reservationId") ?: documentId
+                                val roomTypeName = doc.getString("roomTypeName")
+                                    ?: doc.getString("room_type_name")
+                                    ?: (doc.get("roomType") as? String)
+                                    ?: "Room"
+                                cleaningNotifications.add(Pair(reservationId, roomTypeName))
+                            }
+                        }
+                    }
+                    
                     val updated = mutableListOf<ReservationUi>()
                     for (doc in snapshots.documents) {
                         try {
@@ -224,9 +252,17 @@ class ReceptionFragment : Fragment() {
                             // Read cleaningCompletedAt timestamp
                             val cleaningCompletedAtMillis = valueToMillis(doc.get("cleaningCompletedAt"))
                             
-                            // Check if cleaning was just completed (was null, now has value)
-                            val previousReservation = allReservations.find { it.documentId == documentId }
-                            val wasJustCleaned = previousReservation?.cleaningCompletedAtMillis == null && cleaningCompletedAtMillis != null
+                            // Resolve room type name
+                            val finalRoomTypeName = if (roomTypeInlineName.isNullOrBlank()) {
+                                // Try to resolve from roomTypeSource if available
+                                when (roomTypeSource) {
+                                    is String -> roomTypeSource.takeIf { it.isNotBlank() } ?: "Room"
+                                    is Map<*, *> -> (roomTypeSource["name"] as? String) ?: "Room"
+                                    else -> "Room"
+                                }
+                            } else {
+                                roomTypeInlineName
+                            }
  
                             val headerColorInitial = when {
                                 isCanceled -> HeaderColor.RED
@@ -273,7 +309,7 @@ class ReceptionFragment : Fragment() {
                                 headerColor = headerColorInitial,
                                 status = status,
                                 numberGuest = numberGuest,
-                                roomType = roomTypeInlineName ?: "Loading...",
+                                roomType = finalRoomTypeName,
                                 roomTypeId = roomTypeId,
                                 hotelId = doc.getString("hotelId"),
                                 guestPhone = doc.getString("guestPhone"),
@@ -286,13 +322,6 @@ class ReceptionFragment : Fragment() {
                                 discountLabel = discountText,
                                 cleaningCompletedAtMillis = cleaningCompletedAtMillis
                             )
-                            
-                            // Show dialog if cleaning was just completed
-                            if (wasJustCleaned) {
-                                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                                    showCleaningCompletedDialog(reservationId, roomTypeInlineName ?: "Room")
-                                }
-                            }
                             updated.add(ui)
                             val uiIndex = updated.lastIndex
                             
@@ -377,7 +406,9 @@ class ReceptionFragment : Fragment() {
 
                             // Resolve room type if not already present; support multiple formats
                             val roomTypeRaw = roomTypeSource
-                            if (roomTypeInlineName.isNullOrBlank()) {
+                            
+                            // Always fetch roomType document to get typeName (room name) if we have roomTypeId or roomTypeRaw
+                            if (roomTypeId != null || roomTypeRaw != null) {
                                 val roomTypeJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                                     val currentJob = coroutineContext[Job]
                                     try {
@@ -396,7 +427,13 @@ class ReceptionFragment : Fragment() {
                                                     ?: (roomTypeRaw["id"] as? Number)?.toString()
                                                 if (id != null) Firebase.firestore.collection("roomTypes").document(id).get().await() else null
                                             }
-                                            else -> null
+                                            else -> {
+                                                // Try using roomTypeId if available
+                                                roomTypeId?.let { id ->
+                                                    Firebase.firestore.collection("roomTypes").document(id).get().await()
+                                                        ?: Firebase.firestore.collection("room_types").document(id).get().await()
+                                                }
+                                            }
                                         }
                                         val resolvedRoomTypeId = roomTypeId
                                             ?: typeDoc?.id
@@ -405,12 +442,10 @@ class ReceptionFragment : Fragment() {
                                             typeDoc.getString("name")
                                                 ?: typeDoc.getString("typeName")
                                                 ?: typeDoc.getString("title")
-                                                ?: "Room"
+                                                ?: typeDoc.getString("type_name")
+                                                ?: finalRoomTypeName
                                         } else {
-                                            // fallback to any inline strings if present
-                                            (roomTypeRaw as? String)
-                                                ?: ((roomTypeRaw as? Map<*, *>)?.get("name") as? String)
-                                                ?: "Room"
+                                            finalRoomTypeName
                                         }
                                         launch(Dispatchers.Main) {
                                             if (viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
@@ -418,7 +453,10 @@ class ReceptionFragment : Fragment() {
                                                 val index = allReservations.indexOfFirst { it.documentId == bookingDocId }
                                                 if (index >= 0) {
                                                     val existing = allReservations[index]
-                                                    allReservations[index] = existing.copy(roomType = typeName, roomTypeId = resolvedRoomTypeId)
+                                                    allReservations[index] = existing.copy(
+                                                        roomType = typeName,
+                                                        roomTypeId = resolvedRoomTypeId
+                                                    )
                                                     reservationMeta[bookingDocId]?.let { meta ->
                                                         reservationMeta[bookingDocId] = meta.copy(roomTypeId = resolvedRoomTypeId)
                                                     }
@@ -426,8 +464,8 @@ class ReceptionFragment : Fragment() {
                                                 }
                                             }
                                         }
-                                    } catch (_: Exception) {
-                                        // ignore
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("ReceptionFragment", "Failed to fetch room type for $bookingDocId", e)
                                     } finally {
                                         currentJob?.let { activeJobs.remove(it) }
                                     }
@@ -445,6 +483,11 @@ class ReceptionFragment : Fragment() {
                         allReservations.clear()
                         allReservations.addAll(updated)
                         applyInvoiceDataToReservations(forceFilter = true)
+                        
+                        // Show cleaning completion notifications for real-time changes
+                        for ((reservationId, roomType) in cleaningNotifications) {
+                            showCleaningCompletedDialog(reservationId, roomType)
+                        }
                     }
                 }
             }
@@ -566,25 +609,7 @@ class ReceptionFragment : Fragment() {
             meta.hasCheckedIn -> ReservationStatus.UNCOMPLETED
             else -> meta.baseStatus
         }
- 
-        val headerColor = when {
-            finalStatus == ReservationStatus.CANCELED -> HeaderColor.RED
-            finalStatus == ReservationStatus.COMPLETED -> HeaderColor.GREEN
-            finalStatus == ReservationStatus.PENDING -> HeaderColor.YELLOW
-            paymentStatus == PaymentStatus.FULL -> HeaderColor.GREEN
-            paymentStatus == PaymentStatus.PARTIAL -> HeaderColor.BLUE
-            else -> HeaderColor.YELLOW
-        }
- 
-        val badge = when {
-            finalStatus == ReservationStatus.CANCELED -> "Cancelled"
-            finalStatus == ReservationStatus.COMPLETED -> "Completed"
-            finalStatus == ReservationStatus.PENDING -> "Pending payment"
-            paymentStatus == PaymentStatus.FULL -> "Paid"
-            paymentStatus == PaymentStatus.PARTIAL -> "Deposit paid"
-            else -> ""
-        }
- 
+
         val action = when {
             finalStatus == ReservationStatus.CANCELED -> "Cancelled"
             finalStatus == ReservationStatus.COMPLETED -> "Completed"
@@ -593,6 +618,26 @@ class ReceptionFragment : Fragment() {
             meta.hasCheckedIn -> "Check-out"
             paymentStatus != PaymentStatus.NONE -> "Check-in"
             else -> "Payment"
+        }
+ 
+        // Determine header color using ReservationColorHelper for payment-based colors
+        val headerColor = when {
+            finalStatus == ReservationStatus.CANCELED -> HeaderColor.RED
+            finalStatus == ReservationStatus.COMPLETED -> HeaderColor.GREEN
+            action == "Payment" -> HeaderColor.YELLOW // If action is payment, it's yellow
+            else -> {
+                // Use ReservationColorHelper to determine color based on payment amount
+                ReservationColorHelper.getColorByPaymentStatus(amountPaid, meta.totalFinal)
+            }
+        }
+
+        val badge = when {
+            finalStatus == ReservationStatus.CANCELED -> "Cancelled"
+            finalStatus == ReservationStatus.COMPLETED -> "Completed"
+            action == "Payment" -> "Pending payment" // If action is payment, badge is pending payment
+            paymentStatus == PaymentStatus.FULL -> "Paid"
+            paymentStatus == PaymentStatus.PARTIAL -> "Deposit paid"
+            else -> ""
         }
 
         return PaymentUiState(
@@ -904,11 +949,6 @@ data class ReservationUi(
     val cleaningCompletedAtMillis: Long? = null
 )
 
-enum class ReservationStatus {
-    ALL, UNCOMPLETED, PENDING, COMPLETED, CANCELED
-}
-
-enum class HeaderColor { BLUE, GREEN, YELLOW, RED }
 
 class ReservationAdapter(private val items: MutableList<ReservationUi>) : RecyclerView.Adapter<ReservationViewHolder>() {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ReservationViewHolder {
@@ -917,6 +957,11 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) : Recycl
             val current = items[position]
             // Don't allow any actions on canceled or completed reservations
             if (current.status == ReservationStatus.CANCELED || current.status == ReservationStatus.COMPLETED) {
+                return@ReservationViewHolder
+            }
+            // Don't allow payment action if cleaning hasn't been completed yet
+            if (current.action.lowercase() == "payment" && current.cleaningCompletedAtMillis == null) {
+                android.widget.Toast.makeText(v.context, "Please wait for cleaning to be completed", android.widget.Toast.LENGTH_SHORT).show()
                 return@ReservationViewHolder
             }
             when (current.action.lowercase()) {
@@ -1142,7 +1187,6 @@ class ReservationViewHolder(view: View, private val onActionClick: (Int) -> Unit
     private val tvReservationId: android.widget.TextView = view.findViewById(R.id.tvReservationId)
     private val tvStatusBadge: android.widget.TextView = view.findViewById(R.id.tvStatusBadge)
     private val tvLine1: android.widget.TextView = view.findViewById(R.id.tvLine1)
-    private val tvLine2: android.widget.TextView = view.findViewById(R.id.tvLine2)
     private val tvLine3: android.widget.TextView = view.findViewById(R.id.tvLine3)
     private val tvNumberGuest: android.widget.TextView = view.findViewById(R.id.tvNumberGuest)
     private val tvRoomType: android.widget.TextView = view.findViewById(R.id.tvRoomType)
@@ -1152,14 +1196,17 @@ class ReservationViewHolder(view: View, private val onActionClick: (Int) -> Unit
         tvReservationId.text = "Reservation ID: ${item.reservationId}"
         tvStatusBadge.text = item.badge
         tvLine1.text = item.line1
-        tvLine2.text = item.line2
+        
         tvLine3.text = item.line3
         tvNumberGuest.text = "Number of guests: ${item.numberGuest}"
-        tvRoomType.text = "Room type: ${item.roomType}"
+        tvRoomType.text = "Room type: ${item.roomType.takeIf { it.isNotBlank() } ?: "Room"}"
         
         // Check if reservation is canceled or completed
         val isCanceled = item.status == ReservationStatus.CANCELED
         val isCompleted = item.status == ReservationStatus.COMPLETED
+        
+        // Check if payment action is disabled (cleaning not completed yet)
+        val isPaymentDisabled = item.action.lowercase() == "payment" && item.cleaningCompletedAtMillis == null
         
         // Set button text: "Cancelled" for canceled, "Completed" for completed, otherwise use action
         btnAction.text = when {
@@ -1168,8 +1215,8 @@ class ReservationViewHolder(view: View, private val onActionClick: (Int) -> Unit
             else -> item.action
         }
         
-        // Disable button and make it look frozen for canceled or completed reservations
-        if (isCanceled || isCompleted) {
+        // Disable button and make it look frozen for canceled, completed, or payment (when cleaning not done)
+        if (isCanceled || isCompleted || isPaymentDisabled) {
             btnAction.isEnabled = false
             btnAction.isClickable = false
             btnAction.alpha = 0.5f // Make it look disabled/frozen

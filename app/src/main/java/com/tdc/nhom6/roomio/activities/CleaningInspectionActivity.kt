@@ -74,18 +74,24 @@ class CleaningInspectionActivity : AppCompatActivity() {
             val bookingId = intent.getStringExtra("BOOKING_ID")?.takeIf { it.isNotBlank() }
             CleanerTaskRepository.postCleaningResult(id, fee)
             
-            // Update booking with cleaning completed timestamp to notify reception
+            // Update booking with cleaning completed timestamp and cleaning fee to notify reception
             if (bookingId != null) {
                 firestore.collection("bookings").document(bookingId)
-                    .update("cleaningCompletedAt", com.google.firebase.firestore.FieldValue.serverTimestamp())
+                    .update(
+                        mapOf(
+                            "cleaningCompletedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                            "cleaningFee" to fee
+                        )
+                    )
                     .addOnFailureListener { e ->
-                        android.util.Log.e("CleaningInspection", "Failed to update cleaningCompletedAt", e)
+                        android.util.Log.e("CleaningInspection", "Failed to update cleaningCompletedAt and cleaningFee", e)
                     }
             }
             
             // Navigate to cleaner task detail screen
             val detailIntent = Intent(this, CleanerTaskDetailActivity::class.java)
             detailIntent.putExtra("ROOM_ID", id)
+            detailIntent.putExtra("BOOKING_ID", bookingId ?: "")
             // Get checkout time from task if available, otherwise use default
             val tasks = CleanerTaskRepository.tasks().value ?: emptyList()
             val task = tasks.find { it.roomId == id }

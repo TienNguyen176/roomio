@@ -13,6 +13,7 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.ServiceFeeAdapter
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
@@ -33,16 +34,21 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
     private lateinit var tvCheckIn: TextView
     private lateinit var tvCheckOut: TextView
     private lateinit var tvReservationAmount: TextView
+    private lateinit var tvPaidAmount: TextView
     private lateinit var tvExtraFee: TextView
     private lateinit var tvGrandTotal: TextView
     private lateinit var serviceAdapter: ServiceFeeAdapter
     private val firestore by lazy { FirebaseFirestore.getInstance() }
     private var serviceFetchJob: Job? = null
     private var reservationAmount: Double = 0.0
+    private var paidAmount: Double = 0.0
+    private var cleaningFee: Double = 0.0
     private var extraTotal: Double = 0.0
     private var lastExtraTotal: Double = 0.0
     private var discountLabel: String = "-"
     private var guestsCount: Int = 0
+    private var invoiceListener: ListenerRegistration? = null
+    private var cleaningFeeListener: ListenerRegistration? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,7 +61,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         tvCheckIn = findViewById(R.id.tvCheckIn)
         tvCheckOut = findViewById(R.id.tvCheckOut)
         tvReservationAmount = findViewById(R.id.tvReservationAmount)
-//        tvCleaningFee = findViewById(R.id.tvCleaningFee)
+        tvPaidAmount = findViewById(R.id.tvPaidAmount)
         tvExtraFee = findViewById(R.id.tvExtraFee)
         tvGrandTotal = findViewById(R.id.tvGrandTotal)
 
@@ -75,8 +81,9 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         discountLabel = discountLabelExtra
         guestsCount = guestsCountExtra
 
-        val cleaning = CleanerTaskRepository.getCleaningFee(roomId)
-        updateCleaningFee(cleaning)
+        // Initialize cleaning fee from repository (fallback)
+        cleaningFee = CleanerTaskRepository.getCleaningFee(roomId)
+        updateCleaningFee(cleaningFee)
         updateExtraTotal(0.0)
 
         val checkInText = if (rawCheckIn.isNotBlank()) rawCheckIn else formatDateTimeOrEmpty(checkInMillis)
@@ -96,6 +103,12 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
         val hotelId = intent.getStringExtra("HOTEL_ID")?.takeIf { it.isNotBlank() }
         val bookingId = intent.getStringExtra("BOOKING_ID")?.takeIf { it.isNotBlank() }
+        
+        // Load paid amount from invoices and cleaning fee from Firebase booking document
+        if (bookingId != null) {
+            observeInvoices(bookingId, resId)
+            observeCleaningFee(bookingId)
+        }
 
         val btnNext = findViewById<MaterialButton>(R.id.btnNext)
         btnNext.setOnClickListener {
@@ -115,7 +128,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             nextIntent.putExtra("NIGHTS_COUNT", nightCount)
             nextIntent.putExtra("ROOM_PRICE", amount)
             nextIntent.putExtra("EXTRA_FEE", lastExtraTotal)
-            nextIntent.putExtra("CLEANING_FEE", cleaning)
+            nextIntent.putExtra("CLEANING_FEE", cleaningFee)
             nextIntent.putExtra("DISCOUNT_TEXT", discountLabel)
             nextIntent.putExtra("GUESTS_COUNT", guestsCount)
             nextIntent.putExtra("BOOKING_ID", bookingId ?: "")
@@ -135,10 +148,12 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         serviceFetchJob?.cancel()
+        invoiceListener?.remove()
+        cleaningFeeListener?.remove()
     }
 
     private fun updateCleaningFee(value: Double) {
-
+        cleaningFee = value
         refreshPriceSummary()
     }
 
@@ -161,8 +176,146 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
     private fun refreshPriceSummary() {
         lastExtraTotal = extraTotal
-        val grandTotal = reservationAmount + extraTotal
+        // Grand total = (reservation amount + extra fees + cleaning fee) - paid amount
+        val grandTotal = max(0.0, reservationAmount + extraTotal + cleaningFee - paidAmount)
         tvGrandTotal.text = "Total amount: ${formatCurrency(grandTotal)}"
+    }
+    
+    private fun observeInvoices(bookingId: String, reservationId: String) {
+        invoiceListener?.remove()
+        
+        // Try multiple field names and formats for bookingId
+        val bookingIdInt = bookingId.toIntOrNull()
+        val reservationIdInt = reservationId.toIntOrNull()
+        
+        val queries = mutableListOf<com.google.firebase.firestore.Query>()
+        
+        // Try bookingId as String
+        queries += firestore.collection("invoices").whereEqualTo("bookingId", bookingId)
+        queries += firestore.collection("invoices").whereEqualTo("booking_id", bookingId)
+        queries += firestore.collection("invoices").whereEqualTo("bookingDocId", bookingId)
+        queries += firestore.collection("invoices").whereEqualTo("booking_doc_id", bookingId)
+        
+        // Try bookingId as Int
+        if (bookingIdInt != null) {
+            queries += firestore.collection("invoices").whereEqualTo("bookingId", bookingIdInt)
+            queries += firestore.collection("invoices").whereEqualTo("booking_id", bookingIdInt)
+        }
+        
+        // Try reservationId as String
+        queries += firestore.collection("invoices").whereEqualTo("reservationId", reservationId)
+        queries += firestore.collection("invoices").whereEqualTo("reservation_id", reservationId)
+        
+        // Try reservationId as Int
+        if (reservationIdInt != null) {
+            queries += firestore.collection("invoices").whereEqualTo("reservationId", reservationIdInt)
+            queries += firestore.collection("invoices").whereEqualTo("reservation_id", reservationIdInt)
+        }
+        
+        // Try using FieldPath for nested or alternative field names
+        try {
+            queries += firestore.collection("invoices").whereEqualTo(FieldPath.of("bookingRef", "id"), bookingId)
+        } catch (_: Exception) {}
+        
+        // Try each query until one returns results
+        var listenerSet = false
+        for (query in queries) {
+            try {
+                query.get().addOnSuccessListener { snapshot ->
+                    if (!snapshot.isEmpty && !listenerSet) {
+                        listenerSet = true
+                        invoiceListener = query.addSnapshotListener { snapshots, error ->
+                            if (error != null) {
+                                android.util.Log.e("ServiceExtraFee", "Invoice listener error", error)
+                                return@addSnapshotListener
+                            }
+                            if (snapshots != null) {
+                                updatePaidAmount(snapshots)
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ServiceExtraFee", "Error trying invoice query", e)
+            }
+        }
+        
+        // If no query worked, try a general query and filter in memory
+        if (!listenerSet) {
+            invoiceListener = firestore.collection("invoices")
+                .addSnapshotListener { snapshots, error ->
+                    if (error != null) {
+                        android.util.Log.e("ServiceExtraFee", "Invoice listener error", error)
+                        return@addSnapshotListener
+                    }
+                    if (snapshots != null) {
+                        // Filter by bookingId or reservationId in memory
+                        val filtered = snapshots.documents.filter { doc ->
+                            val docBookingId = doc.get("bookingId")?.toString()
+                                ?: doc.get("booking_id")?.toString()
+                                ?: doc.get("bookingDocId")?.toString()
+                                ?: doc.get("booking_doc_id")?.toString()
+                            val docReservationId = doc.get("reservationId")?.toString()
+                                ?: doc.get("reservation_id")?.toString()
+                            
+                            docBookingId == bookingId || docReservationId == reservationId ||
+                            docBookingId?.toIntOrNull() == bookingIdInt ||
+                            docReservationId?.toIntOrNull() == reservationIdInt
+                        }
+                        if (filtered.isNotEmpty()) {
+                            updatePaidAmountFromDocs(filtered)
+                        } else {
+                            // No invoices found, set paid amount to 0
+                            paidAmount = 0.0
+                            tvPaidAmount.text = "Paid amount: ${formatCurrency(paidAmount)}"
+                            refreshPriceSummary()
+                        }
+                    }
+                }
+        }
+    }
+    
+    private fun updatePaidAmount(snapshots: com.google.firebase.firestore.QuerySnapshot) {
+        updatePaidAmountFromDocs(snapshots.documents)
+    }
+    
+    private fun updatePaidAmountFromDocs(docs: List<com.google.firebase.firestore.DocumentSnapshot>) {
+        var total = 0.0
+        for (doc in docs) {
+            val amount = when (val totalAmount = doc.get("totalAmount")) {
+                is Number -> totalAmount.toDouble()
+                is java.math.BigDecimal -> totalAmount.toDouble()
+                is String -> totalAmount.toDoubleOrNull() ?: 0.0
+                else -> 0.0
+            }
+            total += amount
+        }
+        paidAmount = total
+        tvPaidAmount.text = "Paid amount: ${formatCurrency(paidAmount)}"
+        refreshPriceSummary()
+    }
+    
+    private fun observeCleaningFee(bookingId: String) {
+        cleaningFeeListener?.remove()
+        cleaningFeeListener = firestore.collection("bookings")
+            .document(bookingId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    android.util.Log.e("ServiceExtraFee", "Cleaning fee listener error", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    val fee = when (val raw = snapshot.get("cleaningFee")) {
+                        is Number -> raw.toDouble()
+                        is String -> raw.toDoubleOrNull() ?: 0.0
+                        else -> 0.0
+                    }
+                    if (fee > 0.0) {
+                        cleaningFee = fee
+                        updateCleaningFee(cleaningFee)
+                    }
+                }
+            }
     }
 
     private fun iconForService(name: String): Int = when {

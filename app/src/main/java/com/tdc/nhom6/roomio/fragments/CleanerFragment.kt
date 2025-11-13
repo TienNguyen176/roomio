@@ -43,7 +43,7 @@ class CleanerFragment : Fragment() {
         }
         
         // Initialize data (seed once for demo if empty)
-        CleanerTaskRepository.seedIfEmpty(placeholderTasks())
+//        CleanerTaskRepository.seedIfEmpty(placeholderTasks())
         
         // Setup summary cards
         setupSummaryCards(view)
@@ -254,18 +254,18 @@ class CleanerFragment : Fragment() {
         }
     }
 
-    private fun placeholderTasks(): List<CleanerTask> = listOf(
-        CleanerTask("1", "F03-07", TaskStatus.DIRTY, "9th Jun 10.00 am"),
-        CleanerTask("2", "F03-08", TaskStatus.IN_PROGRESS, "9th Jun 11.00 am"),
-        CleanerTask("3", "F03-09", TaskStatus.DIRTY, "9th Jun 12.00 pm"),
-        CleanerTask("4", "F03-10", TaskStatus.CLEAN, "8th Jun 09.00 am"),
-        CleanerTask("5", "F03-11", TaskStatus.DIRTY, "9th Jun 01.00 pm"),
-        CleanerTask("6", "F03-12", TaskStatus.DIRTY, "9th Jun 02.00 pm"),
-        CleanerTask("7", "F03-13", TaskStatus.IN_PROGRESS, "9th Jun 03.00 pm"),
-        CleanerTask("8", "F03-14", TaskStatus.CLEAN, "8th Jun 10.00 am"),
-        CleanerTask("9", "F03-15", TaskStatus.DIRTY, "9th Jun 04.00 pm"),
-        CleanerTask("10", "F03-16", TaskStatus.DIRTY, "9th Jun 05.00 pm")
-    )
+//    private fun placeholderTasks(): List<CleanerTask> = listOf(
+//        CleanerTask("1", "F03-07", TaskStatus.DIRTY, "9th Jun 10.00 am"),
+//        CleanerTask("2", "F03-08", TaskStatus.IN_PROGRESS, "9th Jun 11.00 am"),
+//        CleanerTask("3", "F03-09", TaskStatus.DIRTY, "9th Jun 12.00 pm"),
+//        CleanerTask("4", "F03-10", TaskStatus.CLEAN, "8th Jun 09.00 am"),
+//        CleanerTask("5", "F03-11", TaskStatus.DIRTY, "9th Jun 01.00 pm"),
+//        CleanerTask("6", "F03-12", TaskStatus.DIRTY, "9th Jun 02.00 pm"),
+//        CleanerTask("7", "F03-13", TaskStatus.IN_PROGRESS, "9th Jun 03.00 pm"),
+//        CleanerTask("8", "F03-14", TaskStatus.CLEAN, "8th Jun 10.00 am"),
+//        CleanerTask("9", "F03-15", TaskStatus.DIRTY, "9th Jun 04.00 pm"),
+//        CleanerTask("10", "F03-16", TaskStatus.DIRTY, "9th Jun 05.00 pm")
+//    )
 }
 
 data class CleanerTask(
