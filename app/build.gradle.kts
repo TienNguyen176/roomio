@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.tdc.nhom6.roomio"
-        minSdk = 30
+        minSdk = 28
         //noinspection EditedTargetSdkVersion
         targetSdk = 35
         versionCode = 1

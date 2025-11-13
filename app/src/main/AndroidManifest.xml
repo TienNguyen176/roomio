@@ -24,7 +24,7 @@
             android:name=".activities.HotelDetailActivity"
             android:exported="false" />
         <activity
-            android:name=".activities.LoginActivity"
+            android:name=".activities.ReceptionActivity"
             android:exported="false">
         </activity>
         <activity
@@ -50,19 +50,19 @@
             android:exported="false" />
         <activity
             android:name=".activities.AdminHotelActivity"
-            android:exported="true" />
+            android:exported="false" />
         <activity
             android:name=".activities.RoomHotelActivity"
-            android:exported="true" />
+            android:exported="false" />
         <activity
             android:name=".activities.EditHotelActivity"
-            android:exported="true" />
+            android:exported="false" />
         <activity
             android:name=".activities.RoleManagerActivity"
-            android:exported="true" />
+            android:exported="false" />
 
         <activity
-            android:name=".activities.ReceptionActivity"
+            android:name=".activities.CleanerActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -83,17 +83,16 @@
             android:exported="false"
             android:label="Task Detail" />
         <activity
-            android:name=".activities.CleanerActivity"
+            android:name=".activities.LoginActivity"
             android:exported="false"
             android:label="Reception" />
         <activity
             android:name=".activities.GuestDetailActivity"
             android:exported="false" />
-            android:exported="false"/>
         <activity
             android:name=".activities.ServiceExtraFeeActivity"
             android:exported="false"
-            android:label="Cleaner Tasks" />
+            android:label="Service Extra Fee" />
         <activity
             android:name=".activities.MainActivity"
             android:exported="false"/>

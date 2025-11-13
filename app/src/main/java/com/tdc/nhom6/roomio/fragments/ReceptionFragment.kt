@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.Locale
 
 class ReceptionFragment : Fragment() {
     private lateinit var reservationAdapter: ReservationAdapter
@@ -178,12 +179,15 @@ class ReceptionFragment : Fragment() {
                             // Determine status based on booking data before payment info
                             val status = when {
                                 isCanceled -> ReservationStatus.CANCELED
-                                statusStr == "checked_out" || statusStr == "checked out" || statusStr == "completed" -> ReservationStatus.COMPLETED
+                                statusStr == "checked_out" || statusStr == "checked out" || statusStr == "pending_payment" || statusStr == "pending payment" -> ReservationStatus.PENDING
+                                statusStr == "completed" -> ReservationStatus.COMPLETED
                                 statusStr == "checked_in" || statusStr == "checked in" -> ReservationStatus.UNCOMPLETED
-                                statusStr == "pending_payment" || statusStr == "pending payment" -> ReservationStatus.PENDING
                                 statusStr.isEmpty() || statusStr.isBlank() -> {
-                                    if (checkInValue != null || checkOutValue != null) ReservationStatus.UNCOMPLETED
-                                    else ReservationStatus.PENDING
+                                    when {
+                                        checkOutValue != null -> ReservationStatus.PENDING
+                                        checkInValue != null -> ReservationStatus.UNCOMPLETED
+                                        else -> ReservationStatus.PENDING
+                                    }
                                 }
                                 else -> ReservationStatus.UNCOMPLETED
                             }
@@ -216,6 +220,13 @@ class ReceptionFragment : Fragment() {
                                 ?: doc.getString("discountDescription")
                                 ?: doc.getString("promotion")
                                 ?: "-"
+                            
+                            // Read cleaningCompletedAt timestamp
+                            val cleaningCompletedAtMillis = valueToMillis(doc.get("cleaningCompletedAt"))
+                            
+                            // Check if cleaning was just completed (was null, now has value)
+                            val previousReservation = allReservations.find { it.documentId == documentId }
+                            val wasJustCleaned = previousReservation?.cleaningCompletedAtMillis == null && cleaningCompletedAtMillis != null
  
                             val headerColorInitial = when {
                                 isCanceled -> HeaderColor.RED
@@ -272,8 +283,16 @@ class ReceptionFragment : Fragment() {
                                 checkOutText = checkOutText,
                                 checkInMillis = checkInMillis,
                                 checkOutMillis = checkOutMillis,
-                                discountLabel = discountText
+                                discountLabel = discountText,
+                                cleaningCompletedAtMillis = cleaningCompletedAtMillis
                             )
+                            
+                            // Show dialog if cleaning was just completed
+                            if (wasJustCleaned) {
+                                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                                    showCleaningCompletedDialog(reservationId, roomTypeInlineName ?: "Room")
+                                }
+                            }
                             updated.add(ui)
                             val uiIndex = updated.lastIndex
                             
@@ -537,6 +556,7 @@ class ReceptionFragment : Fragment() {
 
         val normalizedStatus = meta.statusStr.lowercase()
         val finalStatus = when {
+            paymentStatus == PaymentStatus.FULL -> ReservationStatus.COMPLETED
             normalizedStatus == "completed" -> ReservationStatus.COMPLETED
             normalizedStatus == "canceled" || normalizedStatus == "cancelled" -> ReservationStatus.CANCELED
             normalizedStatus == "pending_payment" || normalizedStatus == "pending payment" -> ReservationStatus.PENDING
@@ -550,18 +570,15 @@ class ReceptionFragment : Fragment() {
         val headerColor = when {
             finalStatus == ReservationStatus.CANCELED -> HeaderColor.RED
             finalStatus == ReservationStatus.COMPLETED -> HeaderColor.GREEN
-            finalStatus == ReservationStatus.PENDING && paymentStatus == PaymentStatus.PARTIAL -> HeaderColor.BLUE
             finalStatus == ReservationStatus.PENDING -> HeaderColor.YELLOW
             paymentStatus == PaymentStatus.FULL -> HeaderColor.GREEN
             paymentStatus == PaymentStatus.PARTIAL -> HeaderColor.BLUE
-            meta.hasCheckedIn -> HeaderColor.GREEN
             else -> HeaderColor.YELLOW
         }
  
         val badge = when {
             finalStatus == ReservationStatus.CANCELED -> "Cancelled"
             finalStatus == ReservationStatus.COMPLETED -> "Completed"
-            finalStatus == ReservationStatus.PENDING && paymentStatus == PaymentStatus.PARTIAL -> "Deposit paid"
             finalStatus == ReservationStatus.PENDING -> "Pending payment"
             paymentStatus == PaymentStatus.FULL -> "Paid"
             paymentStatus == PaymentStatus.PARTIAL -> "Deposit paid"
@@ -748,13 +765,15 @@ class ReceptionFragment : Fragment() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
-                searchQuery = s?.toString()?.lowercase() ?: ""
+                searchQuery = s?.toString()?.lowercase(Locale.getDefault()) ?: ""
                 filterReservations()
             }
         })
     }
 
     private fun filterReservations() {
+        val locale = Locale.getDefault()
+        val query = searchQuery.trim()
         val filtered = allReservations.filter { reservation ->
             // Filter by status using the actual status field
             val statusMatch = when (currentFilter) {
@@ -763,30 +782,68 @@ class ReceptionFragment : Fragment() {
                     reservation.status == ReservationStatus.PENDING ||
                         reservation.action.equals("payment", ignoreCase = true)
                 }
-                ReservationStatus.UNCOMPLETED -> reservation.status == ReservationStatus.UNCOMPLETED
+                ReservationStatus.UNCOMPLETED -> reservation.status == ReservationStatus.UNCOMPLETED ||
+                    reservation.action.equals("payment", ignoreCase = true)
                 ReservationStatus.COMPLETED -> reservation.status == ReservationStatus.COMPLETED
                 ReservationStatus.CANCELED -> reservation.status == ReservationStatus.CANCELED
             }
             
             // Filter by search query
-            val searchMatch = searchQuery.isEmpty() || 
-                reservation.reservationId.lowercase().contains(searchQuery) ||
-                reservation.line1.lowercase().contains(searchQuery) ||
-                reservation.line2.lowercase().contains(searchQuery) ||
-                reservation.line3.lowercase().contains(searchQuery)
+            val searchMatch = if (query.isEmpty()) {
+                true
+            } else {
+                val lowerQuery = query
+                val textMatches = listOf(
+                    reservation.reservationId,
+                    reservation.line1,
+                    reservation.line2,
+                    reservation.line3,
+                    reservation.badge,
+                    reservation.action,
+                    reservation.roomType,
+                    reservation.guestPhone ?: "",
+                    reservation.guestEmail ?: ""
+                ).any { text ->
+                    text.lowercase(locale).contains(lowerQuery)
+                }
+
+                val numericMatches = listOf(
+                    reservation.numberGuest.toString(),
+                    reservation.totalFinalAmount.toLong().toString(),
+                    reservation.totalFinalAmount.toString()
+                ).any { numberText ->
+                    numberText.lowercase(locale).contains(lowerQuery)
+                }
+
+                textMatches || numericMatches
+            }
             
             statusMatch && searchMatch
         }
         
-        reservationAdapter.updateData(filtered.toMutableList())
+        // Sort: reservations with recent cleaningCompletedAt go to the top
+        val sorted = filtered.sortedByDescending { reservation ->
+            reservation.cleaningCompletedAtMillis ?: Long.MIN_VALUE
+        }
+        
+        reservationAdapter.updateData(sorted.toMutableList())
+    }
+    
+    private fun showCleaningCompletedDialog(reservationId: String, roomType: String) {
+        if (!isAdded || context == null) return
+        AlertDialog.Builder(requireContext())
+            .setTitle("Room Ready for Payment")
+            .setMessage("Room $roomType (Reservation: $reservationId) has been cleaned and is ready for payment.")
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     private fun placeholderItems(): List<ReservationUi> = listOf(
-        ReservationUi(documentId = "doc-R8ZZPQR7", reservationId = "R8ZZPQR7", badge = "Deposit paid", line1 = "Check-in: 20/09/1025 - Check-out: 22/09/2025", line2 = "", line3 = "Guest name: Harper", action = "Check-in", headerColor = HeaderColor.BLUE, status = ReservationStatus.UNCOMPLETED, numberGuest = 2, roomType = "Deluxe"),
-        ReservationUi(documentId = "doc-R8ZZPQR8", reservationId = "R8ZZPQR8", badge = "Paid", line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025", line2 = "", line3 = "Guest name: Lily", action = "Check-out", headerColor = HeaderColor.GREEN, status = ReservationStatus.UNCOMPLETED, numberGuest = 3, roomType = "Suite"),
-        ReservationUi(documentId = "doc-R8ZZPQR9", reservationId = "R9ZZPQR9", badge = "", line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025", line2 = "", line3 = "Guest name: Cap", action = "Payment", headerColor = HeaderColor.YELLOW, status = ReservationStatus.PENDING, numberGuest = 1, roomType = "Standard"),
-        ReservationUi(documentId = "doc-R8ZZPQR0", reservationId = "R8ZZPQR0", badge = "Paid", line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025", line2 = "", line3 = "Guest name: Ahri", action = "Check-in", headerColor = HeaderColor.GREEN, status = ReservationStatus.COMPLETED, numberGuest = 4, roomType = "Deluxe"),
-        ReservationUi(documentId = "doc-R9ABC123", reservationId = "R9ABC123", badge = "Cancelled", line1 = "Check-in: 15/09/1025 - check-out: 17/09/2025", line2 = "", line3 = "Guest name: Bob", action = "Payment", headerColor = HeaderColor.RED, status = ReservationStatus.CANCELED, numberGuest = 2, roomType = "Standard")
+        ReservationUi(documentId = "doc-R8ZZPQR7", reservationId = "R8ZZPQR7", badge = "Deposit paid", line1 = "Check-in: 20/09/1025 - Check-out: 22/09/2025", line2 = "", line3 = "Guest name: Harper", action = "Check-in", headerColor = HeaderColor.BLUE, status = ReservationStatus.UNCOMPLETED, numberGuest = 2, roomType = "Deluxe", cleaningCompletedAtMillis = null),
+        ReservationUi(documentId = "doc-R8ZZPQR8", reservationId = "R8ZZPQR8", badge = "Paid", line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025", line2 = "", line3 = "Guest name: Lily", action = "Check-out", headerColor = HeaderColor.GREEN, status = ReservationStatus.UNCOMPLETED, numberGuest = 3, roomType = "Suite", cleaningCompletedAtMillis = null),
+        ReservationUi(documentId = "doc-R8ZZPQR9", reservationId = "R9ZZPQR9", badge = "", line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025", line2 = "", line3 = "Guest name: Cap", action = "Payment", headerColor = HeaderColor.YELLOW, status = ReservationStatus.PENDING, numberGuest = 1, roomType = "Standard", cleaningCompletedAtMillis = null),
+        ReservationUi(documentId = "doc-R8ZZPQR0", reservationId = "R8ZZPQR0", badge = "Paid", line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025", line2 = "", line3 = "Guest name: Ahri", action = "Check-in", headerColor = HeaderColor.GREEN, status = ReservationStatus.COMPLETED, numberGuest = 4, roomType = "Deluxe", cleaningCompletedAtMillis = null),
+        ReservationUi(documentId = "doc-R9ABC123", reservationId = "R9ABC123", badge = "Cancelled", line1 = "Check-in: 15/09/1025 - check-out: 17/09/2025", line2 = "", line3 = "Guest name: Bob", action = "Payment", headerColor = HeaderColor.RED, status = ReservationStatus.CANCELED, numberGuest = 2, roomType = "Standard", cleaningCompletedAtMillis = null)
     )
 }
 
@@ -843,7 +900,8 @@ data class ReservationUi(
     val checkOutText: String = "",
     val checkInMillis: Long? = null,
     val checkOutMillis: Long? = null,
-    val discountLabel: String = "-"
+    val discountLabel: String = "-",
+    val cleaningCompletedAtMillis: Long? = null
 )
 
 enum class ReservationStatus {
@@ -988,23 +1046,34 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) : Recycl
             .create()
 
         btnConfirm.setOnClickListener {
-            // Advance state after confirmation
-            advanceState(position)
+            val current = items[position]
+            val next = current.copy(
+                badge = "Pending payment",
+                action = "Payment",
+                headerColor = HeaderColor.YELLOW,
+                status = ReservationStatus.PENDING
+            )
+            items[position] = next
+            notifyItemChanged(position)
             try {
-                val current = items[position]
-                // Use reservationId as a stand-in for room number if real room id not available
-                val roomId = current.reservationId
-                CleanerTaskRepository.addDirtyTask(roomId, bookingDocId = current.documentId, roomTypeId = current.roomTypeId, hotelId = current.hotelId)
-                // Persist to Firestore: status = checked_out and save actual check-out date/time
-                val docId = current.documentId
+                val docId = items[position].documentId
                 Firebase.firestore.collection("bookings").document(docId)
                     .update(
                         mapOf(
-                            "status" to "checked_out",
+                            "status" to "pending_payment",
                             "checkOutDateActual" to actualCheckOutTime
                         )
                     )
-            } catch (_: Exception) { }
+                    .addOnSuccessListener {
+                        android.util.Log.d("Reception", "Checkout updated for $docId")
+                    }
+                    .addOnFailureListener { error ->
+                        android.util.Log.e("Reception", "Failed to update checkout for $docId", error)
+                        android.widget.Toast.makeText(ctx, "Failed to update checkout", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+            } catch (e: Exception) {
+                android.util.Log.e("Reception", "Exception updating checkout", e)
+            }
             alert.dismiss()
         }
         btnCancel.setOnClickListener {

@@ -142,7 +142,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/pending"
+                    android:text="In progress"
                     android:textSize="14sp"
                     android:textColor="#F57C00"
                     android:textStyle="bold" />
