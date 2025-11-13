@@ -98,7 +98,10 @@ class GuestDetailActivity : AppCompatActivity() {
             booking?.let { safeBooking ->
                 this.selectedMethod = selectedMethod
                 handleTravelWalletDiscount(safeBooking, selectedMethod)
+
                 binding.btnPayment.setOnClickListener{
+                    binding.progressBar.visibility = View.VISIBLE
+
                     if (selectedMethod!!.paymentMethodName == "Travel wallet"){
                         currentHotel?.let {
                             booking?.let { it1 ->
@@ -240,6 +243,7 @@ class GuestDetailActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setView(viewBinding.root)
             .create()
+        binding.progressBar.visibility = View.GONE
 
         viewBinding.btnYes.setOnClickListener {
             dialog.dismiss()
@@ -321,6 +325,7 @@ class GuestDetailActivity : AppCompatActivity() {
                 finalPrice = safeBooking.totalOrigin - discountAmount
                 hasDiscount = true
 
+                safeBooking.discountId=discount.discountId
                 binding.tvDiscountPrice.text = "- "+Format.formatCurrency(discountAmount)
                 binding.tvDiscountName.text = safeDiscount.discountName
             }

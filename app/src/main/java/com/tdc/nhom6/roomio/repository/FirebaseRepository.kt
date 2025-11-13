@@ -424,7 +424,7 @@ class FirebaseRepository {
                                         }
 
                                         Deal(
-                                            dealId = d.discountId,
+                                            dealId = d.discountHotelId,
                                             hotelName = hotel.hotelName,
                                             hotelLocation = hotel.hotelAddress,
                                             description = if (d.description.isNotBlank()) d.description else d.title,
@@ -505,7 +505,7 @@ class FirebaseRepository {
                     else -> 0.0
                 }
                 Deal(
-                    dealId = d.discountId,
+                    dealId = d.discountHotelId,
                     hotelName = hotel.hotelName,
                     hotelLocation = hotel.hotelAddress,
                     description = if (d.description.isNotBlank()) d.description else d.title,
@@ -642,7 +642,7 @@ class FirebaseRepository {
                     else -> 0.0
                 }
                 Deal(
-                    dealId = d.discountId,
+                    dealId = d.discountHotelId,
                     hotelName = hotel.hotelName,
                     hotelLocation = hotel.hotelAddress,
                     description = if (d.description.isNotBlank()) d.description else d.title,

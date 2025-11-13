@@ -4,7 +4,7 @@ import com.google.firebase.firestore.DocumentId
 
 data class DiscountHotel(
     @DocumentId
-    val discountId: String = "",
+    val discountHotelId: String = "",
     val hotelId: String = "",
     val roomTypeId: String? = null,
     val title: String = "",

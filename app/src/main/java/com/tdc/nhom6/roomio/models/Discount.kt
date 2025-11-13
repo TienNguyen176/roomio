@@ -1,7 +1,11 @@
 package com.tdc.nhom6.roomio.models
 
-class Discount {
-    val discountName: String? = null
-    val discountDescription:String?=null
-    val discountValue: Int?=0
-}
+import com.google.firebase.firestore.DocumentId
+
+data class Discount(
+    @DocumentId
+    val discountId: String = "",
+    val discountName: String = "",
+    val discountDescription:String="",
+    val discountValue: Int = 0,
+)

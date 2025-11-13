@@ -111,7 +111,7 @@ class BookingDetailActivity : AppCompatActivity() {
                         binding.btnAction.background=getDrawable(R.drawable.shape_foreground_radius)
                         binding.btnAction.backgroundTintList = ColorStateList.valueOf(getColor(R.color.text_dark_gray))
                         binding.btnAction.setOnClickListener {
-                            binding.progressBar.visibility = View.VISIBLE
+                            binding.progressBar.visibility = View.GONE
                             currentHotel?.let { hotel ->
                                 currentBooking?.let { booking ->
                                     openDialogCancelConfirm(booking.customerId, hotel.ownerId)
