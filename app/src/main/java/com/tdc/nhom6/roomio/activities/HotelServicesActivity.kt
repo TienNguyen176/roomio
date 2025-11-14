@@ -11,14 +11,14 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.adapters.ServiceAdapter
+import com.tdc.nhom6.roomio.adapters.ServiceAdminAdapter
 import com.tdc.nhom6.roomio.databinding.HotelServicesLayoutBinding
 import com.tdc.nhom6.roomio.models.ServiceModel
 
 class HotelServicesActivity : AppCompatActivity() {
     private lateinit var binding: HotelServicesLayoutBinding
 
-    private lateinit var adapter: ServiceAdapter
+    private lateinit var adapter: ServiceAdminAdapter
     private val serviceList = mutableListOf<ServiceModel>()
     private var selectedIndex: Int? = null
     private val db = FirebaseFirestore.getInstance()
@@ -58,7 +58,7 @@ class HotelServicesActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        adapter = ServiceAdapter(serviceList) { service, position ->
+        adapter = ServiceAdminAdapter(serviceList) { service, position ->
             selectedIndex = position
             binding.edtServiceName.setText(service.service_name)
             binding.edtServiceDesc.setText(service.description)
