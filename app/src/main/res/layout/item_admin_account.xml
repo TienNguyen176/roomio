@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardAccount"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:cardElevation="4dp"
+        app:cardCornerRadius="12dp"
+        app:cardUseCompatPadding="true"
+        android:padding="5dp"
+        app:cardBackgroundColor="@color/white"
+        app:strokeColor="@color/gray"
+        app:strokeWidth="3dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ImageView
+                android:id="@+id/imgAvatar"
+                android:layout_width="55dp"
+                android:layout_height="55dp"
+                android:layout_marginStart="2dp"
+                android:padding="2dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_not_image"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.38" />
+
+            <TextView
+                android:id="@+id/tvUserId"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="UserID: 1005"
+                android:textStyle="bold"
+                android:textSize="15sp"
+                android:layout_marginStart="10dp"
+                app:layout_constraintStart_toEndOf="@id/imgAvatar"
+                app:layout_constraintTop_toTopOf="@id/imgAvatar"
+                app:layout_constraintEnd_toStartOf="@id/btnEdit" />
+
+            <TextView
+                android:id="@+id/tvFullName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="Tên người dùng"
+                android:textSize="14sp"
+                android:textColor="#444"
+                android:layout_marginTop="2dp"
+                app:layout_constraintStart_toStartOf="@id/tvUserId"
+                app:layout_constraintTop_toBottomOf="@id/tvUserId"
+                app:layout_constraintEnd_toEndOf="@id/tvUserId" />
+
+            <TextView
+                android:id="@+id/tvRole"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_role_default"
+                android:paddingLeft="8dp"
+                android:paddingTop="3dp"
+                android:paddingRight="8dp"
+                android:paddingBottom="3dp"
+                android:text="Người Dùng"
+                android:textColor="@color/black"
+                android:textSize="13sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="@id/tvFullName"
+                app:layout_constraintTop_toBottomOf="@id/tvFullName" />
+
+            <ImageView
+                android:id="@+id/btnEdit"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_edit_24"
+                android:layout_marginEnd="8dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

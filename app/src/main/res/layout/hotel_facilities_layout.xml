@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/scrollViewMain"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F7F8FA"
+    android:fillViewport="true"
+    tools:context=".activities.HotelFacilitiesActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- App Bar -->
+        <include
+            android:id="@+id/appbar"
+            layout="@layout/app_bar" />
+
+        <!-- Card Form nhập thông tin Facility -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardForm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="6dp"
+            android:backgroundTint="@android:color/white">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Quản lý Tiện ích"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/black"
+                    android:layout_marginBottom="12dp"/>
+
+                <!-- Chọn ảnh -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:orientation="vertical"
+                    android:gravity="center_horizontal">
+
+                    <ImageView
+                        android:id="@+id/imgPreview"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/ic_not_image"
+                        android:background="@drawable/bg_image_border"
+                        android:contentDescription="Ảnh xem trước"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnChooseImage"
+                        android:layout_marginTop="5dp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Chọn ảnh"
+                        android:textAllCaps="false"
+                        app:icon="@drawable/ic_add_photo_24"
+                        app:iconGravity="textStart"/>
+                </LinearLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="Tên tiện ích"
+                    android:layout_marginTop="10dp"
+                    app:boxBackgroundMode="outline">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtFacilityName"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:hint="Mô tả">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtFacilityDesc"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textMultiLine"
+                        android:lines="2"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- Các nút hành động -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginTop="16dp"
+                    android:weightSum="3">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnAddFacility"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Thêm"
+                        android:textAllCaps="false"
+                        app:icon="@drawable/ic_add_24"
+                        android:paddingStart="6dp"
+                        app:iconPadding="6dp"
+                        app:iconGravity="textStart"
+                        tools:ignore="RtlSymmetry" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnUpdateFacility"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Sửa"
+                        android:backgroundTint="#FF9800"
+                        android:textAllCaps="false"
+                        android:layout_marginStart="8dp"
+                        android:layout_marginEnd="8dp"
+                        app:icon="@drawable/ic_edit_24"
+                        android:paddingStart="6dp"
+                        app:iconPadding="6dp"
+                        app:iconGravity="textStart"
+                        tools:ignore="RtlSymmetry" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnDeleteFacility"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Xóa"
+                        android:backgroundTint="@color/red"
+                        android:textAllCaps="false"
+                        app:icon="@drawable/ic_delete_24"
+                        app:iconTint="@color/white"
+                        android:paddingStart="6dp"
+                        app:iconPadding="6dp"
+                        app:iconGravity="textStart"
+                        tools:ignore="RtlSymmetry" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Danh sách -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvListFacilities"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            android:padding="12dp"
+            tools:listitem="@layout/item_facilities" />
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>
