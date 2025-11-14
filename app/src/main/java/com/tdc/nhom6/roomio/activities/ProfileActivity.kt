@@ -8,7 +8,6 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Menu
-import android.view.MenuItem
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -18,6 +17,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.databinding.ProfileLayoutBinding
 import com.tdc.nhom6.roomio.models.User
+import com.tdc.nhom6.roomio.utils.navigateTo
 
 class ProfileActivity : AppCompatActivity() {
 
@@ -42,6 +42,7 @@ class ProfileActivity : AppCompatActivity() {
         checkSession()
         setupActions()
         setupWalletToggle()
+        setupToolbarMenuClick()
     }
 
     private fun checkSession() {
@@ -64,7 +65,6 @@ class ProfileActivity : AppCompatActivity() {
             isBalanceVisible = !isBalanceVisible
             binding.tvBalance.text =
                 if (isBalanceVisible) formatMoney(currentBalance) else "••••••••"
-            binding.imgEye.setImageResource(if (isBalanceVisible) R.drawable.eye else R.drawable.eye)
         }
     }
 
@@ -77,12 +77,36 @@ class ProfileActivity : AppCompatActivity() {
             auth.signOut()
             prefs.edit().clear().apply()
             Toast.makeText(this, "Đã đăng xuất", Toast.LENGTH_SHORT).show()
-
             startActivity(
                 Intent(this, LoginActivity::class.java)
                     .apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK }
             )
             finish()
+        }
+    }
+
+    private fun setupToolbarMenuClick() {
+        binding.topAppBar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.navAdmin -> {
+                    navigateTo(AdminHomeActivity::class.java, flag = false)
+                    true
+                }
+                R.id.navChuKS -> {
+                    startActivity(Intent(this, AdminHotelActivity::class.java))
+                    true
+                }
+                R.id.navLeTan -> {
+                    startActivity(Intent(this, ReceptionActivity::class.java))
+                    true
+                }
+                R.id.navDonPhong -> {
+                    startActivity(Intent(this, CleanerActivity::class.java))
+                    true
+                }
+                //R.id.navXuLy -> { startActivity(Intent(this, XuLyDonActivity::class.java)); true }
+                else -> false
+            }
         }
     }
 
@@ -92,20 +116,13 @@ class ProfileActivity : AppCompatActivity() {
         db.collection("users").document(uid)
             .get()
             .addOnSuccessListener { doc ->
-                if (!doc.exists()) {
-                    Toast.makeText(this, "Không tìm thấy user", Toast.LENGTH_SHORT).show()
-                    return@addOnSuccessListener
-                }
-
                 val user = doc.toObject(User::class.java) ?: return@addOnSuccessListener
                 binding.tvUsername.text = user.username.ifEmpty { "Người dùng" }
 
-                // Load avatar
                 if (user.avatar.isNotEmpty()) {
                     Glide.with(this).load(user.avatar).circleCrop().into(binding.imgAvatar)
                 } else binding.imgAvatar.setImageResource(R.drawable.user)
 
-                // Lấy roleId
                 userRoleId = user.roleId.ifEmpty { "user" }
                 loadRoleName(userRoleId)
             }
@@ -138,7 +155,6 @@ class ProfileActivity : AppCompatActivity() {
             }
     }
 
-    /** Cập nhật UI role, nếu muốn thêm màu cho role mới thì thêm vào map này */
     private fun updateRoleUI(roleId: String) {
         val colorMap = mapOf(
             "admin" to R.color.red,
@@ -198,17 +214,6 @@ class ProfileActivity : AppCompatActivity() {
             "xulydon" -> menu?.findItem(R.id.navXuLy)?.isVisible = true
         }
 
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        when (item.itemId) {
-            R.id.navAdmin -> startActivity(Intent(this, AdminHomeActivity::class.java))
-            R.id.navChuKS -> startActivity(Intent(this, AdminHotelActivity::class.java))
-            R.id.navLeTan -> startActivity(Intent(this, ReceptionActivity::class.java))
-            R.id.navDonPhong -> startActivity(Intent(this, CleanerActivity::class.java))
-            //R.id.navXuLy -> startActivity(Intent(this, XuLyDonActivity::class.java))
-        }
         return true
     }
 
