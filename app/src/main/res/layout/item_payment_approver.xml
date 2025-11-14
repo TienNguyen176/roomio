@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardPayment"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:cardElevation="4dp"
+        app:cardCornerRadius="12dp"
+        app:cardUseCompatPadding="true"
+        android:padding="12dp"
+        app:cardBackgroundColor="@color/white"
+        app:strokeColor="@color/gray"
+        app:strokeWidth="2dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="10dp">
+
+            <!-- Booking ID -->
+            <TextView
+                android:id="@+id/tvBookingId"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ID: 1005"
+                android:textStyle="bold"
+                android:textSize="16sp"/>
+
+            <!-- CheckIn -->
+            <TextView
+                android:id="@+id/tvCheckInDay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CheckIn: 17 Jun > 11.AM"
+                android:textSize="14sp"
+                android:textColor="#444"
+                android:layout_marginTop="4dp"/>
+
+            <!-- CheckOut -->
+            <TextView
+                android:id="@+id/tvCheckOutDay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="CheckOut: 17 Jun > 11.AM"
+                android:textSize="14sp"
+                android:textColor="#444"
+                android:layout_marginTop="2dp"/>
+
+            <TextView
+                android:id="@+id/tvTotalPaidAmount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Số tiền đã thanh toán: "
+                android:textSize="14sp"
+                android:textColor="#444"
+                android:layout_marginTop="2dp"/>
+
+            <!-- Status (căn phải) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="end">
+
+                <TextView
+                    android:id="@+id/tvStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_payment_status_default"
+                    android:paddingStart="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="3dp"
+                    android:text="Pending"
+                    android:textColor="@color/black"
+                    android:textSize="13sp"/>
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -30,6 +30,11 @@ class AdminAccountManagerActivity : AppCompatActivity() {
         binding = AdminAccountManagerLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        setSupportActionBar(binding.appbar.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = "Danh sách tài khoản"
+
+
         // Khởi tạo adapter
         accountAdapter = AccountAdapter(accountList) { account ->
             showEditRoleDialog(account)
@@ -148,4 +153,8 @@ class AdminAccountManagerActivity : AppCompatActivity() {
         }
     }
 
+    override fun onSupportNavigateUp(): Boolean {
+        finish()
+        return true
+    }
 }
