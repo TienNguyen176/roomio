@@ -1,9 +1,7 @@
 package com.tdc.nhom6.roomio.activities
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.app.Dialog
-import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -17,7 +15,6 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.firebase.Timestamp
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
@@ -33,18 +30,17 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
-import kotlin.text.*
 
 class BusinessRegistrationActivity : AppCompatActivity() {
+
     private lateinit var binding: BusinessRegistrationLayoutBinding
     private lateinit var cloudinaryRepo: CloudinaryRepository
     private var hotelTypes: MutableList<HotelTypeModel> = mutableListOf()
     private var selectedHotelTypeId: String? = null
     private var selectedType = ""
+
+    private var cameraImageUri: Uri? = null
 
     private var fileCCCDMatTruoc: File? = null
     private var fileCCCDMatSau: File? = null
@@ -55,7 +51,6 @@ class BusinessRegistrationActivity : AppCompatActivity() {
     private var fileGiayPhepVSATTP: File? = null
 
     private val db = FirebaseFirestore.getInstance()
-
     private var loadingDialog: Dialog? = null
     private var loadingBinding: DialogLoadingBinding? = null
     private var isAnimatingText = false
@@ -77,7 +72,6 @@ class BusinessRegistrationActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = BusinessRegistrationLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        loadingDialog?.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         setSupportActionBar(binding.appbar.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -91,47 +85,34 @@ class BusinessRegistrationActivity : AppCompatActivity() {
         binding.apply {
             imgMatTruoc.setOnClickListener {
                 selectedType = CCCD_MAT_TRUOC
-                openGallery()
+                openImagePickerDialog()
             }
             imgMatSau.setOnClickListener {
                 selectedType = CCCD_MAT_SAU
-                openGallery()
+                openImagePickerDialog()
             }
-            binding.edtNamSinh.setOnClickListener {
-                showDatePickerDialog()
-            }
-            binding.cbNam.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) {
-                    binding.cbNu.isChecked = false
-                }
-            }
-            binding.cbNu.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) {
-                    binding.cbNam.isChecked = false
-                }
-            }
+            edtNamSinh.setOnClickListener { showDatePickerDialog() }
+            cbNam.setOnCheckedChangeListener { _, isChecked -> if (isChecked) cbNu.isChecked = false }
+            cbNu.setOnCheckedChangeListener { _, isChecked -> if (isChecked) cbNam.isChecked = false }
+
             tvUploadGiayPhepKinhDoanh.setOnClickListener {
                 selectedType = GIAY_PHEP_KINH_DOANH
-                openGallery()
+                openImagePickerDialog()
             }
             tvUploadGiayChungNhanPCCC.setOnClickListener {
                 selectedType = GIAY_PHEP_PCCC
-                openGallery()
+                openImagePickerDialog()
             }
             tvUploadGiayChungNhanANTT.setOnClickListener {
                 selectedType = GIAY_PHEP_ANTT
-                openGallery()
+                openImagePickerDialog()
             }
             tvUploadGiayChungNhanVSATTP.setOnClickListener {
                 selectedType = GIAY_PHEP_VSATTP
-                openGallery()
+                openImagePickerDialog()
             }
-            btnNopDon.setOnClickListener {
-                sendData()
-            }
-            btnHuy.setOnClickListener {
-                finish()
-            }
+            btnNopDon.setOnClickListener { sendData() }
+            btnHuy.setOnClickListener { finish() }
         }
     }
 
@@ -139,130 +120,114 @@ class BusinessRegistrationActivity : AppCompatActivity() {
         val documentFile = DocumentFile.fromSingleUri(this, uri)
         val fileName = documentFile?.name ?: "temp_${System.currentTimeMillis()}.jpg"
         val tempFile = File(cacheDir, fileName)
-
         contentResolver.openInputStream(uri)?.use { input ->
-            FileOutputStream(tempFile).use { output ->
-                input.copyTo(output)
-            }
+            FileOutputStream(tempFile).use { output -> input.copyTo(output) }
         }
         return tempFile
     }
 
+    // --- IMAGE PICKER AND CAMERA ---
     private val pickImageLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                val imageUri: Uri? = result.data?.data
-                imageUri?.let {
-                    when (selectedType) {
-                        CCCD_MAT_TRUOC -> {
-                            Glide.with(this).load(it).into(binding.imgMatTruoc)
-                            fileCCCDMatTruoc = uriToFile(it)
-                        }
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri -> uri?.let { handleSelectedImage(it) } }
 
-                        CCCD_MAT_SAU -> {
-                            Glide.with(this).load(it).into(binding.imgMatSau)
-                            fileCCCDMatSau = uriToFile(it)
-                        }
+    private val takePhotoLauncher =
+        registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            if (success) cameraImageUri?.let { handleSelectedImage(it) }
+        }
 
-                        GIAY_PHEP_KINH_DOANH -> {
-                            fileGiayPhepKinhDoanh = uriToFile(it)
-                        }
-
-                        GIAY_PHEP_PCCC -> {
-                            fileGiayPhepPCCC = uriToFile(it)
-                        }
-
-                        GIAY_PHEP_ANTT -> {
-                            fileGiayPhepANTT = uriToFile(it)
-                        }
-
-                        GIAY_PHEP_VSATTP -> {
-                            fileGiayPhepVSATTP = uriToFile(it)
-                        }
-                    }
-                }
+    private fun openImagePickerDialog() {
+        val options = arrayOf("Chụp ảnh", "Chọn từ thư viện")
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Chọn hình ảnh")
+            .setItems(options) { _, which ->
+                if (which == 0) openCamera() else openGallery()
             }
-        }
-
-    private fun openGallery() {
-        val intent = Intent(Intent.ACTION_PICK).apply {
-            type = "image/*"
-        }
-        pickImageLauncher.launch(intent)
+            .show()
     }
 
+    private fun openGallery() {
+        pickImageLauncher.launch("image/*")
+    }
+
+    private fun openCamera() {
+        val fileName = "camera_${System.currentTimeMillis()}.jpg"
+        val file = File(cacheDir, fileName)
+        if (!file.exists()) file.createNewFile()
+        cameraImageUri = androidx.core.content.FileProvider.getUriForFile(
+            this,
+            "${packageName}.fileprovider",
+            file
+        )
+        takePhotoLauncher.launch(cameraImageUri!!)
+    }
+
+    private fun handleSelectedImage(uri: Uri) {
+        when (selectedType) {
+            CCCD_MAT_TRUOC -> {
+                binding.imgMatTruoc.setImageURI(uri) // Hiển thị trực tiếp
+                fileCCCDMatTruoc = uriToFile(uri)
+            }
+            CCCD_MAT_SAU -> {
+                binding.imgMatSau.setImageURI(uri)
+                fileCCCDMatSau = uriToFile(uri)
+            }
+            GIAY_PHEP_KINH_DOANH -> fileGiayPhepKinhDoanh = uriToFile(uri)
+            GIAY_PHEP_PCCC -> fileGiayPhepPCCC = uriToFile(uri)
+            GIAY_PHEP_ANTT -> fileGiayPhepANTT = uriToFile(uri)
+            GIAY_PHEP_VSATTP -> fileGiayPhepVSATTP = uriToFile(uri)
+        }
+    }
+
+    // --- DATE PICKER ---
     @SuppressLint("DefaultLocale")
     private fun showDatePickerDialog() {
         val calendar = Calendar.getInstance()
-
-        val year = calendar.get(Calendar.YEAR)
-        val month = calendar.get(Calendar.MONTH)
-        val day = calendar.get(Calendar.DAY_OF_MONTH)
-
         val datePicker = android.app.DatePickerDialog(
             this,
-            { _, selectedYear, selectedMonth, selectedDay ->
-                // Format dạng dd/MM/yyyy
-                val formattedDate = String.format("%02d/%02d/%04d", selectedDay, selectedMonth + 1, selectedYear)
-                binding.edtNamSinh.setText(formattedDate)
+            { _, year, month, day ->
+                binding.edtNamSinh.setText(String.format("%02d/%02d/%04d", day, month + 1, year))
             },
-            year,
-            month,
-            day
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
         )
-
-        // Giới hạn chọn không vượt quá ngày hiện tại
         datePicker.datePicker.maxDate = System.currentTimeMillis()
         datePicker.show()
     }
 
+    // --- LOAD HOTEL TYPES ---
     private fun loadHotelTypes() {
-        db.collection("hotelTypes")
-            .get()
+        db.collection("hotelTypes").get()
             .addOnSuccessListener { result ->
                 hotelTypes.clear()
                 for (doc in result) {
-                    val id = doc.id
-                    val name = doc.getString("type_name") ?: "Không tên"
-                    hotelTypes.add(HotelTypeModel(id, name))
+                    hotelTypes.add(HotelTypeModel(doc.id, doc.getString("type_name") ?: "Không tên"))
                 }
-
-                binding.tvLoaiHinhKhachSan.setOnClickListener {
-                    showHotelTypeDialog()
-                }
-
+                binding.tvLoaiHinhKhachSan.setOnClickListener { showHotelTypeDialog() }
             }
             .addOnFailureListener {
-                Toast.makeText(this, "Không thể tải danh sách loại khách sạn!", Toast.LENGTH_SHORT)
-                    .show()
+                Toast.makeText(this, "Không thể tải danh sách loại khách sạn!", Toast.LENGTH_SHORT).show()
             }
     }
 
     private fun showHotelTypeDialog() {
-        if (hotelTypes.isEmpty()) {
-            Toast.makeText(this, "Chưa có dữ liệu loại hình khách sạn!", Toast.LENGTH_SHORT).show()
-            return
-        }
+        if (hotelTypes.isEmpty()) return Toast.makeText(this, "Chưa có dữ liệu loại hình khách sạn!", Toast.LENGTH_SHORT).show()
 
-        // Sắp xếp theo tên A-Z
         val sortedList = hotelTypes.sortedBy { it.type_name.lowercase() }
-
         val adapter = HotelTypeDialogAdapter(this, sortedList)
 
-        val dialog = android.app.AlertDialog.Builder(this)
+        android.app.AlertDialog.Builder(this)
             .setTitle(HOTEL_SELECTED_TEXT)
-            .setAdapter(adapter) { d, which ->
-                val selected = sortedList[which]
-                selectedHotelTypeId = selected.type_id
-                binding.tvLoaiHinhKhachSan.text = selected.type_name
-                d.dismiss()
+            .setAdapter(adapter) { dialog, which ->
+                selectedHotelTypeId = sortedList[which].type_id
+                binding.tvLoaiHinhKhachSan.text = sortedList[which].type_name
+                dialog.dismiss()
             }
             .setNegativeButton("Hủy", null)
-            .create()
-
-        dialog.show()
+            .show()
     }
 
+    // --- LOADING DIALOG ---
     private fun showLoadingDialog() {
         if (loadingDialog == null) {
             loadingDialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
@@ -270,10 +235,8 @@ class BusinessRegistrationActivity : AppCompatActivity() {
             loadingDialog!!.setContentView(loadingBinding!!.root)
             loadingDialog!!.setCancelable(false)
         }
-
         val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in)
         loadingBinding?.layoutLoading?.startAnimation(fadeIn)
-
         loadingDialog?.show()
         startLoadingAnimation()
     }
@@ -281,12 +244,10 @@ class BusinessRegistrationActivity : AppCompatActivity() {
     private fun startLoadingAnimation() {
         val textView = loadingBinding?.tvDangXuLy ?: return
         isAnimatingText = true
-
         lifecycleScope.launch {
             var dotCount = 0
             while (isAnimatingText) {
-                val dots = ".".repeat(dotCount % 4)
-                textView.text = "Đang xử lý$dots"
+                textView.text = "Đang xử lý" + ".".repeat(dotCount % 4)
                 dotCount++
                 delay(500)
             }
@@ -296,30 +257,20 @@ class BusinessRegistrationActivity : AppCompatActivity() {
     private fun hideLoadingDialog() {
         val fadeOut = AnimationUtils.loadAnimation(this, R.anim.fade_out)
         val view = loadingBinding?.layoutLoading ?: return
-
         view.startAnimation(fadeOut)
         fadeOut.setAnimationListener(object : Animation.AnimationListener {
             override fun onAnimationStart(animation: Animation) {}
             override fun onAnimationEnd(animation: Animation) {
                 isAnimatingText = false
                 loadingDialog?.dismiss()
-
-                // Ẩn bàn phím nếu đang mở
-                val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-                currentFocus?.let { imm.hideSoftInputFromWindow(it.windowToken, 0) }
-
-                // Xóa focus khỏi tất cả các trường nhập liệu
-                window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
-                currentFocus?.clearFocus()
             }
-
             override fun onAnimationRepeat(animation: Animation) {}
         })
     }
 
+    // --- SEND DATA ---
     private fun sendData() {
-        //val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-        val userId = "GEpvIiRB4RX4hBowuMp12WJej852"
+        val userId = "GEpvIiRB4RX4hBowuMp12WJej852" // Replace with FirebaseAuth
         val userName = binding.edtHoTen.text.toString().trim()
         val cccdNumber = binding.edtCCCD.text.toString().trim()
         val birthDate = binding.edtNamSinh.text.toString().trim()
@@ -345,28 +296,18 @@ class BusinessRegistrationActivity : AppCompatActivity() {
         }
 
         val imageCCCDFiles = listOfNotNull(fileCCCDMatTruoc, fileCCCDMatSau)
-        val licenseFiles = listOfNotNull(
-            fileGiayPhepKinhDoanh,
-            fileGiayPhepPCCC,
-            fileGiayPhepANTT,
-            fileGiayPhepVSATTP
-        )
+        val licenseFiles = listOfNotNull(fileGiayPhepKinhDoanh, fileGiayPhepPCCC, fileGiayPhepANTT, fileGiayPhepVSATTP)
 
         cloudinaryRepo = CloudinaryRepository(this)
 
         lifecycleScope.launch {
             showLoadingDialog()
             try {
-                // Upload CCCD
                 val cccdUploads = async { cloudinaryRepo.uploadMultipleImages(imageCCCDFiles, FOLDER_CCCD) }
-                // Upload License
                 val licenseUploads = async { cloudinaryRepo.uploadMultipleImages(licenseFiles, FOLDER_LICENSE) }
 
-                val cccdResults = cccdUploads.await()
-                val licenseResults = licenseUploads.await()
-
-                val cccdUrls = cccdResults.mapNotNull { it.secure_url }
-                val licenseUrls = licenseResults.mapNotNull { it.secure_url }
+                val cccdUrls = cccdUploads.await().mapNotNull { it.secure_url }
+                val licenseUrls = licenseUploads.await().mapNotNull { it.secure_url }
 
                 val hotelRequest = HotelRequestModel(
                     user_id = userId,
@@ -390,35 +331,28 @@ class BusinessRegistrationActivity : AppCompatActivity() {
                     updated_at = null
                 )
 
-                delay(5000)
-
+                delay(500) // Optional
                 hideLoadingDialog()
-
                 saveHotelRequestToFirestore(hotelRequest)
 
             } catch (e: Exception) {
-                Log.d("Cloundinary", "Loi upload: ${e}")
+                Log.e("Cloudinary", "Lỗi upload: $e")
+                hideLoadingDialog()
             }
         }
     }
 
-    @SuppressLint("DefaultLocale")
     private fun saveHotelRequestToFirestore(hotelRequest: HotelRequestModel) {
-        val counterRef: DocumentReference =
-            db.collection("counters").document("hotelRequestCounter")
-
+        val counterRef: DocumentReference = db.collection("counters").document("hotelRequestCounter")
         db.runTransaction { transaction ->
             val snapshot = transaction.get(counterRef)
             val current = snapshot.getLong("current") ?: 0
             val next = current + 1
-
             transaction.update(counterRef, "current", next)
 
             val nextId = String.format("request-%03d", next)
-
             val requestRef = db.collection("hotelRequests").document(nextId)
             transaction.set(requestRef, hotelRequest)
-
             null
         }.addOnSuccessListener {
             navigateTo(AdminHomeActivity::class.java, flag = false)
