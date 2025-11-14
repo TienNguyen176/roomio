@@ -172,6 +172,7 @@
 
                 val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
+
                 // ⭐ Firestore cần Map<String, Any>, phải ép kiểu đúng
                 val data: Map<String, Any> = mapOf(
                     "hotelId" to hotelId!!,
