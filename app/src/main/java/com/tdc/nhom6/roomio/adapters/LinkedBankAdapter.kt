@@ -17,10 +17,12 @@ class LinkedBankAdapter(
     private val onSetDefault: (Bank) -> Unit
 ) : RecyclerView.Adapter<LinkedBankAdapter.ViewHolder>() {
 
-    private var editingPosition: Int? = null
+    private var isEditing = false
+    private var deletePosition: Int? = null
 
-    fun setEditingPosition(position: Int?) {
-        editingPosition = position
+    fun setEditing(value: Boolean) {
+        isEditing = value
+        deletePosition = null
         notifyDataSetChanged()
     }
 
@@ -28,41 +30,33 @@ class LinkedBankAdapter(
         val imgLogo: ImageView = itemView.findViewById(R.id.imgBankLogo)
         val tvName: TextView = itemView.findViewById(R.id.tvBankName)
         val tvAccount: TextView = itemView.findViewById(R.id.tvAccountNumber)
-        //val edtName: EditText = itemView.findViewById(R.id.edtBankName)
         val edtAccount: EditText = itemView.findViewById(R.id.edtAccountNumber)
-        val btnDelete: Button = itemView.findViewById(R.id.btnDelete)
+        val btnDelete: ImageView = itemView.findViewById(R.id.btnDelete)
         val btnDefault: Button = itemView.findViewById(R.id.btnSetDefault)
     }
 
+    //
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_linked_bank, parent, false)
         return ViewHolder(view)
     }
 
-    override fun getItemCount(): Int = banks.size
-
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val bank = banks[position]
+
         Glide.with(holder.itemView.context).load(bank.logoUrl).into(holder.imgLogo)
 
-        if (editingPosition == position) {
-            // Đang chỉnh item này
-            holder.tvName.visibility = View.GONE
+        if (isEditing) {
+            holder.tvName.visibility = View.VISIBLE
             holder.tvAccount.visibility = View.GONE
-           // holder.edtName.visibility = View.VISIBLE
             holder.edtAccount.visibility = View.VISIBLE
 
-           // holder.edtName.setText(bank.name)
+            holder.tvName.text = bank.name
             holder.edtAccount.setText(bank.accountNumber)
 
-//            holder.edtName.addTextChangedListener(object : TextWatcher {
-//                override fun afterTextChanged(s: Editable?) {
-//                    bank.name = s.toString()
-//                }
-//                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-//                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-//            })
+            holder.btnDelete.visibility = View.GONE
+            holder.btnDefault.visibility = View.VISIBLE
 
             holder.edtAccount.addTextChangedListener(object : TextWatcher {
                 override fun afterTextChanged(s: Editable?) {
@@ -71,23 +65,38 @@ class LinkedBankAdapter(
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             })
+
         } else {
-            // Các item khác
+
             holder.tvName.visibility = View.VISIBLE
             holder.tvAccount.visibility = View.VISIBLE
-            //holder.edtName.visibility = View.GONE
             holder.edtAccount.visibility = View.GONE
 
             holder.tvName.text = bank.name
             holder.tvAccount.text = bank.accountNumber
-        }
 
-        // Khi click vào item
-        holder.itemView.setOnClickListener {
-            if (editingPosition == position) {
-                setEditingPosition(null) // tắt edit nếu bấm lại item đang chỉnh
+            if (deletePosition == position) {
+                holder.btnDelete.visibility = View.VISIBLE
+                holder.btnDefault.visibility = View.GONE
             } else {
-                setEditingPosition(position) // bật edit cho item này
+                holder.btnDelete.visibility = View.GONE
+                holder.btnDefault.visibility = View.VISIBLE
+            }
+
+            holder.itemView.setOnLongClickListener {
+                val pos = holder.adapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+                    deletePosition = pos
+                    notifyDataSetChanged()
+                }
+                true
+            }
+
+            holder.itemView.setOnClickListener {
+                if (deletePosition != null) {
+                    deletePosition = null
+                    notifyDataSetChanged()
+                }
             }
         }
 
@@ -102,4 +111,6 @@ class LinkedBankAdapter(
             holder.btnDefault.isEnabled = true
         }
     }
+
+    override fun getItemCount() = banks.size
 }

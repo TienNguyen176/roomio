@@ -28,7 +28,7 @@ class ProfileActivity : AppCompatActivity() {
     private val prefs by lazy { getSharedPreferences("user_prefs", MODE_PRIVATE) }
 
     private var userRoleId: String = "user"
-    private var roleName: String = "User"
+    private var roleName: String = "Người Dùng"
     private var userRef: DocumentReference? = null
     private var userListener: ListenerRegistration? = null
     private var roleListener: ListenerRegistration? = null
@@ -45,7 +45,7 @@ class ProfileActivity : AppCompatActivity() {
         supportActionBar?.title = "Roomio"
 
         // Hiển thị mặc định
-        binding.tvRank.text = "User"
+        binding.tvRank.text = "Người Dùng"
         updateRoleUI("user")
         animateRoleColor("user")
 
@@ -53,11 +53,16 @@ class ProfileActivity : AppCompatActivity() {
         setupWalletToggle()
         checkSession()
     }
-
+    override fun onStart() {
+        super.onStart()
+        checkSession() // đảm bảo listener luôn active
+    }
     override fun onStop() {
         super.onStop()
         userListener?.remove()
+        userListener = null
         roleListener?.remove()
+        roleListener = null
     }
 
     // ================= Firestore =================
@@ -82,24 +87,30 @@ class ProfileActivity : AppCompatActivity() {
             if (e != null || doc == null || !doc.exists()) return@addSnapshotListener
             val user = doc.toObject(User::class.java) ?: return@addSnapshotListener
 
-            // 🧍 Username
+            // Username
             binding.tvUsername.text = user.username.ifEmpty { "Người dùng" }
 
-            // 🖼️ Avatar
+            // Avatar
             if (user.avatar.isNotEmpty()) {
-                Glide.with(this).load(user.avatar).circleCrop().placeholder(R.drawable.user).into(binding.imgAvatar)
+                Glide.with(this).load(user.avatar).circleCrop()
+                    .placeholder(R.drawable.user)
+                    .into(binding.imgAvatar)
             } else binding.imgAvatar.setImageResource(R.drawable.user)
 
-            // 💰 Wallet realtime
-            currentBalance = doc.getDouble("balance") ?: 0.0
+            // Wallet realtime
+            currentBalance = doc.getDouble("walletBalance") ?: 0.0
             binding.tvBalance.text = if (isBalanceVisible) formatMoney(currentBalance) else "•••••••••"
 
-            // 👑 Role realtime
+            // Role realtime
             val newRoleId = user.roleId.ifEmpty { "user" }
             if (newRoleId != userRoleId) {
                 userRoleId = newRoleId
                 listenRoleRealtime(userRoleId)
             }
+
+            //LUÔN GỌI LẠI LISTENER ROLE
+//            listenRoleRealtime(userRoleId)
+
         }
     }
 
@@ -110,11 +121,14 @@ class ProfileActivity : AppCompatActivity() {
         roleListener = roleRef.addSnapshotListener { doc, e ->
             if (e != null) return@addSnapshotListener
 
-            roleName = doc?.getString("role_name") ?: roleId.replaceFirstChar { it.uppercase() }
-            binding.tvRank.text = roleName
-            updateRoleUI(roleId)
-            animateRoleColor(roleId)
-            invalidateOptionsMenu()
+            val newRoleName = doc?.getString("role_name") ?: roleId.replaceFirstChar { it.uppercase() }
+            if (roleName != newRoleName) {
+                roleName = newRoleName
+                binding.tvRank.text = roleName
+                updateRoleUI(roleId)
+                animateRoleColor(roleId)
+                invalidateOptionsMenu()
+            }
         }
     }
 

@@ -39,13 +39,13 @@
             android:layout_height="wrap_content" />
 
         <!-- Dùng khi chỉnh sửa -->
-<!--        <EditText-->
-<!--            android:id="@+id/edtBankName"-->
-<!--            android:enabled="false"-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:hint="Tên ngân hàng"-->
-<!--            android:visibility="gone"/>-->
+        <EditText
+            android:id="@+id/edtBankName"
+            android:enabled="false"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Tên ngân hàng"
+            android:visibility="gone"/>
 
         <EditText
             android:id="@+id/edtAccountNumber"
@@ -65,14 +65,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
-    <Button
+    <ImageView
         android:id="@+id/btnDelete"
-        android:text="Xóa"
-        android:textSize="10sp"
-        android:textColor="@android:color/white"
-        android:backgroundTint="#E53935"
-        android:paddingHorizontal="12dp"
+        android:src="@drawable/trash"
         android:layout_width="50dp"
-        android:layout_height="wrap_content"
+        android:layout_height="50dp"
         android:visibility="gone" />
 </LinearLayout>

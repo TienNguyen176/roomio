@@ -35,19 +35,23 @@ class ManageBanksActivity : AppCompatActivity() {
         binding.btnBack.setOnClickListener {
             onBackPressedDispatcher.onBackPressed()
         }
+
         binding.edtEdit.setOnClickListener {
-            isEditing = !isEditing // đảo trạng thái
+            isEditing = !isEditing
+
+            (binding.recyclerLinkedBanks.adapter as? LinkedBankAdapter)
+                ?.setEditing(isEditing)
+
             if (isEditing) {
                 binding.edtEdit.text = "Save"
-                binding.edtEdit.setTextColor(Color.parseColor("#E53935")) // đỏ
+                binding.edtEdit.setTextColor(Color.parseColor("#E53935"))
             } else {
                 binding.edtEdit.text = "Edit"
-                binding.edtEdit.setTextColor(Color.parseColor("#E53935")) // đỏ
-                saveAllChanges() // khi nhấn save thì cập nhật firestore
+                binding.edtEdit.setTextColor(Color.parseColor("#E53935"))
+                saveAllChanges()
             }
-
-            //(binding.recyclerLinkedBanks.adapter as? LinkedBankAdapter)?.setEditing(isEditing)
         }
+
 
 
     }
@@ -70,13 +74,15 @@ class ManageBanksActivity : AppCompatActivity() {
                     banks.add(bank)
                 }
 
-                binding.recyclerLinkedBanks.adapter = LinkedBankAdapter(
+                val adapter = LinkedBankAdapter(
                     banks,
                     onDelete = { deleteBank(it) },
                     onSetDefault = { setDefaultBank(it) }
-                ).apply {
-                    setEditingPosition(if (isEditing) 0 else null)
-                }
+                )
+
+                binding.recyclerLinkedBanks.adapter = adapter
+                adapter.setEditing(isEditing)
+
 
             }
 
