@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:card_view="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_marginBottom="12dp"
+    card_view:cardElevation="4dp"
+    card_view:cardCornerRadius="14dp"
+    card_view:cardUseCompatPadding="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:orientation="horizontal">
+
+        <!-- ICON -->
+        <ImageView
+            android:id="@+id/ivIcon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_discount"
+            app:tint="@color/cyan"
+            android:layout_gravity="center_vertical" />
+
+        <!-- CONTENT -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="14dp">
+
+            <!-- NAME -->
+            <TextView
+                android:id="@+id/tvCouponName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Giảm giá siêu hot"
+                android:textStyle="bold"
+                android:textSize="17sp"
+                android:textColor="@color/onSurface"
+                android:fontFamily="@font/poppins_bold"/>
+
+            <!-- DESCRIPTION -->
+            <TextView
+                android:id="@+id/tvCouponDescription"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Áp dụng cho mọi phòng"
+                android:textSize="14sp"
+                android:textColor="#777777"
+                android:layout_marginTop="4dp"
+                android:fontFamily="@font/poppins_regular"/>
+
+            <!-- VALUE -->
+            <TextView
+                android:id="@+id/tvCouponValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Giảm: 20%"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="#0C6FEF"
+                android:layout_marginTop="8dp"
+                android:fontFamily="@font/poppins_medium"/>
+
+            <!-- TYPE -->
+            <TextView
+                android:id="@+id/tvCouponType"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Vô hạn (reset mỗi ngày: 3)"
+                android:textSize="13sp"
+                android:textColor="#444444"
+                android:layout_marginTop="4dp"
+                android:fontFamily="@font/poppins_regular"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+</androidx.cardview.widget.CardView>

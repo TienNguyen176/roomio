@@ -2,4 +2,14 @@
     <string name="app_name">Roomio</string>
     <string name="cloudinary_cloud_name">dgxcjxzqi</string>
     <string name="cloudinary_upload_preset">upload_images</string>
+    <string name="m_gi_m_gi">Mã giảm giá</string>
+    <string name="xem_nh_gi">Xem đánh giá</string>
+    <string name="xem_t_ph_ng">Xem đặt phòng</string>
+    <string name="qu_n_l_h_a_n">Quản lý hóa đơn</string>
+    <string name="qu_n_l_ph_ng">Quản lý phòng</string>
+    <string name="ch_m_ch_n_kh_ch_s_n">[Chạm để chọn khách sạn]</string>
+    <string name="roomio">roomio</string>
+    <string name="hotel_admin">Hotel Admin</string>
+    <string name="tho_t">Thoát</string>
+    <string name="exit">Thoát</string>
 </resources>

@@ -33,14 +33,14 @@
                 android:layout_height="24dp"
                 android:src="@drawable/ic_arrow_back"
                 app:tint="@color/onSurface"
-                android:contentDescription="Thoát" />
+                android:contentDescription="@string/exit" />
 
             <TextView
                 android:id="@+id/tvExit"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                android:text="Thoát"
+                android:text="@string/tho_t"
                 android:textColor="@color/onSurface"
                 android:textSize="16sp"
                 android:fontFamily="@font/poppins_medium" />
@@ -52,7 +52,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Hotel Admin"
+            android:text="@string/hotel_admin"
             android:textColor="#777777"
             android:textSize="14sp"
             android:gravity="center"
@@ -62,7 +62,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="roomio"
+            android:text="@string/roomio"
             android:textColor="#0C6FEF"
             android:textSize="28sp"
             android:textStyle="italic"
@@ -75,7 +75,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="[Chạm để chọn khách sạn]"
+            android:text="@string/ch_m_ch_n_kh_ch_s_n"
             android:textColor="@color/onSurface"
             android:textSize="16sp"
             android:fontFamily="@font/poppins_medium"
@@ -91,7 +91,7 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="32dp"
-            android:text="Quản lý phòng"
+            android:text="@string/qu_n_l_ph_ng"
             style="@style/Widget.Roomio.Button.Filled" />
 
         <Button
@@ -99,7 +99,7 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
-            android:text="Quản lý hóa đơn"
+            android:text="@string/qu_n_l_h_a_n"
             style="@style/Widget.Roomio.Button.Filled" />
 
         <Button
@@ -107,7 +107,7 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
-            android:text="Đánh giá"
+            android:text="@string/m_gi_m_gi"
             style="@style/Widget.Roomio.Button.Filled" />
 
         <Button
@@ -123,7 +123,7 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
-            android:text="Quản lý quyền"
+            android:text="@string/xem_nh_gi"
             style="@style/Widget.Roomio.Button.Filled" />
 
         <Button
@@ -131,7 +131,7 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
-            android:text="Xem đặt phòng"
+            android:text="@string/xem_t_ph_ng"
             style="@style/Widget.Roomio.Button.Filled" />
 
     </LinearLayout>
