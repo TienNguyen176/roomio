@@ -319,7 +319,7 @@ class BusinessRegistrationActivity : AppCompatActivity() {
 
     private fun sendData() {
         //val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-        val userId = "5mDP6WZb1JWcuSDOgPtDycty7H53"
+        val userId = "GEpvIiRB4RX4hBowuMp12WJej852"
         val userName = binding.edtHoTen.text.toString().trim()
         val cccdNumber = binding.edtCCCD.text.toString().trim()
         val birthDate = binding.edtNamSinh.text.toString().trim()

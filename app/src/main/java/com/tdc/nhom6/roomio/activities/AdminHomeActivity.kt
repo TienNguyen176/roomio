@@ -22,7 +22,7 @@ class AdminHomeActivity : AppCompatActivity() {
                 navigateTo(AdminListHotelRequestActivity::class.java, flag = false)
             }
             btnQuanLyTaiKhoan.setOnClickListener {
-
+                navigateTo(AdminAccountManagerActivity::class.java, flag = false)
             }
             btnQuanLyKhachSan.setOnClickListener {
                 navigateTo(AdminHotelManagerActivity::class.java, flag = false)
