@@ -143,6 +143,13 @@
             android:text="Lưu"
             android:layout_marginTop="24dp"
             style="@style/Widget.Roomio.Button.Filled"/>
+        <Button
+            android:id="@+id/btnHuy"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:text="Hủy"
+            android:layout_marginTop="24dp"
+            style="@style/Widget.Roomio.Button.Filled"/>
 
     </LinearLayout>
 </ScrollView>

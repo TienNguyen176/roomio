@@ -8,7 +8,8 @@ import com.tdc.nhom6.roomio.models.Diiiiiscount
 
 class DiscountAdapter(
     private val items: List<Diiiiiscount>,
-    private val onEdit: (Diiiiiscount) -> Unit
+    private val onEdit: (Diiiiiscount) -> Unit,
+    private val onDelete: (Diiiiiscount) -> Unit
 ) : RecyclerView.Adapter<DiscountAdapter.ViewHolder>() {
 
     inner class ViewHolder(val binding: ItemDiscountLayoutBinding)
@@ -27,6 +28,7 @@ class DiscountAdapter(
                     "Hữu hạn (${item.availableCount} mã)"
 
             root.setOnClickListener { onEdit(item) }
+            btnDelete.setOnClickListener { onDelete(item) }
         }
     }
 

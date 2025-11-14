@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:card_view="http://schemas.android.com/apk/res-auto"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_marginBottom="12dp"
     card_view:cardElevation="4dp"
     card_view:cardCornerRadius="14dp"
@@ -41,7 +41,7 @@
                 android:textStyle="bold"
                 android:textSize="17sp"
                 android:textColor="@color/onSurface"
-                android:fontFamily="@font/poppins_bold"/>
+                android:fontFamily="@font/poppins_bold" />
 
             <!-- DESCRIPTION -->
             <TextView
@@ -52,7 +52,7 @@
                 android:textSize="14sp"
                 android:textColor="#777777"
                 android:layout_marginTop="4dp"
-                android:fontFamily="@font/poppins_regular"/>
+                android:fontFamily="@font/poppins_regular" />
 
             <!-- VALUE -->
             <TextView
@@ -64,7 +64,7 @@
                 android:textStyle="bold"
                 android:textColor="#0C6FEF"
                 android:layout_marginTop="8dp"
-                android:fontFamily="@font/poppins_medium"/>
+                android:fontFamily="@font/poppins_medium" />
 
             <!-- TYPE -->
             <TextView
@@ -75,8 +75,18 @@
                 android:textSize="13sp"
                 android:textColor="#444444"
                 android:layout_marginTop="4dp"
-                android:fontFamily="@font/poppins_regular"/>
+                android:fontFamily="@font/poppins_regular" />
         </LinearLayout>
+
+        <!-- DELETE BUTTON -->
+        <ImageView
+            android:id="@+id/btnDelete"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:src="@drawable/ic_delete"
+            app:tint="#E53935"
+            android:layout_gravity="center_vertical"
+            android:padding="6dp" />
 
     </LinearLayout>
 
