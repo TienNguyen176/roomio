@@ -1,0 +1,118 @@
+package com.tdc.nhom6.roomio.adapters
+
+import android.content.Intent
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.activities.HotelDetailActivity
+import com.tdc.nhom6.roomio.models.Hotel
+
+
+class HotReviewAdapter(
+    private var hotelReviews: List<Hotel>
+) : RecyclerView.Adapter<HotReviewAdapter.HotReviewViewHolder>() {
+
+    override fun getItemId(position: Int): Long {
+        // Use hotel ID as stable ID to prevent swap behavior issues
+        return hotelReviews[position].hotelId.hashCode().toLong()
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HotReviewViewHolder {
+        // Inflate the layout for each item
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_hot_review, parent, false)
+        return HotReviewViewHolder(view)
+    }
+
+    /**
+     * Binds data to a view holder
+     */
+    override fun onBindViewHolder(holder: HotReviewViewHolder, position: Int) {
+        // Get the hotel review at this position
+        val hotelReview: Hotel = hotelReviews[position]
+
+        // Put the data into the view holder
+        holder.bind(hotelReview)
+
+    }
+
+    /**
+     * Returns the number of items in the list
+     */
+    override fun getItemCount(): Int = hotelReviews.size
+
+    /**
+     * Updates the data and refreshes the display
+     * Call this when you have new data to show
+     */
+    fun updateData(newReviews: List<Hotel>) {
+        // Simple update without DiffUtil to prevent swap behavior issues
+        hotelReviews = newReviews
+        // Use notifyDataSetChanged() for stable updates
+        notifyDataSetChanged()
+    }
+
+
+    /**
+     * Formats price with dots as thousands separators (Vietnamese format)
+     * Example: 1300000 -> "1.300.000"
+     */
+    private fun formatPriceWithDots(price: Double): String {
+        val priceLong = price.toLong()
+        return String.format("%,d", priceLong).replace(',', '.')
+    }
+
+    /**
+     * Formats price range: lowest - highest
+     * If highest is null or same as lowest, shows only lowest price
+     */
+    private fun formatPriceRange(lowestPrice: Double, highestPrice: Double?): String {
+        val lowestFormatted = formatPriceWithDots(lowestPrice)
+        return if (highestPrice != null && highestPrice > lowestPrice) {
+            "$lowestFormatted - ${formatPriceWithDots(highestPrice)}"
+        } else {
+            lowestFormatted
+        }
+    }
+
+    inner class HotReviewViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+
+        // Find the views in the layout
+        val hotelImage: ImageView = itemView.findViewById(R.id.imgPhoto)
+        private val hotelName: TextView = itemView.findViewById(R.id.tvTitle)
+        private val hotelRating: TextView = itemView.findViewById(R.id.tvRating)
+        private val hotelPrice: TextView = itemView.findViewById(R.id.tvPrice)
+
+
+        fun bind(hotel: Hotel) {
+            // Set the hotel image
+            if (hotel.images.isNotEmpty()) {
+                Glide.with(hotelImage.context).load(hotel.images[0]).into(hotelImage)
+            } else {
+                hotelImage.setImageResource(R.drawable.caption)
+            }
+
+            // Set the hotel name
+            hotelName.text = hotel.hotelName
+
+            // Set the rating (e.g., "4.5 (234)")
+            hotelRating.text = "${hotel.averageRating} (${hotel.totalReviews})"
+
+            // Set the price range (e.g., "1.300.000 - 2.000.000")
+            hotelPrice.text = formatPriceRange(
+                hotel.lowestPricePerNight ?: hotel.pricePerNight,
+                hotel.highestPricePerNight
+            )
+            itemView.setOnClickListener(View.OnClickListener {
+                val intent = Intent(itemView.context,HotelDetailActivity::class.java)
+                intent.putExtra("HOTEL_ID",hotel.hotelId)
+                itemView.context.startActivity(intent)
+            })
+        }
+    }
+}

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="8dp">
+
+    <CheckBox
+        android:id="@+id/cbItem"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Item"/>
+
+    <Button
+        android:id="@+id/btnMinus"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:backgroundTint="#8DBDE8"
+        android:text="-"
+        android:textColor="#FFFFFF"/>
+
+    <TextView
+        android:id="@+id/tvQty"
+        android:layout_width="40dp"
+        android:layout_height="wrap_content"
+        android:text="0"
+        android:textColor="#164B8A"
+        android:gravity="center"/>
+
+    <Button
+        android:id="@+id/btnPlus"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:backgroundTint="#8DBDE8"
+        android:text="+"
+        android:textColor="#FFFFFF"/>
+
+</LinearLayout>
+
+

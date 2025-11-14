@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:layout_marginTop="10dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginRight="10dp">
+            <RadioButton
+                android:id="@+id/radId"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Travel Wallet"
+                android:drawableLeft="@drawable/ic_wallet"
+                android:clickable="false"
+                android:focusable="false"/>
+            <TextView
+                android:id="@+id/tvBalance"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textColor="@color/green"
+                android:paddingLeft="35dp"
+                android:text="Balance: 100.000 VND"/>
+        </LinearLayout>
+        <TextView
+            android:id="@+id/tvDiscountDescription"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:layout_gravity="center_vertical"
+            android:textColor="#80000000"
+            android:text="3% discount for first time booking with e-wallet. (Max VND 30.000)"/>
+
+</LinearLayout>
