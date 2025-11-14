@@ -1,46 +1,87 @@
 package com.tdc.nhom6.roomio.adapters
 
-import android.annotation.SuppressLint
+import android.app.AlertDialog
+import android.text.InputType
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
+import android.widget.EditText
+import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
-import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.models.ServiceModel
+import com.tdc.nhom6.roomio.databinding.ItemServiceLayoutBinding
+import com.tdc.nhom6.roomio.models.Service
 
 class ServiceAdapter(
-    private val items: MutableList<ServiceModel>,
-    private val onItemClick: (ServiceModel, Int) -> Unit
-) : RecyclerView.Adapter<ServiceAdapter.ServiceViewHolder>() {
+    private val services: List<Service>,
+    private val selectedRates: MutableMap<String, Double>
+) : RecyclerView.Adapter<ServiceAdapter.ViewHolder>() {
 
-    inner class ServiceViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvName: TextView = itemView.findViewById(R.id.tvServiceName)
-        val tvDesc: TextView = itemView.findViewById(R.id.tvServiceDesc)
+    override fun getItemCount() = services.size
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val binding = ItemServiceLayoutBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
+        return ViewHolder(binding)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ServiceViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_service, parent, false)
-        return ServiceViewHolder(view)
-    }
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val service = services[position]
+        val binding = holder.binding
 
-    override fun onBindViewHolder(holder: ServiceViewHolder, position: Int) {
-        val service = items[position]
-        holder.tvName.text = service.service_name
-        holder.tvDesc.text = service.description
+        binding.tvServiceName.text = service.service_name
 
-        holder.itemView.setOnClickListener {
-            onItemClick(service, position)
+        // Khởi tạo trạng thái ban đầu
+        val isSelected = selectedRates.containsKey(service.id)
+        binding.cbSelected.isChecked = isSelected
+
+        // Khi bấm vào card => toggle checkbox
+        binding.cardService.setOnClickListener {
+            if (!binding.cbSelected.isChecked) {
+                // Tick chọn → mở dialog nhập giá
+                val input = EditText(holder.itemView.context).apply {
+                    hint = "Nhập giá cho dịch vụ"
+                    inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+                    setPadding(50, 40, 50, 40)
+                }
+
+                AlertDialog.Builder(holder.itemView.context)
+                    .setTitle("Giá cho ${service.service_name}")
+                    .setView(input)
+                    .setPositiveButton("Lưu") { dialog, _ ->
+                        val priceText = input.text.toString().trim()
+                        val price = priceText.toDoubleOrNull()
+                        if (price != null && price > 0) {
+                            selectedRates[service.id] = price
+                            binding.cbSelected.isChecked = true
+                            Toast.makeText(
+                                holder.itemView.context,
+                                "Đã thêm ${service.service_name} - $price",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } else {
+                            Toast.makeText(
+                                holder.itemView.context,
+                                "Giá không hợp lệ!",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        dialog.dismiss()
+                    }
+                    .setNegativeButton("Hủy") { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .setCancelable(false)
+                    .show()
+            } else {
+                // Nếu bỏ chọn → xóa khỏi selectedRates
+                binding.cbSelected.isChecked = false
+                selectedRates.remove(service.id)
+            }
         }
     }
 
-    override fun getItemCount(): Int = items.size
-
-    @SuppressLint("NotifyDataSetChanged")
-    fun updateList(newList: List<ServiceModel>) {
-        items.clear()
-        items.addAll(newList)
-        notifyDataSetChanged()
-    }
+    inner class ViewHolder(val binding: ItemServiceLayoutBinding) :
+        RecyclerView.ViewHolder(binding.root)
 }

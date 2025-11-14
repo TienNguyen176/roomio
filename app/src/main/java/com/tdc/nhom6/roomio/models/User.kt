@@ -8,10 +8,9 @@ data class User(
     var phone: String = "",
     val gender: String = "",
     val birthDate: String = "",
-    var roleId: String = "user",   // mặc định user
+    var roleId: String = "user",   // 🔹 mặc định user
     var createdAt: String = "",
-    var walletBalance: Double = 0.0,
-    var bankInfo: BankInfo? = null   // thêm dòng này
+    var balance: Double = 0.0
 )
 
 

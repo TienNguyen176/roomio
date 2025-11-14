@@ -31,7 +31,7 @@ class EmailVerifyActivity : AppCompatActivity() {
     private lateinit var birthDate: String
     private lateinit var password: String
     private var roleId: String = "user"
-    private var walletBalance: Double = 0.0
+    private var balance: Double = 0.0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,7 +43,7 @@ class EmailVerifyActivity : AppCompatActivity() {
         createAccountAndSendVerify()
     }
 
-    //nhan du lieu
+    /** ------------------ NHẬN DỮ LIỆU ------------------ **/
     private fun receiveDataFromSignUp() = with(intent) {
         currentId = getStringExtra("current_id") ?: ""
         username = getStringExtra("username") ?: ""
@@ -53,21 +53,21 @@ class EmailVerifyActivity : AppCompatActivity() {
         birthDate = getStringExtra("birthDate") ?: ""
         password = getStringExtra("password") ?: ""
         roleId = getStringExtra("roleId") ?: "user"
-        walletBalance = getDoubleExtra("balance", 0.0)
+        balance = getDoubleExtra("balance", 0.0)
     }
 
-    //giao dien
+    /** ------------------ GIAO DIỆN ------------------ **/
     private fun setupUI() = binding.apply {
         edtEmailVerify.text = email
 
         btnResendEmail.setOnClickListener {
             auth.currentUser?.sendEmailVerification()
-                ?.addOnSuccessListener { toast("Đã gửi lại email xác minh ") }
+                ?.addOnSuccessListener { toast("Đã gửi lại email xác minh 📩") }
                 ?.addOnFailureListener { toast("Lỗi gửi email: ${it.message}") }
         }
     }
 
-    //Tao account gui email
+    /** ------------------ TẠO ACCOUNT + GỬI EMAIL ------------------ **/
     private fun createAccountAndSendVerify() {
         toggleLoading(true, "Đang gửi email xác minh...")
 
@@ -75,7 +75,7 @@ class EmailVerifyActivity : AppCompatActivity() {
             .addOnSuccessListener {
                 auth.currentUser?.sendEmailVerification()
                     ?.addOnSuccessListener {
-                        toast("Đã gửi email xác minh ")
+                        toast("Đã gửi email xác minh 📩")
                         toggleLoading(true, "⏳ Đang chờ xác minh...")
                         startAutoCheckVerification()
                     }
@@ -86,21 +86,21 @@ class EmailVerifyActivity : AppCompatActivity() {
             }
             .addOnFailureListener {
                 val msg = if (it.message?.contains("already in use", true) == true)
-                    "Email này đã được đăng ký"
+                    "Email này đã được đăng ký ❌"
                 else "Lỗi tạo tài khoản: ${it.message}"
                 toast(msg)
                 finish()
             }
     }
 
-    //Ktra xac minh tu dong
+    /** ------------------ KIỂM TRA XÁC MINH TỰ ĐỘNG ------------------ **/
     private fun startAutoCheckVerification() {
         checkVerifyHandler = Handler(Looper.getMainLooper())
         checkVerifyHandler?.postDelayed(object : Runnable {
             override fun run() {
                 auth.currentUser?.reload()?.addOnSuccessListener {
                     if (auth.currentUser?.isEmailVerified == true) {
-                        toast("Email đã được xác minh!")
+                        toast("✅ Email đã được xác minh!")
                         saveAccountAndUser(auth.currentUser!!.uid)
                         checkVerifyHandler?.removeCallbacks(this)
                     } else {
@@ -111,7 +111,7 @@ class EmailVerifyActivity : AppCompatActivity() {
         }, 3000)
     }
 
-    //luu len database
+    /** ------------------ LƯU FIRESTORE ------------------ **/
     private fun saveAccountAndUser(uid: String) {
         val formattedTime = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
             .format(Date(System.currentTimeMillis()))
@@ -134,7 +134,7 @@ class EmailVerifyActivity : AppCompatActivity() {
             "birthDate" to birthDate,
             "accountId" to uid,
             "roleId" to roleId,
-            "balance" to walletBalance,
+            "balance" to balance,
             "createdAt" to formattedTime
         )
 
@@ -150,7 +150,7 @@ class EmailVerifyActivity : AppCompatActivity() {
             }
     }
 
-    //Chuyen man hinh
+    /** ------------------ CHUYỂN MÀN HÌNH ------------------ **/
     private fun navigateToLogin() {
         startActivity(Intent(this, LoginActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -158,7 +158,7 @@ class EmailVerifyActivity : AppCompatActivity() {
         finish()
     }
 
-    //loading
+    /** ------------------ TIỆN ÍCH ------------------ **/
     private fun toggleLoading(isLoading: Boolean, message: String = "") = binding.apply {
         progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
         txtStatus.text = message

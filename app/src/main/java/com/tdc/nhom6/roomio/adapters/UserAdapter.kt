@@ -9,4 +9,3 @@ import java.util.*
 
 class UserAdapter(
 )
-

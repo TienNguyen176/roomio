@@ -27,20 +27,20 @@ class ResetPasswordActivity : AppCompatActivity() {
         binding.tvEmail.text = email
         binding.btnBack.setOnClickListener { finish() }
 
-        // Hiển thị trạng thái đang chờ
+        // 🌀 Hiển thị trạng thái đang chờ
         binding.tvStatus.text = "Đang chờ bạn xác minh qua email..."
         binding.progressBar.visibility = android.view.View.VISIBLE
 
-        // Cứ 5 giây hiển thị nhắc người dùng (mô phỏng chờ reset)
+        // 🔁 Cứ 5 giây hiển thị nhắc người dùng (mô phỏng chờ reset)
         handler.postDelayed(checkResetDoneRunnable, 5000)
 
-        // Nút gửi lại email reset mật khẩu
+        // 🔁 Nút gửi lại email reset mật khẩu
         binding.btnResendEmail.setOnClickListener {
             auth.sendPasswordResetEmail(email)
                 .addOnSuccessListener {
                     Toast.makeText(
                         this,
-                        "Đã gửi lại liên kết đặt lại mật khẩu đến $email",
+                        "Đã gửi lại liên kết đặt lại mật khẩu đến $email 📩",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -50,7 +50,7 @@ class ResetPasswordActivity : AppCompatActivity() {
         }
     }
 
-    // Mô phỏng quá trình “đổi mật khẩu thành công”
+    // 🧭 Mô phỏng quá trình “đổi mật khẩu thành công”
     private val checkResetDoneRunnable = object : Runnable {
         override fun run() {
             Toast.makeText(

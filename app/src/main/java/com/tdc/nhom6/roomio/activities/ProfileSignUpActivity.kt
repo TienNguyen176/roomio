@@ -3,7 +3,6 @@ package com.tdc.nhom6.roomio.activities
 import android.app.DatePickerDialog
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.util.Patterns
 import android.view.View
 import android.widget.Toast
@@ -24,20 +23,20 @@ class ProfileSignUpActivity : AppCompatActivity() {
         binding = ProfileSignUpLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Quay lại Login
+        // ⬅️ Quay lại Login
         binding.btnBack.setOnClickListener {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
         }
 
-        // Chọn ngày sinh
+        // 📅 Chọn ngày sinh
         binding.edtBirthDate.setOnClickListener { showDatePicker() }
 
-        // Đăng ký
+        // 📝 Đăng ký
         binding.btnSignUp.setOnClickListener { validateAndContinue() }
     }
 
-    // Kiểm tra và xử lý đăng ký
+    /** 🧠 Kiểm tra và xử lý đăng ký **/
     private fun validateAndContinue() {
         val username = binding.edtUsername.text.toString().trim()
         val email = binding.edtEmail.text.toString().trim()
@@ -50,7 +49,7 @@ class ProfileSignUpActivity : AppCompatActivity() {
             else -> ""
         }
 
-//  Kiểm tra hợp lệ cơ bản
+// 🔹 Kiểm tra hợp lệ cơ bản
         when {
             username.isEmpty() -> {
                 binding.edtUsername.error = "Vui lòng nhập tên"
@@ -87,7 +86,7 @@ class ProfileSignUpActivity : AppCompatActivity() {
         }
 
 
-        //  Kiểm tra email có tồn tại chưa
+        // 🔹 Kiểm tra email có tồn tại chưa
         auth.fetchSignInMethodsForEmail(email)
             .addOnSuccessListener { result ->
                 if (result.signInMethods.isNullOrEmpty()) {
@@ -101,7 +100,7 @@ class ProfileSignUpActivity : AppCompatActivity() {
             }
     }
 
-    // Chuyển qua màn EmailVerifyActivity
+    /** 📧 Chuyển qua màn EmailVerifyActivity **/
     private fun goToEmailVerify(
         username: String,
         email: String,
@@ -121,12 +120,12 @@ class ProfileSignUpActivity : AppCompatActivity() {
             putExtra("password", password)
             putExtra("roleId", "user")
             putExtra("createdAt", createdAt)
-            putExtra("balance", 0.0) //  Thêm số dư mặc định
+            putExtra("balance", 0.0) // 👈 Thêm số dư mặc định
         }
         startActivity(intent)
     }
 
-    //Chọn ngày sinh
+    /** 📆 Chọn ngày sinh **/
     private fun showDatePicker() {
         val c = Calendar.getInstance()
         val datePicker = DatePickerDialog(
@@ -141,7 +140,7 @@ class ProfileSignUpActivity : AppCompatActivity() {
         datePicker.show()
     }
 
-    // Kiểm tra hợp lệ ngày sinh
+    /** ✅ Kiểm tra hợp lệ ngày sinh **/
     private fun isBirthDateValid(birthDate: String): Boolean {
         return try {
             val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())

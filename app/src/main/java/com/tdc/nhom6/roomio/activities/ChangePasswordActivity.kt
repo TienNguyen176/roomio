@@ -45,7 +45,7 @@ class ChangePasswordActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Lấy mật khẩu hash từ Firestore
+            // ✅ Lấy mật khẩu hash từ Firestore
             db.collection("accounts")
                 .whereEqualTo("email", email)
                 .get()
@@ -63,27 +63,27 @@ class ChangePasswordActivity : AppCompatActivity() {
                         return@addOnSuccessListener
                     }
 
-                    //So sánh mật khẩu cũ
+                    // ✅ So sánh mật khẩu cũ
                     val verify = BCrypt.verifyer().verify(oldPassword.toCharArray(), storedHash)
                     if (!verify.verified) {
                         Toast.makeText(this, "Mật khẩu cũ không đúng", Toast.LENGTH_SHORT).show()
                         return@addOnSuccessListener
                     }
 
-                    // Re-auth Firebase Auth trước khi đổi
+                    // 🔐 Re-auth Firebase Auth trước khi đổi
                     val credential = EmailAuthProvider.getCredential(email, oldPassword)
                     auth.currentUser?.reauthenticate(credential)
                         ?.addOnSuccessListener {
-                            //  Cập nhật mật khẩu Firebase Auth
+                            // ✅ Cập nhật mật khẩu Firebase Auth
                             auth.currentUser?.updatePassword(newPassword)
                                 ?.addOnSuccessListener {
-                                    // Cập nhật mật khẩu mới vào Firestore (hash)
+                                    // ✅ Cập nhật mật khẩu mới vào Firestore (hash)
                                     val newHash = BCrypt.withDefaults().hashToString(12, newPassword.toCharArray())
                                     db.collection("accounts").document(doc.id)
                                         .update("password", newHash)
                                         .addOnSuccessListener {
-                                            Toast.makeText(this, "Đổi mật khẩu thành công ", Toast.LENGTH_SHORT).show()
-                                            // Quay về Login hoặc trang chủ tuỳ ý
+                                            Toast.makeText(this, "Đổi mật khẩu thành công ✅", Toast.LENGTH_SHORT).show()
+                                            // ➡️ Quay về Login hoặc trang chủ tuỳ ý
                                             auth.signOut()
                                             val intent = Intent(this, LoginActivity::class.java)
                                             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

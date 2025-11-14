@@ -1,8 +1,17 @@
 package com.tdc.nhom6.roomio.models
 
 data class BankInfo(
-    var bankName: String = "",
-    var bankAccount: String = "",
-    var accountHolder: String = "",
-    var linkedAt: String = ""
+    val account_holder: String? = null,
+
+    val account_number: String? = null,
+
+    val bank_code: String? = null,
+
+    val bank_name: String? = null,
+
+    val default: Boolean = false,
+
+    val linked_at: String? = null,
+
+    val logo_url: String? = null
 )

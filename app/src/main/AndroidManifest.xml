@@ -2,7 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:ignore="ScopedStorage" />
 
     <application
         android:allowBackup="true"
@@ -14,6 +23,33 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Roomio"
         tools:targetApi="31">
+        <activity
+            android:name=".activities.AdminHomeActivity"
+            android:exported="true" />
+        <activity
+            android:name=".activities.AdminAccountManagerActivity"
+            android:exported="true" />
+        <activity
+            android:name=".activities.AdminHotelManagerActivity"
+            android:exported="true" />
+        <activity
+            android:name=".activities.HotelFacilitiesActivity"
+            android:exported="true" />
+        <activity
+            android:name=".activities.HotelServicesActivity"
+            android:exported="true" />
+        <activity
+            android:name=".activities.AdminListHotelRequestActivity"
+            android:exported="true" />
+        <activity
+            android:name=".activities.HotelApprovalActivity"
+            android:exported="true" />
+        <activity
+            android:name=".activities.BusinessRegistrationActivity"
+            android:exported="true" />
+        <activity
+            android:name=".activities.ApproverPaymentActivity"
+            android:exported="true" />
         <activity
             android:name=".activities.ManageBanksActivity"
             android:exported="false" />

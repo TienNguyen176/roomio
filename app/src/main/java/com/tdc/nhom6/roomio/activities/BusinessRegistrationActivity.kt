@@ -15,6 +15,7 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
@@ -39,6 +40,9 @@ class BusinessRegistrationActivity : AppCompatActivity() {
     private var hotelTypes: MutableList<HotelTypeModel> = mutableListOf()
     private var selectedHotelTypeId: String? = null
     private var selectedType = ""
+
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    var userId = ""
 
     private var cameraImageUri: Uri? = null
 
@@ -76,6 +80,13 @@ class BusinessRegistrationActivity : AppCompatActivity() {
         setSupportActionBar(binding.appbar.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = getString(R.string.app_bar_title_dang_ky_kinh_doanh)
+
+        if (currentUser != null) {
+            userId = currentUser.uid
+            println("User ID: $userId")
+        } else {
+            println("Chưa có người dùng đăng nhập")
+        }
 
         loadHotelTypes()
         setEvent()
@@ -270,7 +281,6 @@ class BusinessRegistrationActivity : AppCompatActivity() {
 
     // --- SEND DATA ---
     private fun sendData() {
-        val userId = "GEpvIiRB4RX4hBowuMp12WJej852" // Replace with FirebaseAuth
         val userName = binding.edtHoTen.text.toString().trim()
         val cccdNumber = binding.edtCCCD.text.toString().trim()
         val birthDate = binding.edtNamSinh.text.toString().trim()

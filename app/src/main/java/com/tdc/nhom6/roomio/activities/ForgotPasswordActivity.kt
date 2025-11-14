@@ -33,7 +33,7 @@ class ForgotPasswordActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Gửi link reset mật khẩu
+            // ✅ Gửi link reset mật khẩu
             auth.sendPasswordResetEmail(email)
                 .addOnSuccessListener {
                     Toast.makeText(
@@ -42,7 +42,7 @@ class ForgotPasswordActivity : AppCompatActivity() {
                         Toast.LENGTH_LONG
                     ).show()
 
-                    //  Chuyển sang màn hình "Đang chờ xác minh"
+                    // ➡️ Chuyển sang màn hình "Đang chờ xác minh"
                     val intent = Intent(this, ResetPasswordActivity::class.java)
                     intent.putExtra("email", email)
                     startActivity(intent)
