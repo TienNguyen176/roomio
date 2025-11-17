@@ -22,4 +22,20 @@ object RetrofitClient {
             .build()
             .create(CloudinaryApi::class.java)
     }
+
+    fun createFCMClient(): FCMApi {
+        val okHttpClient = OkHttpClient.Builder()
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .build()
+
+        return Retrofit.Builder()
+            .baseUrl("http://192.168.0.101/fcm_roomio_server/") // URL VPS Windows
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(FCMApi::class.java)
+    }
 }
