@@ -19,8 +19,10 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.activities.AdminHomeActivity
 import com.tdc.nhom6.roomio.activities.AdminHotelActivity
+import com.tdc.nhom6.roomio.activities.CleanerActivity
 import com.tdc.nhom6.roomio.activities.EditProfileActivity
 import com.tdc.nhom6.roomio.activities.LoginActivity
+import com.tdc.nhom6.roomio.activities.ReceptionActivity
 import com.tdc.nhom6.roomio.databinding.ProfileLayoutBinding
 import com.tdc.nhom6.roomio.models.User
 
@@ -121,16 +123,16 @@ class ProfileFragment : Fragment() {
                     startActivity(Intent(requireContext(), AdminHotelActivity::class.java))
                     true
                 }
-                /*
+
                 R.id.navLeTan -> {
-                    startActivity(Intent(requireContext(), AdminHomeActivity::class.java))
+                    startActivity(Intent(requireContext(), ReceptionActivity::class.java))
                     true
                 }
                 R.id.navDonPhong -> {
-                    startActivity(Intent(requireContext(), AdminHomeActivity::class.java))
+                    startActivity(Intent(requireContext(), CleanerActivity::class.java))
                     true
                 }
-                */
+
                 else -> false
             }
         }

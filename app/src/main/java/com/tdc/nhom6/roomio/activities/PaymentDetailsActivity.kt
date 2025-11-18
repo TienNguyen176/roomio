@@ -90,14 +90,11 @@ class PaymentDetailsActivity : AppCompatActivity() {
         }
         val guestLabel = if (guestsCount > 0) "$guestsCount people" else "-"
         findViewById<TextView>(R.id.tvNightPeople).text = "Night: $nightLabel - $guestLabel"
-
         findViewById<TextView>(R.id.tvRoomPrice).text = "Room price/night: ${formatCurrency(roomPrice)}"
         findViewById<TextView>(R.id.tvExtraFee).text = "Extra fee: ${formatCurrency(extraFee)}"
-        findViewById<TextView>(R.id.tvCleaningFee).text = "Cleaning fee: ${formatCurrency(cleaningFee)}"
         findViewById<TextView>(R.id.tvDiscount).text = "Discount/ voucher: $discount"
         findViewById<TextView>(R.id.tvTotalAmount).text = "Total amount: ${formatCurrency(totalAmount)}"
         findViewById<TextView>(R.id.tvGuestPay).text = "Guest pay: ${formatCurrency(totalAmount)}"
-
         findViewById<TextView>(R.id.tvGrandTotal).text = "Total amount: ${formatCurrency(totalAmount)}"
 
         requiredAmount = totalAmount

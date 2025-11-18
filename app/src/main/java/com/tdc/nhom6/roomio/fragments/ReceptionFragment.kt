@@ -22,9 +22,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Locale
+import com.tdc.nhom6.roomio.adapters.ReservationAdapter
 import com.tdc.nhom6.roomio.models.HeaderColor
 import com.tdc.nhom6.roomio.models.ReservationStatus
-import com.tdc.nhom6.roomio.utils.ReservationColorHelper
+import com.tdc.nhom6.roomio.models.ReservationUi
 
 class ReceptionFragment : Fragment() {
     private lateinit var reservationAdapter: ReservationAdapter
@@ -36,6 +37,7 @@ class ReceptionFragment : Fragment() {
     private var invoicesListener: ListenerRegistration? = null
     private val reservationMeta = mutableMapOf<String, ReservationMeta>()
     private val invoiceDocuments = mutableMapOf<String, InvoiceDocInfo>()
+    private val reservationDisplayCodes = mutableMapOf<String, String>()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -102,6 +104,7 @@ class ReceptionFragment : Fragment() {
         activeJobs.forEach { it.cancel() }
         activeJobs.clear()
         reservationMeta.clear()
+        reservationDisplayCodes.clear()
     }
 
     private fun startListeningBookings() {
@@ -269,7 +272,7 @@ class ReceptionFragment : Fragment() {
                                 status == ReservationStatus.COMPLETED -> HeaderColor.GREEN
                                 status == ReservationStatus.PENDING -> HeaderColor.YELLOW
                                 bookingHasCheckedIn -> HeaderColor.GREEN
-                                else -> HeaderColor.YELLOW
+                                else -> HeaderColor.BLUE
                             }
                             val badgeInitial = when {
                                 isCanceled -> "Cancelled"
@@ -301,6 +304,7 @@ class ReceptionFragment : Fragment() {
                             val ui = ReservationUi(
                                 documentId = documentId,
                                 reservationId = reservationId,
+                                displayReservationCode = getOrCreateDisplayCode(documentId),
                                 badge = badgeInitial,
                                 line1 = line1,
                                 line2 = line2,
@@ -324,6 +328,22 @@ class ReceptionFragment : Fragment() {
                             )
                             updated.add(ui)
                             val uiIndex = updated.lastIndex
+
+                            reservationMeta[documentId] = ReservationMeta(
+                                documentId = documentId,
+                                reservationId = reservationId,
+                                statusStr = statusStr,
+                                baseStatus = status,
+                                isCanceled = isCanceled,
+                                hasCheckedIn = bookingHasCheckedIn,
+                                hasCheckedOut = bookingHasCheckedOut,
+                                totalFinal = totalFinal,
+                                invoiceKeys = invoiceKeys.toSet(),
+                                roomTypeId = roomTypeId,
+                                hotelId = doc.getString("hotelId"),
+                                guestPhone = doc.getString("guestPhone"),
+                                guestEmail = doc.getString("guestEmail")
+                            )
                             
                             if (customerIdRaw != null) {
                                 // Resolve guest name concurrently; bind by index to avoid wrong item updates
@@ -480,6 +500,7 @@ class ReceptionFragment : Fragment() {
                     if (viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
                         val currentDocIds = updated.map { it.documentId }.toSet()
                         reservationMeta.keys.retainAll(currentDocIds)
+                        reservationDisplayCodes.keys.retainAll(currentDocIds)
                         allReservations.clear()
                         allReservations.addAll(updated)
                         applyInvoiceDataToReservations(forceFilter = true)
@@ -620,15 +641,13 @@ class ReceptionFragment : Fragment() {
             else -> "Payment"
         }
  
-        // Determine header color using ReservationColorHelper for payment-based colors
         val headerColor = when {
             finalStatus == ReservationStatus.CANCELED -> HeaderColor.RED
+            paymentStatus == PaymentStatus.FULL -> HeaderColor.GREEN
+            paymentStatus == PaymentStatus.PARTIAL -> HeaderColor.BLUE
             finalStatus == ReservationStatus.COMPLETED -> HeaderColor.GREEN
-            action == "Payment" -> HeaderColor.YELLOW // If action is payment, it's yellow
-            else -> {
-                // Use ReservationColorHelper to determine color based on payment amount
-                ReservationColorHelper.getColorByPaymentStatus(amountPaid, meta.totalFinal)
-            }
+            action.equals("payment", ignoreCase = true) -> HeaderColor.YELLOW
+            else -> HeaderColor.BLUE
         }
 
         val badge = when {
@@ -745,6 +764,16 @@ class ReceptionFragment : Fragment() {
         }
     }
 
+    private fun getOrCreateDisplayCode(documentId: String): String {
+        return reservationDisplayCodes.getOrPut(documentId) {
+            formatReservationCode(reservationDisplayCodes.size + 1)
+        }
+    }
+
+    private fun formatReservationCode(number: Int): String {
+        return String.format(Locale.US, "RIO-%03d", number.coerceAtLeast(1))
+    }
+
     private fun setupTabs(view: View) {
         val tabAll = view.findViewById<android.widget.TextView>(R.id.tabAll)
         val tabUncompleted = view.findViewById<android.widget.TextView>(R.id.tabUncompleted)
@@ -840,6 +869,7 @@ class ReceptionFragment : Fragment() {
                 val lowerQuery = query
                 val textMatches = listOf(
                     reservation.reservationId,
+                    reservation.displayReservationCode,
                     reservation.line1,
                     reservation.line2,
                     reservation.line3,
@@ -884,11 +914,81 @@ class ReceptionFragment : Fragment() {
     }
 
     private fun placeholderItems(): List<ReservationUi> = listOf(
-        ReservationUi(documentId = "doc-R8ZZPQR7", reservationId = "R8ZZPQR7", badge = "Deposit paid", line1 = "Check-in: 20/09/1025 - Check-out: 22/09/2025", line2 = "", line3 = "Guest name: Harper", action = "Check-in", headerColor = HeaderColor.BLUE, status = ReservationStatus.UNCOMPLETED, numberGuest = 2, roomType = "Deluxe", cleaningCompletedAtMillis = null),
-        ReservationUi(documentId = "doc-R8ZZPQR8", reservationId = "R8ZZPQR8", badge = "Paid", line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025", line2 = "", line3 = "Guest name: Lily", action = "Check-out", headerColor = HeaderColor.GREEN, status = ReservationStatus.UNCOMPLETED, numberGuest = 3, roomType = "Suite", cleaningCompletedAtMillis = null),
-        ReservationUi(documentId = "doc-R8ZZPQR9", reservationId = "R9ZZPQR9", badge = "", line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025", line2 = "", line3 = "Guest name: Cap", action = "Payment", headerColor = HeaderColor.YELLOW, status = ReservationStatus.PENDING, numberGuest = 1, roomType = "Standard", cleaningCompletedAtMillis = null),
-        ReservationUi(documentId = "doc-R8ZZPQR0", reservationId = "R8ZZPQR0", badge = "Paid", line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025", line2 = "", line3 = "Guest name: Ahri", action = "Check-in", headerColor = HeaderColor.GREEN, status = ReservationStatus.COMPLETED, numberGuest = 4, roomType = "Deluxe", cleaningCompletedAtMillis = null),
-        ReservationUi(documentId = "doc-R9ABC123", reservationId = "R9ABC123", badge = "Cancelled", line1 = "Check-in: 15/09/1025 - check-out: 17/09/2025", line2 = "", line3 = "Guest name: Bob", action = "Payment", headerColor = HeaderColor.RED, status = ReservationStatus.CANCELED, numberGuest = 2, roomType = "Standard", cleaningCompletedAtMillis = null)
+        ReservationUi(
+            documentId = "doc-R8ZZPQR7",
+            reservationId = "R8ZZPQR7",
+            displayReservationCode = formatReservationCode(1),
+            badge = "Deposit paid",
+            line1 = "Check-in: 20/09/1025 - Check-out: 22/09/2025",
+            line2 = "",
+            line3 = "Guest name: Harper",
+            action = "Check-in",
+            headerColor = HeaderColor.BLUE,
+            status = ReservationStatus.UNCOMPLETED,
+            numberGuest = 2,
+            roomType = "Deluxe",
+            cleaningCompletedAtMillis = null
+        ),
+        ReservationUi(
+            documentId = "doc-R8ZZPQR8",
+            reservationId = "R8ZZPQR8",
+            displayReservationCode = formatReservationCode(2),
+            badge = "Paid",
+            line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025",
+            line2 = "",
+            line3 = "Guest name: Lily",
+            action = "Check-out",
+            headerColor = HeaderColor.GREEN,
+            status = ReservationStatus.UNCOMPLETED,
+            numberGuest = 3,
+            roomType = "Suite",
+            cleaningCompletedAtMillis = null
+        ),
+        ReservationUi(
+            documentId = "doc-R8ZZPQR9",
+            reservationId = "R9ZZPQR9",
+            displayReservationCode = formatReservationCode(3),
+            badge = "",
+            line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025",
+            line2 = "",
+            line3 = "Guest name: Cap",
+            action = "Payment",
+            headerColor = HeaderColor.YELLOW,
+            status = ReservationStatus.PENDING,
+            numberGuest = 1,
+            roomType = "Standard",
+            cleaningCompletedAtMillis = null
+        ),
+        ReservationUi(
+            documentId = "doc-R8ZZPQR0",
+            reservationId = "R8ZZPQR0",
+            displayReservationCode = formatReservationCode(4),
+            badge = "Paid",
+            line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025",
+            line2 = "",
+            line3 = "Guest name: Ahri",
+            action = "Check-in",
+            headerColor = HeaderColor.GREEN,
+            status = ReservationStatus.COMPLETED,
+            numberGuest = 4,
+            roomType = "Deluxe",
+            cleaningCompletedAtMillis = null
+        ),
+        ReservationUi(
+            documentId = "doc-R9ABC123",
+            reservationId = "R9ABC123",
+            displayReservationCode = formatReservationCode(5),
+            badge = "Cancelled",
+            line1 = "Check-in: 15/09/1025 - check-out: 17/09/2025",
+            line2 = "",
+            line3 = "Guest name: Bob",
+            action = "Payment",
+            headerColor = HeaderColor.RED,
+            status = ReservationStatus.CANCELED,
+            numberGuest = 2,
+            roomType = "Standard",
+            cleaningCompletedAtMillis = null
+        )
     )
 }
 
@@ -923,324 +1023,3 @@ private data class PaymentUiState(
 private enum class PaymentStatus {
     NONE, PARTIAL, FULL
 }
-
-data class ReservationUi(
-    val documentId: String,
-    val reservationId: String,
-    val badge: String,
-    val line1: String,
-    val line2: String,
-    val line3: String,
-    val action: String,
-    val headerColor: HeaderColor,
-    val status: ReservationStatus = ReservationStatus.UNCOMPLETED,
-    val numberGuest: Int = 1,
-    val roomType: String = "",
-    val roomTypeId: String? = null,
-    val hotelId: String? = null,
-    val guestPhone: String? = null,
-    val guestEmail: String? = null,
-    val totalFinalAmount: Double = 0.0,
-    val checkInText: String = "",
-    val checkOutText: String = "",
-    val checkInMillis: Long? = null,
-    val checkOutMillis: Long? = null,
-    val discountLabel: String = "-",
-    val cleaningCompletedAtMillis: Long? = null
-)
-
-
-class ReservationAdapter(private val items: MutableList<ReservationUi>) : RecyclerView.Adapter<ReservationViewHolder>() {
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ReservationViewHolder {
-        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_reservation_card, parent, false)
-        return ReservationViewHolder(v) { position ->
-            val current = items[position]
-            // Don't allow any actions on canceled or completed reservations
-            if (current.status == ReservationStatus.CANCELED || current.status == ReservationStatus.COMPLETED) {
-                return@ReservationViewHolder
-            }
-            // Don't allow payment action if cleaning hasn't been completed yet
-            if (current.action.lowercase() == "payment" && current.cleaningCompletedAtMillis == null) {
-                android.widget.Toast.makeText(v.context, "Please wait for cleaning to be completed", android.widget.Toast.LENGTH_SHORT).show()
-                return@ReservationViewHolder
-            }
-            when (current.action.lowercase()) {
-                "check-in" -> showCheckInDialog(v, position)
-                "check-out" -> showCheckOutDialog(v, position)
-                "payment" -> showPaymentDialog(v, position)
-                else -> advanceState(position)
-            }
-        }
-    }
-    override fun getItemCount() = items.size
-    override fun onBindViewHolder(holder: ReservationViewHolder, position: Int) = holder.bind(items[position])
-    
-    fun updateData(newItems: List<ReservationUi>) {
-        items.clear()
-        items.addAll(newItems)
-        notifyDataSetChanged()
-    }
-
-    private fun advanceState(position: Int) {
-        val current = items[position]
-        val next = when (current.action.lowercase()) {
-            "check-in" -> current.copy(
-                badge = current.badge.ifBlank { "" },
-                action = "Check-out",
-                headerColor = HeaderColor.GREEN,
-                status = ReservationStatus.UNCOMPLETED
-            )
-            "check-out" -> current.copy(
-                badge = "Pending payment",
-                action = "Payment",
-                headerColor = HeaderColor.YELLOW,
-                status = ReservationStatus.PENDING
-            )
-            else -> current
-        }
-        if (next !== current) {
-            items[position] = next
-            notifyItemChanged(position)
-        }
-    }
-
-    private fun showCheckInDialog(anchorView: View, position: Int) {
-        val ctx = anchorView.context
-        val dialogView = LayoutInflater.from(ctx).inflate(R.layout.dialog_check_in, null, false)
-        val etDateTime = dialogView.findViewById<android.widget.EditText>(R.id.etDateTime)
-        val etGuests = dialogView.findViewById<android.widget.EditText>(R.id.etGuests)
-        val btnMinus = dialogView.findViewById<android.widget.Button>(R.id.btnMinus)
-        val btnPlus = dialogView.findViewById<android.widget.Button>(R.id.btnPlus)
-        val btnOk = dialogView.findViewById<android.widget.Button>(R.id.btnOk)
-        val btnCancel = dialogView.findViewById<android.widget.Button>(R.id.btnCancel)
-
-        val formatter = java.text.SimpleDateFormat("HH:mm:ss/dd/MM/yyyy", java.util.Locale.getDefault())
-        val handler = android.os.Handler(android.os.Looper.getMainLooper())
-        val tick = object : Runnable {
-            override fun run() {
-                etDateTime.setText(formatter.format(java.util.Date()))
-                handler.postDelayed(this, 1000)
-            }
-        }
-        handler.post(tick)
-        val reservedGuests = items.getOrNull(position)?.numberGuest?.coerceAtLeast(1) ?: 1
-        etGuests.setText(reservedGuests.toString())
-
-        btnMinus.setOnClickListener {
-            val n = (etGuests.text.toString().toIntOrNull() ?: 1).coerceAtLeast(1)
-            etGuests.setText((n - 1).coerceAtLeast(1).toString())
-        }
-        btnPlus.setOnClickListener {
-            val n = etGuests.text.toString().toIntOrNull() ?: 1
-            etGuests.setText((n + 1).toString())
-        }
-
-        val alert = AlertDialog.Builder(ctx)
-            .setView(dialogView)
-            .create()
-
-        alert.setOnDismissListener {
-            try { handler.removeCallbacksAndMessages(null) } catch (_: Exception) {}
-        }
-
-        btnOk.setOnClickListener {
-            // Get the actual date/time from the dialog
-            val dateTimeText = etDateTime.text.toString()
-            val actualCheckInTime = try {
-                // Parse the date/time from format "HH:mm:ss/dd/MM/yyyy"
-                val formatter = java.text.SimpleDateFormat("HH:mm:ss/dd/MM/yyyy", java.util.Locale.getDefault())
-                val date = formatter.parse(dateTimeText)
-                date?.time ?: System.currentTimeMillis()
-            } catch (e: Exception) {
-                System.currentTimeMillis() // Fallback to current time if parsing fails
-            }
-            
-            // Advance state after confirmation
-            advanceState(position)
-            // Persist to Firestore: status = checked_in and save actual check-in date/time
-            try {
-                val docId = items[position].documentId
-                Firebase.firestore.collection("bookings").document(docId)
-                    .update(
-                        mapOf(
-                            "status" to "checked_in",
-                            "checkInDateActual" to actualCheckInTime
-                        )
-                    )
-            } catch (_: Exception) { }
-            alert.dismiss()
-        }
-        btnCancel.setOnClickListener {
-            alert.dismiss() 
-        }
-
-        alert.show()
-    }
-
-    private fun showCheckOutDialog(anchorView: View, position: Int) {
-        val ctx = anchorView.context
-        val dialogView = LayoutInflater.from(ctx).inflate(R.layout.dialog_check_out, null, false)
-        val btnConfirm = dialogView.findViewById<android.widget.Button>(R.id.btnConfirm)
-        val btnCancel = dialogView.findViewById<android.widget.Button>(R.id.btnCancel)
-        
-        // Get current date/time for check-out
-        val actualCheckOutTime = System.currentTimeMillis()
-
-        val alert = AlertDialog.Builder(ctx)
-            .setView(dialogView)
-            .create()
-
-        btnConfirm.setOnClickListener {
-            val current = items[position]
-            val next = current.copy(
-                badge = "Pending payment",
-                action = "Payment",
-                headerColor = HeaderColor.YELLOW,
-                status = ReservationStatus.PENDING
-            )
-            items[position] = next
-            notifyItemChanged(position)
-            try {
-                val docId = items[position].documentId
-                Firebase.firestore.collection("bookings").document(docId)
-                    .update(
-                        mapOf(
-                            "status" to "pending_payment",
-                            "checkOutDateActual" to actualCheckOutTime
-                        )
-                    )
-                    .addOnSuccessListener {
-                        android.util.Log.d("Reception", "Checkout updated for $docId")
-                    }
-                    .addOnFailureListener { error ->
-                        android.util.Log.e("Reception", "Failed to update checkout for $docId", error)
-                        android.widget.Toast.makeText(ctx, "Failed to update checkout", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-            } catch (e: Exception) {
-                android.util.Log.e("Reception", "Exception updating checkout", e)
-            }
-            alert.dismiss()
-        }
-        btnCancel.setOnClickListener {
-            alert.dismiss()
-        }
-
-        alert.show()
-    }
-
-    private fun showPaymentDialog(anchorView: View, position: Int) {
-        val ctx = anchorView.context
-        val dialogView = LayoutInflater.from(ctx).inflate(R.layout.dialog_payment, null, false)
-        val btnConfirm = dialogView.findViewById<android.widget.Button>(R.id.btnConfirm)
-        val btnCancel = dialogView.findViewById<android.widget.Button>(R.id.btnCancel)
-
-        val alert = AlertDialog.Builder(ctx)
-            .setView(dialogView)
-            .create()
-
-        btnConfirm.setOnClickListener {
-            // Advance state after confirmation
-            advanceState(position)
-            // Navigate to service extra fee screen with guest info
-            try {
-                val current = items[position]
-                val roomId = current.reservationId
-                val intent = Intent(ctx, ServiceExtraFeeActivity::class.java)
-                intent.putExtra("ROOM_ID", roomId)
-                intent.putExtra("RESERVATION_ID", current.reservationId)
-                // Parse from lines when possible
-                // line3 format: "Guest name: XYZ" (fallback to raw line)
-                val guestName = current.line3.substringAfter(":", current.line3).trim()
-                intent.putExtra("GUEST_NAME", guestName)
-                intent.putExtra("GUEST_PHONE", current.guestPhone ?: "")
-                intent.putExtra("GUEST_EMAIL", current.guestEmail ?: "")
-                intent.putExtra("CHECK_IN_TEXT", current.checkInText)
-                intent.putExtra("CHECK_OUT_TEXT", current.checkOutText)
-                intent.putExtra("CHECK_IN", current.checkInText)
-                intent.putExtra("CHECK_OUT", current.checkOutText)
-                intent.putExtra("CHECK_IN_MILLIS", current.checkInMillis ?: -1L)
-                intent.putExtra("CHECK_OUT_MILLIS", current.checkOutMillis ?: -1L)
-                intent.putExtra("RESERVATION_AMOUNT", current.totalFinalAmount)
-                intent.putExtra("BOOKING_ID", current.documentId)
-                intent.putExtra("ROOM_TYPE_ID", current.roomTypeId ?: "")
-                intent.putExtra("HOTEL_ID", current.hotelId ?: "")
-                intent.putExtra("ROOM_TYPE_NAME", current.roomType)
-                intent.putExtra("DISCOUNT_LABEL", current.discountLabel)
-                intent.putExtra("GUESTS_COUNT", current.numberGuest)
-                ctx.startActivity(intent)
-                val docId = items[position].documentId
-                Firebase.firestore.collection("bookings").document(docId)
-                    .update("status", "pending_payment")
-            } catch (_: Exception) { }
-            alert.dismiss()
-        }
-        btnCancel.setOnClickListener {
-            alert.dismiss()
-        }
-
-        alert.show()
-    }
-}
-
-class ReservationViewHolder(view: View, private val onActionClick: (Int) -> Unit) : RecyclerView.ViewHolder(view) {
-    private val header: View = view.findViewById(R.id.header)
-    private val tvReservationId: android.widget.TextView = view.findViewById(R.id.tvReservationId)
-    private val tvStatusBadge: android.widget.TextView = view.findViewById(R.id.tvStatusBadge)
-    private val tvLine1: android.widget.TextView = view.findViewById(R.id.tvLine1)
-    private val tvLine3: android.widget.TextView = view.findViewById(R.id.tvLine3)
-    private val tvNumberGuest: android.widget.TextView = view.findViewById(R.id.tvNumberGuest)
-    private val tvRoomType: android.widget.TextView = view.findViewById(R.id.tvRoomType)
-    private val btnAction: android.widget.TextView = view.findViewById(R.id.btnAction)
-
-    fun bind(item: ReservationUi) {
-        tvReservationId.text = "Reservation ID: ${item.reservationId}"
-        tvStatusBadge.text = item.badge
-        tvLine1.text = item.line1
-        
-        tvLine3.text = item.line3
-        tvNumberGuest.text = "Number of guests: ${item.numberGuest}"
-        tvRoomType.text = "Room type: ${item.roomType.takeIf { it.isNotBlank() } ?: "Room"}"
-        
-        // Check if reservation is canceled or completed
-        val isCanceled = item.status == ReservationStatus.CANCELED
-        val isCompleted = item.status == ReservationStatus.COMPLETED
-        
-        // Check if payment action is disabled (cleaning not completed yet)
-        val isPaymentDisabled = item.action.lowercase() == "payment" && item.cleaningCompletedAtMillis == null
-        
-        // Set button text: "Cancelled" for canceled, "Completed" for completed, otherwise use action
-        btnAction.text = when {
-            isCanceled -> "Cancelled"
-            isCompleted -> "Completed"
-            else -> item.action
-        }
-        
-        // Disable button and make it look frozen for canceled, completed, or payment (when cleaning not done)
-        if (isCanceled || isCompleted || isPaymentDisabled) {
-            btnAction.isEnabled = false
-            btnAction.isClickable = false
-            btnAction.alpha = 0.5f // Make it look disabled/frozen
-            btnAction.setOnClickListener(null) // Remove click listener
-        } else {
-            btnAction.isEnabled = true
-            btnAction.isClickable = true
-            btnAction.alpha = 1.0f
-            btnAction.setOnClickListener {
-                onActionClick(bindingAdapterPosition)
-            }
-        }
-        
-        header.setBackgroundColor(
-            when (item.headerColor) {
-                HeaderColor.BLUE -> android.graphics.Color.parseColor("#D3E7F6")
-                HeaderColor.GREEN -> android.graphics.Color.parseColor("#CDEFD7")
-                HeaderColor.YELLOW -> android.graphics.Color.parseColor("#F7E7A8")
-                HeaderColor.RED -> android.graphics.Color.parseColor("#841919") //
-            }
-        )
-    }
-}
-
-
-
-
