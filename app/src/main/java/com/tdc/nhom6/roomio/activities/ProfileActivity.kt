@@ -14,7 +14,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.databinding.ProfileLayoutBinding
 import com.tdc.nhom6.roomio.models.User
@@ -27,10 +29,13 @@ class ProfileActivity : AppCompatActivity() {
     private val prefs by lazy { getSharedPreferences("user_prefs", MODE_PRIVATE) }
 
     private var userRoleId: String = "user"
-    private var roleName: String = "User"
+    private var roleName: String = "Người Dùng"
+    private var userRef: DocumentReference? = null
+    private var userListener: ListenerRegistration? = null
+    private var roleListener: ListenerRegistration? = null
 
     private var isBalanceVisible = true
-    private var currentBalance: Long = 0L
+    private var currentBalance: Double = 0.0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,14 +45,28 @@ class ProfileActivity : AppCompatActivity() {
         setSupportActionBar(binding.topAppBar)
         supportActionBar?.title = "Roomio"
 
-        checkSession()
+        // Hiển thị mặc định
+        binding.tvRank.text = "Người Dùng"
+        updateRoleUI("user")
+        animateRoleColor("user")
+
         setupActions()
         setupWalletToggle()
+        checkSession()
+    }
+    override fun onStart() {
+        super.onStart()
+        checkSession() // đảm bảo listener luôn active
+    }
+    override fun onStop() {
+        super.onStop()
+        userListener?.remove()
+        userListener = null
+        roleListener?.remove()
+        roleListener = null
     }
 
-    /**
-     * ✅ Kiểm tra phiên đăng nhập hợp lệ
-     */
+    // ================= Firestore =================
     private fun checkSession() {
         val firebaseUser = auth.currentUser
         val savedUid = prefs.getString("uid", null)
@@ -59,13 +78,62 @@ class ProfileActivity : AppCompatActivity() {
             return
         }
 
-        loadUserData()
-        loadWalletData()
+        val uid = firebaseUser?.uid ?: savedUid!!
+        listenUserRealtime(uid)
     }
 
-    /**
-     * 👁 Ẩn / hiện số dư ví
-     */
+    private fun listenUserRealtime(uid: String) {
+        userRef = db.collection("users").document(uid)
+        userListener = userRef?.addSnapshotListener { doc, e ->
+            if (e != null || doc == null || !doc.exists()) return@addSnapshotListener
+            val user = doc.toObject(User::class.java) ?: return@addSnapshotListener
+
+            // Username
+            binding.tvUsername.text = user.username.ifEmpty { "Người dùng" }
+
+            // Avatar
+            if (user.avatar.isNotEmpty()) {
+                Glide.with(this).load(user.avatar).circleCrop()
+                    .placeholder(R.drawable.user)
+                    .into(binding.imgAvatar)
+            } else binding.imgAvatar.setImageResource(R.drawable.user)
+
+            // Wallet realtime
+            currentBalance = doc.getDouble("walletBalance") ?: 0.0
+            binding.tvBalance.text = if (isBalanceVisible) formatMoney(currentBalance) else "•••••••••"
+
+            // Role realtime
+            val newRoleId = user.roleId.ifEmpty { "user" }
+            if (newRoleId != userRoleId) {
+                userRoleId = newRoleId
+                listenRoleRealtime(userRoleId)
+            }
+
+            //LUÔN GỌI LẠI LISTENER ROLE
+//            listenRoleRealtime(userRoleId)
+
+        }
+    }
+
+    private fun listenRoleRealtime(roleId: String) {
+        roleListener?.remove()
+        val roleRef = db.collection("userRoles").document(roleId)
+
+        roleListener = roleRef.addSnapshotListener { doc, e ->
+            if (e != null) return@addSnapshotListener
+
+            val newRoleName = doc?.getString("role_name") ?: roleId.replaceFirstChar { it.uppercase() }
+            if (roleName != newRoleName) {
+                roleName = newRoleName
+                binding.tvRank.text = roleName
+                updateRoleUI(roleId)
+                animateRoleColor(roleId)
+                invalidateOptionsMenu()
+            }
+        }
+    }
+
+    // ================= Wallet =================
     private fun setupWalletToggle() {
         binding.imgEye.setOnClickListener {
             isBalanceVisible = !isBalanceVisible
@@ -79,100 +147,27 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * ⚙️ Xử lý các nút bấm
-     */
+    // ================= UI Actions =================
     private fun setupActions() {
         binding.showProfile.setOnClickListener {
-            val intent = Intent(this, EditProfileActivity::class.java)
-            startActivityForResult(intent, 100)
+            startActivityForResult(Intent(this, EditProfileActivity::class.java), 100)
         }
 
         binding.btnSignOut.setOnClickListener {
-            // ✅ Đăng xuất hoàn toàn
             auth.signOut()
             prefs.edit().clear().apply()
-
-            Toast.makeText(this, "Đã đăng xuất thành công", Toast.LENGTH_SHORT).show()
             val intent = Intent(this, LoginActivity::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
             finish()
         }
+
+        binding.userBank.setOnClickListener {
+            startActivity(Intent(this, ManageBanksActivity::class.java))
+        }
     }
 
-    /**
-     * 📥 Tải dữ liệu người dùng
-     */
-    private fun loadUserData() {
-        val uid = auth.currentUser?.uid ?: prefs.getString("uid", null) ?: return
-
-        db.collection("users").document(uid)
-            .get()
-            .addOnSuccessListener { doc ->
-                if (doc.exists()) {
-                    val user = doc.toObject(User::class.java)
-                    if (user != null) {
-                        binding.tvUsername.text = user.username.ifEmpty { "Người dùng" }
-
-                        // Ảnh đại diện
-                        if (user.avatar.isNotEmpty()) {
-                            Glide.with(this)
-                                .load(user.avatar)
-                                .circleCrop()
-                                .placeholder(R.drawable.user)
-                                .into(binding.imgAvatar)
-                        } else {
-                            binding.imgAvatar.setImageResource(R.drawable.user)
-                        }
-
-                        userRoleId = user.roleId.ifEmpty { "user" }
-
-                        // Lấy thông tin vai trò
-                        db.collection("userRoles").document(userRoleId)
-                            .get()
-                            .addOnSuccessListener { roleDoc ->
-                                roleName = roleDoc.getString("role_name") ?: userRoleId.capitalize()
-                                binding.tvRank.text = roleName
-                                updateRoleUI(userRoleId)
-                                animateRoleColor(userRoleId)
-                                invalidateOptionsMenu()
-                            }
-                            .addOnFailureListener {
-                                binding.tvRank.text = "User"
-                                updateRoleUI("user")
-                                animateRoleColor("user")
-                            }
-                    }
-                } else {
-                    Toast.makeText(this, "Không tìm thấy thông tin người dùng", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Lỗi tải dữ liệu: ${it.message}", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    /**
-     * 💰 Tải số dư ví
-     */
-    private fun loadWalletData() {
-        val uid = auth.currentUser?.uid ?: prefs.getString("uid", null) ?: return
-        db.collection("users").document(uid)
-            .get()
-            .addOnSuccessListener { doc ->
-                currentBalance = doc.getLong("balance") ?: 0L
-                binding.tvBalance.text =
-                    if (isBalanceVisible) formatMoney(currentBalance) else "•••••••••"
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Lỗi tải ví: ${it.message}", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    /**
-     * 🎨 Cập nhật giao diện vai trò
-     */
+    // ================= Role UI =================
     private fun updateRoleUI(roleId: String) {
         val colorRes = when (roleId.lowercase()) {
             "admin" -> R.color.red
@@ -194,15 +189,10 @@ class ProfileActivity : AppCompatActivity() {
         binding.tvRank.animate()
             .scaleX(1.1f).scaleY(1.1f)
             .setDuration(250)
-            .withEndAction {
-                binding.tvRank.animate().scaleX(1f).scaleY(1f).duration = 250
-            }
+            .withEndAction { binding.tvRank.animate().scaleX(1f).scaleY(1f).duration = 250 }
             .start()
     }
 
-    /**
-     * 🌈 Hiệu ứng chuyển màu mượt cho role
-     */
     private fun animateRoleColor(roleId: String) {
         val colorMap = mapOf(
             "admin" to Color.parseColor("#FF4C4C"),
@@ -227,30 +217,28 @@ class ProfileActivity : AppCompatActivity() {
         colorAnim.start()
     }
 
-    private fun formatMoney(amount: Long): String {
-        return String.format("%,d VNĐ", amount).replace(",", ".")
-    }
-
+    // ================= Menu =================
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         if (userRoleId == "user") return false
-
         menuInflater.inflate(R.menu.menu_top_profile, menu)
-        menu?.findItem(R.id.navAdmin)?.isVisible = false
-        menu?.findItem(R.id.navChuKS)?.isVisible = false
-        menu?.findItem(R.id.navLeTan)?.isVisible = false
-        menu?.findItem(R.id.navDonPhong)?.isVisible = false
-        menu?.findItem(R.id.navXuLy)?.isVisible = false
-
-        when (userRoleId) {
-            "admin" -> menu?.findItem(R.id.navAdmin)?.isVisible = true
-            "owner" -> menu?.findItem(R.id.navChuKS)?.isVisible = true
-            "letan" -> menu?.findItem(R.id.navLeTan)?.isVisible = true
-            "donphong" -> menu?.findItem(R.id.navDonPhong)?.isVisible = true
-            "xulydon" -> menu?.findItem(R.id.navXuLy)?.isVisible = true
-        }
+        menu?.findItem(R.id.navAdmin)?.isVisible = userRoleId == "admin"
+        menu?.findItem(R.id.navChuKS)?.isVisible = userRoleId == "owner"
+        menu?.findItem(R.id.navLeTan)?.isVisible = userRoleId == "letan"
+        menu?.findItem(R.id.navDonPhong)?.isVisible = userRoleId == "donphong"
+        menu?.findItem(R.id.navXuLy)?.isVisible = userRoleId == "xulydon"
         return true
     }
 
+        override fun onOptionsItemSelected(item: MenuItem): Boolean {
+            when (item.itemId) {
+                R.id.navAdmin -> startActivity(Intent(this, AdminHomeActivity::class.java))
+                R.id.navChuKS -> startActivity(Intent(this, AdminHotelActivity::class.java))
+                //R.id.navLeTan -> startActivity(Intent(this, LeTanActivity::class.java))
+                //R.id.navDonPhong -> startActivity(Intent(this, DonPhongActivity::class.java))
+                //R.id.navXuLy -> startActivity(Intent(this, XuLyDonActivity::class.java))
+            }
+            return super.onOptionsItemSelected(item)
+        }
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
 //            R.id.navAdmin -> startActivity(Intent(this, AdminActivity::class.java))
@@ -262,15 +250,23 @@ class ProfileActivity : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
+    // ================= Format =================
+    private fun formatMoney(amount: Double): String = String.format("%,.0f VNĐ", amount).replace(",", ".")
+
+    // ================= onActivityResult =================
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 100 && resultCode == Activity.RESULT_OK) {
-            loadUserData()
-        }
-    }
+            data?.let {
+                val newUsername = it.getStringExtra("username") ?: return
+                val newAvatar = it.getStringExtra("avatar") ?: ""
 
-    override fun onResume() {
-        super.onResume()
-        loadUserData()
+                binding.tvUsername.text = newUsername
+                if (newAvatar.isNotEmpty()) {
+                    Glide.with(this).load(newAvatar).circleCrop().placeholder(R.drawable.user)
+                        .into(binding.imgAvatar)
+                }
+            }
+        }
     }
 }
