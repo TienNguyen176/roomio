@@ -95,11 +95,11 @@
             style="@style/Widget.Roomio.Button.Filled" />
 
         <Button
-            android:id="@+id/btnInvoiceManagement"
+            android:id="@+id/btnDiscount"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
-            android:text="Quản lý hóa đơn"
+            android:text="Mã giảm giá"
             style="@style/Widget.Roomio.Button.Filled" />
 
         <Button
@@ -107,7 +107,7 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
-            android:text="Mã giảm giá"
+            android:text=" Đánh giá"
             style="@style/Widget.Roomio.Button.Filled" />
 
         <Button
