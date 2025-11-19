@@ -28,6 +28,9 @@ object CleanerTaskRepository {
         hotelId: String? = null,
         createdAt: Long = System.currentTimeMillis()
     ) {
+        if (bookingDocId != null && tasksInternal.any { it.bookingDocId == bookingDocId }) {
+            return
+        }
         val displayTime = SimpleDateFormat("d MMM hh.mm a", Locale.getDefault()).format(Date(createdAt))
         val task = CleanerTask(
             id = UUID.randomUUID().toString(),

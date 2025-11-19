@@ -2,6 +2,7 @@ package com.tdc.nhom6.roomio.fragments
 
 import android.os.Bundle
 import android.content.Intent
+import android.widget.Toast
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,11 +13,18 @@ import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.CleanerTaskAdapter
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
 import com.tdc.nhom6.roomio.activities.CleaningInspectionActivity
+import com.google.firebase.firestore.DocumentChange
+import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 
 class CleanerFragment : Fragment() {
     private lateinit var taskAdapter: CleanerTaskAdapter
     private val allTasks = mutableListOf<CleanerTask>()
     private var currentFilter: TaskStatus = TaskStatus.ALL
+    private val firestore by lazy { FirebaseFirestore.getInstance() }
+    private var checkoutListener: ListenerRegistration? = null
+    private val trackedBookingIds = mutableSetOf<String>()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -35,7 +43,7 @@ class CleanerFragment : Fragment() {
         }
         
         // Initialize data (seed once for demo if empty)
-        CleanerTaskRepository.seedIfEmpty(placeholderTasks())
+//        CleanerTaskRepository.seedIfEmpty(placeholderTasks())
         
         // Setup summary cards
         setupSummaryCards(view)
@@ -52,20 +60,89 @@ class CleanerFragment : Fragment() {
             allTasks.addAll(tasks)
             filterTasks()
         }
+
+        startListeningForCheckoutBookings()
     }
 
-    private fun setupSummaryCards(view: View) {
+    override fun onDestroyView() {
+        super.onDestroyView()
+        checkoutListener?.remove()
+        checkoutListener = null
+    }
+
+    private fun startListeningForCheckoutBookings() {
+        checkoutListener?.remove()
+        val statuses = listOf("pending_payment", "checked_out", "checked out")
+        checkoutListener = firestore.collection("bookings")
+            .whereIn("status", statuses)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null || snapshot == null || !isAdded) {
+                    return@addSnapshotListener
+                }
+
+                snapshot.documentChanges.forEach { change ->
+                    val doc = change.document
+                    val bookingId = doc.id
+                    val status = doc.getString("status")?.lowercase()?.trim() ?: ""
+                    val isCheckoutStatus = status == "pending_payment" || status == "checked_out" || status == "checked out"
+
+                    if (!isCheckoutStatus || change.type == DocumentChange.Type.REMOVED) {
+                        trackedBookingIds.remove(bookingId)
+                        return@forEach
+                    }
+
+                    if (trackedBookingIds.contains(bookingId)) {
+                        return@forEach
+                    }
+
+                    trackedBookingIds.add(bookingId)
+
+                    val roomId = doc.getString("roomNumber")
+                        ?: doc.getString("roomId")
+                        ?: doc.getString("room")
+                        ?: doc.getString("roomName")
+                        ?: doc.getString("reservationId")
+                        ?: bookingId
+
+                    val roomTypeId = doc.getString("roomTypeId")
+                        ?: (doc.get("roomTypeRef") as? DocumentReference)?.id
+
+                    val hotelId = doc.getString("hotelId")
+                        ?: (doc.get("hotelRef") as? DocumentReference)?.id
+
+                    CleanerTaskRepository.addDirtyTask(
+                        roomId = roomId,
+                        bookingDocId = bookingId,
+                        roomTypeId = roomTypeId,
+                        hotelId = hotelId
+                    )
+
+                    val reservationLabel = doc.getString("reservationId") ?: roomId
+                    if (isAdded) {
+                        Toast.makeText(requireContext(), "New cleaning task: $reservationLabel", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+    }
+
+    private fun setupSummaryCards(view: View, currentTasks: List<CleanerTask> = allTasks) {
         val tvRoomsToClean = view.findViewById<android.widget.TextView>(R.id.tvRoomsToClean)
         val tvCompleted = view.findViewById<android.widget.TextView>(R.id.tvCompleted)
-        val tvPending = view.findViewById<android.widget.TextView>(R.id.tvPending)
-        
-        val totalRooms = allTasks.size
-        val completed = allTasks.count { it.status == TaskStatus.CLEAN }
-        val pending = allTasks.count { it.status == TaskStatus.DIRTY || it.status == TaskStatus.IN_PROGRESS }
-        
+        val tvInProgressCard = view.findViewById<android.widget.TextView>(R.id.tvPending)
+
+        val totalRooms = currentTasks.size
+        val completed = currentTasks.count { it.status == TaskStatus.CLEAN }
+        val inProgress = currentTasks.count { it.status == TaskStatus.IN_PROGRESS }
+        val pending = currentTasks.count { it.status == TaskStatus.DIRTY }
+
         tvRoomsToClean.text = totalRooms.toString()
         tvCompleted.text = completed.toString()
-        tvPending.text = pending.toString()
+        tvInProgressCard.text = inProgress.toString()
+
+        // Optional: update content description for accessibility with detailed counts
+        tvRoomsToClean.contentDescription = "Total rooms: $totalRooms"
+        tvCompleted.contentDescription = "Completed rooms: $completed"
+        tvInProgressCard.contentDescription = "In progress rooms: $inProgress"
     }
 
     private fun setupTabs(view: View) {
@@ -168,7 +245,7 @@ class CleanerFragment : Fragment() {
         }
         
         taskAdapter.updateData(filtered.toMutableList())
-        updateSummaryCards()
+        setupSummaryCards(requireView(), allTasks)
     }
 
     private fun updateSummaryCards() {
@@ -177,18 +254,18 @@ class CleanerFragment : Fragment() {
         }
     }
 
-    private fun placeholderTasks(): List<CleanerTask> = listOf(
-        CleanerTask("1", "F03-07", TaskStatus.DIRTY, "9th Jun 10.00 am"),
-        CleanerTask("2", "F03-08", TaskStatus.IN_PROGRESS, "9th Jun 11.00 am"),
-        CleanerTask("3", "F03-09", TaskStatus.DIRTY, "9th Jun 12.00 pm"),
-        CleanerTask("4", "F03-10", TaskStatus.CLEAN, "8th Jun 09.00 am"),
-        CleanerTask("5", "F03-11", TaskStatus.DIRTY, "9th Jun 01.00 pm"),
-        CleanerTask("6", "F03-12", TaskStatus.DIRTY, "9th Jun 02.00 pm"),
-        CleanerTask("7", "F03-13", TaskStatus.IN_PROGRESS, "9th Jun 03.00 pm"),
-        CleanerTask("8", "F03-14", TaskStatus.CLEAN, "8th Jun 10.00 am"),
-        CleanerTask("9", "F03-15", TaskStatus.DIRTY, "9th Jun 04.00 pm"),
-        CleanerTask("10", "F03-16", TaskStatus.DIRTY, "9th Jun 05.00 pm")
-    )
+//    private fun placeholderTasks(): List<CleanerTask> = listOf(
+//        CleanerTask("1", "F03-07", TaskStatus.DIRTY, "9th Jun 10.00 am"),
+//        CleanerTask("2", "F03-08", TaskStatus.IN_PROGRESS, "9th Jun 11.00 am"),
+//        CleanerTask("3", "F03-09", TaskStatus.DIRTY, "9th Jun 12.00 pm"),
+//        CleanerTask("4", "F03-10", TaskStatus.CLEAN, "8th Jun 09.00 am"),
+//        CleanerTask("5", "F03-11", TaskStatus.DIRTY, "9th Jun 01.00 pm"),
+//        CleanerTask("6", "F03-12", TaskStatus.DIRTY, "9th Jun 02.00 pm"),
+//        CleanerTask("7", "F03-13", TaskStatus.IN_PROGRESS, "9th Jun 03.00 pm"),
+//        CleanerTask("8", "F03-14", TaskStatus.CLEAN, "8th Jun 10.00 am"),
+//        CleanerTask("9", "F03-15", TaskStatus.DIRTY, "9th Jun 04.00 pm"),
+//        CleanerTask("10", "F03-16", TaskStatus.DIRTY, "9th Jun 05.00 pm")
+//    )
 }
 
 data class CleanerTask(

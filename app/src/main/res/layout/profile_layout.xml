@@ -52,7 +52,7 @@
             android:paddingVertical="6dp"
             android:textColor="@android:color/white"
             android:textStyle="bold"
-            android:hint="Role"
+            android:hint="Người Dùng"
             android:textSize="14sp"
             android:layout_marginTop="8dp"/>
 
@@ -131,6 +131,35 @@
 
                 <!-- Dòng menu 1 -->
                 <LinearLayout
+                    android:id="@+id/userBank"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingVertical="12dp"
+                    android:gravity="center_vertical"
+                    android:background="?attr/selectableItemBackground">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/bank"
+                        android:layout_marginEnd="12dp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Liên kết ngân hàng"
+                        android:textColor="#000000"
+                        android:textSize="16sp" />
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/arrow_right" />
+                </LinearLayout>
+                <!-- Dòng menu 2 -->
+                <LinearLayout
                     android:id="@+id/showProfile"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -159,7 +188,7 @@
                         android:src="@drawable/arrow_right" />
                 </LinearLayout>
 
-                <!-- Dòng menu 2 -->
+                <!-- Dòng menu 3 -->
                 <LinearLayout
                     android:id="@+id/showThongBao"
                     android:layout_width="match_parent"
@@ -188,7 +217,7 @@
                         android:src="@drawable/arrow_right" />
                 </LinearLayout>
 
-                <!-- Dòng menu 3 -->
+                <!-- Dòng menu 4 -->
                 <LinearLayout
                     android:id="@+id/showDieuKhoan"
                     android:layout_width="match_parent"
@@ -217,7 +246,7 @@
                         android:src="@drawable/arrow_right" />
                 </LinearLayout>
 
-                <!-- Dòng menu 4 -->
+                <!-- Dòng menu 5 -->
                 <LinearLayout
                     android:id="@+id/showChinhSach"
                     android:layout_width="match_parent"
@@ -277,6 +306,7 @@
                 android:id="@+id/btnSignOut"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:backgroundTint="#03A9F4"
                 android:text="Đăng xuất"/>
         </LinearLayout>
     </ScrollView>

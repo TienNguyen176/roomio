@@ -4,95 +4,136 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="20dp"
+    android:background="@android:color/white">
 
-    <ImageView
-        android:id="@+id/btnBack"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:src="@drawable/ic_back"
-        android:contentDescription="Back" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
-    <!-- Guest/Reservation summary at top -->
+        <ImageView
+            android:id="@+id/btnBack"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_back"
+            android:contentDescription="Back" />
+
+        <TextView
+            android:id="@+id/tvScreenTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Roomio"
+            android:textAlignment="center"
+            android:textColor="#4D4D98"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/tvResId"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Reservation ID:"
-        android:paddingTop="8dp"/>
+        android:layout_marginTop="16dp"
+        android:text="Reservation ID: -"
+        android:textColor="#222222"
+        android:textSize="14sp" />
 
     <TextView
         android:id="@+id/tvGuestName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Guest name:"/>
+        android:text="Guest name: -"
+        android:textColor="#222222"
+        android:textSize="14sp" />
 
     <TextView
         android:id="@+id/tvCheckIn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Check-in:"/>
+        android:text="Check-in: -"
+        android:textColor="#222222"
+        android:textSize="14sp" />
 
     <TextView
         android:id="@+id/tvCheckOut"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Check-out:"/>
+        android:text="Check-out: -"
+        android:textColor="#222222"
+        android:textSize="14sp" />
 
     <TextView
         android:id="@+id/tvReservationAmount"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Reservation amount:"
-        android:textStyle="bold"
+        android:layout_marginTop="8dp"
+        android:text="Reservation amount: 0VND"
         android:textColor="#164B8A"
-        android:paddingBottom="8dp"/>
+        android:textSize="15sp"
+        android:textStyle="bold" />
+    <TextView
+        android:id="@+id/tvPaidAmount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Paid amount: 0VND"
+        android:textColor="#164B8A"
+        android:textSize="15sp"
+        android:textStyle="bold" />
 
     <TextView
-        android:id="@+id/tvTitle"
-        android:layout_width="wrap_content"
+        android:id="@+id/tvExtraHeader"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
         android:text="Extra fee:"
-        android:textStyle="bold"
-        android:paddingTop="8dp"/>
+        android:textColor="#222222"
+        android:textSize="15sp"
+        android:textStyle="bold" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvServices"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"/>
-
+        android:layout_marginTop="12dp"
+        android:layout_weight="1" />
     <TextView
-        android:id="@+id/tvCleaningFee"
+        android:id="@+id/tvExtraFee"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Total cleaning fee: 0VND"/>
+        android:text="Total additional charges: 0VND"
+        android:textColor="#222222"
+        android:textSize="14sp"
+        android:layout_marginTop="4dp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="12dp"
+        android:background="#E0E0E0" />
 
     <TextView
-        android:id="@+id/tvExtraServices"
+        android:id="@+id/tvGrandTotal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Total additional chargers: 0VND"/>
-
-    <TextView
-        android:id="@+id/tvTotalAmount"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
         android:text="Total amount: 0VND"
-        android:textStyle="bold"
         android:textColor="#D32F2F"
-        android:paddingTop="4dp"/>
+        android:textSize="16sp"
+        android:textStyle="bold" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnNext"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
         android:text="Next"
         android:textColor="#FFFFFF"
-        app:cornerRadius="20dp"
+        android:textSize="16sp"
         app:backgroundTint="#2D6C8C"
-        android:layout_marginTop="8dp"/>
+        app:cornerRadius="24dp" />
 
 </LinearLayout>
-
-

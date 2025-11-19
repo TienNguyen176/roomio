@@ -9,10 +9,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
-import com.google.firebase.firestore.FieldPath
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldPath
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.ServiceFeeAdapter
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
@@ -28,26 +29,26 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
 class ServiceExtraFeeActivity : AppCompatActivity() {
-    private lateinit var tvCleaningFee: TextView
-    private lateinit var tvTotalAmount: TextView
     private lateinit var tvResId: TextView
     private lateinit var tvGuestName: TextView
     private lateinit var tvCheckIn: TextView
     private lateinit var tvCheckOut: TextView
     private lateinit var tvReservationAmount: TextView
-    private lateinit var tvNightPeople: TextView
+    private lateinit var tvPaidAmount: TextView
     private lateinit var tvExtraFee: TextView
-    private lateinit var tvTaxFee: TextView
-    private lateinit var tvDiscountView: TextView
-    private lateinit var tvGuestPay: TextView
     private lateinit var tvGrandTotal: TextView
     private lateinit var serviceAdapter: ServiceFeeAdapter
     private val firestore by lazy { FirebaseFirestore.getInstance() }
-    private var cleaningFeeBase: Double = 0.0
     private var serviceFetchJob: Job? = null
     private var reservationAmount: Double = 0.0
+    private var paidAmount: Double = 0.0
+    private var cleaningFee: Double = 0.0
+    private var extraTotal: Double = 0.0
+    private var lastExtraTotal: Double = 0.0
     private var discountLabel: String = "-"
     private var guestsCount: Int = 0
+    private var invoiceListener: ListenerRegistration? = null
+    private var cleaningFeeListener: ListenerRegistration? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,26 +56,15 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
         findViewById<ImageView>(R.id.btnBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
-        tvCleaningFee = findViewById(R.id.tvCleaningFee)
-        tvTotalAmount = findViewById(R.id.tvTotalAmount)
         tvResId = findViewById(R.id.tvResId)
         tvGuestName = findViewById(R.id.tvGuestName)
         tvCheckIn = findViewById(R.id.tvCheckIn)
         tvCheckOut = findViewById(R.id.tvCheckOut)
         tvReservationAmount = findViewById(R.id.tvReservationAmount)
-        tvNightPeople = findViewById(R.id.tvNightPeople)
+        tvPaidAmount = findViewById(R.id.tvPaidAmount)
         tvExtraFee = findViewById(R.id.tvExtraFee)
-        tvTaxFee = findViewById(R.id.tvTaxFee)
-        tvDiscountView = findViewById(R.id.tvDiscount)
-        tvGuestPay = findViewById(R.id.tvGuestPay)
         tvGrandTotal = findViewById(R.id.tvGrandTotal)
 
-        val roomId = intent.getStringExtra("ROOM_ID") ?: ""
-        val cleaning = CleanerTaskRepository.getCleaningFee(roomId)
-        tvCleaningFee.text = String.format("Total cleaning fee: %,.0fVND", cleaning)
-        cleaningFeeBase = cleaning
-
-        // Populate guest/reservation info
         val resId = intent.getStringExtra("RESERVATION_ID") ?: ""
         val guestName = intent.getStringExtra("GUEST_NAME") ?: ""
         val rawCheckIn = intent.getStringExtra("CHECK_IN_TEXT") ?: intent.getStringExtra("CHECK_IN") ?: ""
@@ -83,83 +73,95 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         val checkOutMillis = intent.getLongExtra("CHECK_OUT_MILLIS", -1L)
         val roomTypeName = intent.getStringExtra("ROOM_TYPE_NAME") ?: intent.getStringExtra("ROOM_TYPE") ?: ""
         val amount = intent.getDoubleExtra("RESERVATION_AMOUNT", 0.0)
-        val discountLabel = intent.getStringExtra("DISCOUNT_LABEL") ?: "-"
-        val guestsCount = intent.getIntExtra("GUESTS_COUNT", 0)
-        this.reservationAmount = amount
-        this.discountLabel = discountLabel
-        this.guestsCount = guestsCount
+        val discountLabelExtra = intent.getStringExtra("DISCOUNT_LABEL") ?: "-"
+        val guestsCountExtra = intent.getIntExtra("GUESTS_COUNT", 0)
+        val roomId = intent.getStringExtra("ROOM_ID") ?: ""
 
-        val checkInTxt = if (rawCheckIn.isNotBlank()) rawCheckIn else formatDateTimeOrEmpty(checkInMillis)
-        val checkOutTxt = if (rawCheckOut.isNotBlank()) rawCheckOut else formatDateTimeOrEmpty(checkOutMillis)
+        reservationAmount = amount
+        discountLabel = discountLabelExtra
+        guestsCount = guestsCountExtra
+
+        // Initialize cleaning fee from repository (fallback)
+        cleaningFee = CleanerTaskRepository.getCleaningFee(roomId)
+        updateCleaningFee(cleaningFee)
+        updateExtraTotal(0.0)
+
+        val checkInText = if (rawCheckIn.isNotBlank()) rawCheckIn else formatDateTimeOrEmpty(checkInMillis)
+        val checkOutText = if (rawCheckOut.isNotBlank()) rawCheckOut else formatDateTimeOrEmpty(checkOutMillis)
         val nightCount = computeNights(checkInMillis, checkOutMillis)
 
         tvResId.text = if (resId.isNotEmpty()) "Reservation ID: $resId" else ""
-        if (guestName.isNotEmpty()) tvGuestName.text = "Guest name: $guestName" else tvGuestName.text = ""
-        if (checkInTxt.isNotEmpty()) tvCheckIn.text = "Check-in: $checkInTxt" else tvCheckIn.text = ""
-        if (checkOutTxt.isNotEmpty()) tvCheckOut.text = "Check-out: $checkOutTxt" else tvCheckOut.text = ""
-        tvReservationAmount.text = String.format("Reservation amount: %,.0fVND", amount)
+        tvGuestName.text = if (guestName.isNotEmpty()) "Guest name: $guestName" else ""
+        tvCheckIn.text = if (checkInText.isNotEmpty()) "Check-in: $checkInText" else "Check-in: -"
+        tvCheckOut.text = if (checkOutText.isNotEmpty()) "Check-out: $checkOutText" else "Check-out: -"
+        tvReservationAmount.text = "Reservation amount: ${formatCurrency(amount)}"
 
-        val nightLabel = when {
-            nightCount <= 0 -> "-"
-            nightCount == 1 -> "1 night"
-            else -> "$nightCount nights"
+        val rvServices = findViewById<RecyclerView>(R.id.rvServices)
+        rvServices.layoutManager = LinearLayoutManager(this)
+        serviceAdapter = ServiceFeeAdapter(mutableListOf()) { total -> updateExtraTotal(total) }
+        rvServices.adapter = serviceAdapter
+
+        val hotelId = intent.getStringExtra("HOTEL_ID")?.takeIf { it.isNotBlank() }
+        val bookingId = intent.getStringExtra("BOOKING_ID")?.takeIf { it.isNotBlank() }
+        
+        // Load paid amount from invoices and cleaning fee from Firebase booking document
+        if (bookingId != null) {
+            observeInvoices(bookingId, resId)
+            observeCleaningFee(bookingId)
         }
-        val guestLabel = if (guestsCount > 0) "$guestsCount people" else "-"
-        tvNightPeople.text = "Night: $nightLabel - $guestLabel"
 
-        refreshPriceSummary(0.0)
-
-        val rv = findViewById<RecyclerView>(R.id.rvServices)
-        rv.layoutManager = LinearLayoutManager(this)
-        serviceAdapter = ServiceFeeAdapter(mutableListOf()) { extra -> updateTotals(cleaningFeeBase, extra) }
-        rv.adapter = serviceAdapter
-
-        findViewById<MaterialButton>(R.id.btnNext).setOnClickListener {
+        val btnNext = findViewById<MaterialButton>(R.id.btnNext)
+        btnNext.setOnClickListener {
+            if (!btnNext.isEnabled) return@setOnClickListener
+            btnNext.isEnabled = false
             val nextIntent = android.content.Intent(this, PaymentDetailsActivity::class.java)
             val incoming = intent
-            // forward guest/reservation info if present
             nextIntent.putExtra("GUEST_NAME", incoming.getStringExtra("GUEST_NAME") ?: "")
             nextIntent.putExtra("GUEST_PHONE", incoming.getStringExtra("GUEST_PHONE") ?: "")
             nextIntent.putExtra("GUEST_EMAIL", incoming.getStringExtra("GUEST_EMAIL") ?: "")
             nextIntent.putExtra("RESERVATION_ID", resId)
-            nextIntent.putExtra("CHECK_IN_TEXT", checkInTxt)
-            nextIntent.putExtra("CHECK_OUT_TEXT", checkOutTxt)
+            nextIntent.putExtra("CHECK_IN_TEXT", checkInText)
+            nextIntent.putExtra("CHECK_OUT_TEXT", checkOutText)
             nextIntent.putExtra("CHECK_IN_MILLIS", checkInMillis)
             nextIntent.putExtra("CHECK_OUT_MILLIS", checkOutMillis)
             nextIntent.putExtra("ROOM_TYPE", roomTypeName)
             nextIntent.putExtra("NIGHTS_COUNT", nightCount)
             nextIntent.putExtra("ROOM_PRICE", amount)
             nextIntent.putExtra("EXTRA_FEE", lastExtraTotal)
-            nextIntent.putExtra("CLEANING_FEE", cleaning)
-            nextIntent.putExtra("TAX_FEE", 0.0)
+            nextIntent.putExtra("CLEANING_FEE", cleaningFee)
             nextIntent.putExtra("DISCOUNT_TEXT", discountLabel)
             nextIntent.putExtra("GUESTS_COUNT", guestsCount)
+            nextIntent.putExtra("BOOKING_ID", bookingId ?: "")
+            nextIntent.putExtra("HOTEL_ID", hotelId ?: "")
             startActivity(nextIntent)
+            finish()
+            btnNext.postDelayed({ btnNext.isEnabled = true }, 600)
         }
-
-        val hotelId = intent.getStringExtra("HOTEL_ID")?.takeIf { it.isNotBlank() }
-        val bookingId = intent.getStringExtra("BOOKING_ID")?.takeIf { it.isNotBlank() }
 
         when {
             hotelId != null -> loadServiceRates(hotelId)
             bookingId != null -> resolveHotelIdFromBooking(bookingId)
-            else -> updateTotals(cleaningFeeBase, serviceAdapter.currentTotal())
+            else -> serviceAdapter.replaceItems(emptyList())
         }
-
-        updateTotals(cleaningFeeBase, serviceAdapter.currentTotal())
     }
 
     override fun onDestroy() {
         super.onDestroy()
         serviceFetchJob?.cancel()
+        invoiceListener?.remove()
+        cleaningFeeListener?.remove()
     }
 
-    private fun updateTotals(cleaningFee: Double, extra: Double) {
-        cleaningFeeBase = cleaningFee
-        refreshPriceSummary(extra)
+    private fun updateCleaningFee(value: Double) {
+        cleaningFee = value
+        refreshPriceSummary()
     }
 
-    private var lastExtraTotal: Double = 0.0
+    private fun updateExtraTotal(total: Double) {
+        extraTotal = total
+        tvExtraFee.text = "Total additional charges: ${formatCurrency(extraTotal)}"
+        refreshPriceSummary()
+    }
 
     private fun formatDateTimeOrEmpty(millis: Long): String {
         if (millis <= 0L) return ""
@@ -172,19 +174,148 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
     private fun formatCurrency(value: Double): String = String.format("%,.0fVND", value)
 
-    private fun refreshPriceSummary(extraFee: Double) {
-        lastExtraTotal = extraFee
-        val taxFee = 0.0
-        val total = reservationAmount + extraFee + cleaningFeeBase + taxFee
-
-        findViewById<TextView>(R.id.tvRoomPrice)?.text = "Room price/night: ${formatCurrency(reservationAmount)}"
-        tvExtraFee.text = "Extra fee: ${formatCurrency(lastExtraTotal)}"
-        tvTaxFee.text = "Tax & service fee: ${formatCurrency(taxFee)}"
-        tvCleaningFee.text = "Cleaning fee: ${formatCurrency(cleaningFeeBase)}"
-        tvDiscountView.text = "Discount/ voucher: $discountLabel"
-        tvGuestPay.text = "Guest pay: ${formatCurrency(total)}"
-        tvTotalAmount.text = "Total amount: ${formatCurrency(total)}"
-        tvGrandTotal.text = "Total amount: ${formatCurrency(total)}"
+    private fun refreshPriceSummary() {
+        lastExtraTotal = extraTotal
+        // Grand total = (reservation amount + extra fees + cleaning fee) - paid amount
+        val grandTotal = max(0.0, reservationAmount + extraTotal + cleaningFee - paidAmount)
+        tvGrandTotal.text = "Total amount: ${formatCurrency(grandTotal)}"
+    }
+    
+    private fun observeInvoices(bookingId: String, reservationId: String) {
+        invoiceListener?.remove()
+        
+        // Try multiple field names and formats for bookingId
+        val bookingIdInt = bookingId.toIntOrNull()
+        val reservationIdInt = reservationId.toIntOrNull()
+        
+        val queries = mutableListOf<com.google.firebase.firestore.Query>()
+        
+        // Try bookingId as String
+        queries += firestore.collection("invoices").whereEqualTo("bookingId", bookingId)
+        queries += firestore.collection("invoices").whereEqualTo("booking_id", bookingId)
+        queries += firestore.collection("invoices").whereEqualTo("bookingDocId", bookingId)
+        queries += firestore.collection("invoices").whereEqualTo("booking_doc_id", bookingId)
+        
+        // Try bookingId as Int
+        if (bookingIdInt != null) {
+            queries += firestore.collection("invoices").whereEqualTo("bookingId", bookingIdInt)
+            queries += firestore.collection("invoices").whereEqualTo("booking_id", bookingIdInt)
+        }
+        
+        // Try reservationId as String
+        queries += firestore.collection("invoices").whereEqualTo("reservationId", reservationId)
+        queries += firestore.collection("invoices").whereEqualTo("reservation_id", reservationId)
+        
+        // Try reservationId as Int
+        if (reservationIdInt != null) {
+            queries += firestore.collection("invoices").whereEqualTo("reservationId", reservationIdInt)
+            queries += firestore.collection("invoices").whereEqualTo("reservation_id", reservationIdInt)
+        }
+        
+        // Try using FieldPath for nested or alternative field names
+        try {
+            queries += firestore.collection("invoices").whereEqualTo(FieldPath.of("bookingRef", "id"), bookingId)
+        } catch (_: Exception) {}
+        
+        // Try each query until one returns results
+        var listenerSet = false
+        for (query in queries) {
+            try {
+                query.get().addOnSuccessListener { snapshot ->
+                    if (!snapshot.isEmpty && !listenerSet) {
+                        listenerSet = true
+                        invoiceListener = query.addSnapshotListener { snapshots, error ->
+                            if (error != null) {
+                                android.util.Log.e("ServiceExtraFee", "Invoice listener error", error)
+                                return@addSnapshotListener
+                            }
+                            if (snapshots != null) {
+                                updatePaidAmount(snapshots)
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ServiceExtraFee", "Error trying invoice query", e)
+            }
+        }
+        
+        // If no query worked, try a general query and filter in memory
+        if (!listenerSet) {
+            invoiceListener = firestore.collection("invoices")
+                .addSnapshotListener { snapshots, error ->
+                    if (error != null) {
+                        android.util.Log.e("ServiceExtraFee", "Invoice listener error", error)
+                        return@addSnapshotListener
+                    }
+                    if (snapshots != null) {
+                        // Filter by bookingId or reservationId in memory
+                        val filtered = snapshots.documents.filter { doc ->
+                            val docBookingId = doc.get("bookingId")?.toString()
+                                ?: doc.get("booking_id")?.toString()
+                                ?: doc.get("bookingDocId")?.toString()
+                                ?: doc.get("booking_doc_id")?.toString()
+                            val docReservationId = doc.get("reservationId")?.toString()
+                                ?: doc.get("reservation_id")?.toString()
+                            
+                            docBookingId == bookingId || docReservationId == reservationId ||
+                            docBookingId?.toIntOrNull() == bookingIdInt ||
+                            docReservationId?.toIntOrNull() == reservationIdInt
+                        }
+                        if (filtered.isNotEmpty()) {
+                            updatePaidAmountFromDocs(filtered)
+                        } else {
+                            // No invoices found, set paid amount to 0
+                            paidAmount = 0.0
+                            tvPaidAmount.text = "Paid amount: ${formatCurrency(paidAmount)}"
+                            refreshPriceSummary()
+                        }
+                    }
+                }
+        }
+    }
+    
+    private fun updatePaidAmount(snapshots: com.google.firebase.firestore.QuerySnapshot) {
+        updatePaidAmountFromDocs(snapshots.documents)
+    }
+    
+    private fun updatePaidAmountFromDocs(docs: List<com.google.firebase.firestore.DocumentSnapshot>) {
+        var total = 0.0
+        for (doc in docs) {
+            val amount = when (val totalAmount = doc.get("totalAmount")) {
+                is Number -> totalAmount.toDouble()
+                is java.math.BigDecimal -> totalAmount.toDouble()
+                is String -> totalAmount.toDoubleOrNull() ?: 0.0
+                else -> 0.0
+            }
+            total += amount
+        }
+        paidAmount = total
+        tvPaidAmount.text = "Paid amount: ${formatCurrency(paidAmount)}"
+        refreshPriceSummary()
+    }
+    
+    private fun observeCleaningFee(bookingId: String) {
+        cleaningFeeListener?.remove()
+        cleaningFeeListener = firestore.collection("bookings")
+            .document(bookingId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    android.util.Log.e("ServiceExtraFee", "Cleaning fee listener error", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    val fee = when (val raw = snapshot.get("cleaningFee")) {
+                        is Number -> raw.toDouble()
+                        is String -> raw.toDoubleOrNull() ?: 0.0
+                        else -> 0.0
+                    }
+                    if (fee > 0.0) {
+                        cleaningFee = fee
+                        updateCleaningFee(cleaningFee)
+                    }
+                }
+            }
     }
 
     private fun iconForService(name: String): Int = when {
@@ -203,22 +334,16 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
     }
 
     private fun loadServiceRates(hotelId: String) {
-        lifecycleScope.launch {
+        serviceFetchJob?.cancel()
+        serviceFetchJob = lifecycleScope.launch {
             try {
                 val items = withContext(Dispatchers.IO) {
                     val rates = fetchServiceRates(hotelId)
                     if (rates.isNotEmpty()) rates else fetchHotelServices(hotelId)
                 }
-                if (items.isNotEmpty()) {
-                    serviceAdapter.replaceItems(items.toMutableList())
-                    updateTotals(cleaningFeeBase, serviceAdapter.currentTotal())
-                } else {
-                    serviceAdapter.replaceItems(mutableListOf())
-                    refreshPriceSummary(0.0)
-                }
+                serviceAdapter.replaceItems(items)
             } catch (e: Exception) {
-                serviceAdapter.replaceItems(mutableListOf())
-                refreshPriceSummary(0.0)
+                serviceAdapter.replaceItems(emptyList())
                 Toast.makeText(this@ServiceExtraFeeActivity, "Failed to load service prices", Toast.LENGTH_SHORT).show()
             }
         }
@@ -440,7 +565,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             if (!hotelId.isNullOrBlank()) {
                 loadServiceRates(hotelId)
             } else {
-                updateTotals(cleaningFeeBase, serviceAdapter.currentTotal())
+                serviceAdapter.replaceItems(emptyList())
             }
         }
     }

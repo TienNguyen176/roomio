@@ -17,8 +17,12 @@ import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.activities.AdminHomeActivity
+import com.tdc.nhom6.roomio.activities.AdminHotelActivity
+import com.tdc.nhom6.roomio.activities.CleanerActivity
 import com.tdc.nhom6.roomio.activities.EditProfileActivity
 import com.tdc.nhom6.roomio.activities.LoginActivity
+import com.tdc.nhom6.roomio.activities.ReceptionActivity
 import com.tdc.nhom6.roomio.databinding.ProfileLayoutBinding
 import com.tdc.nhom6.roomio.models.User
 
@@ -109,9 +113,28 @@ class ProfileFragment : Fragment() {
             requireActivity().finish()
         }
 
-        binding.topAppBar.setOnMenuItemClickListener {
-            // TODO: Navigate to role-specific screens when available
-            false
+        binding.topAppBar.setOnMenuItemClickListener { item ->
+            when(item.itemId) {
+                R.id.navAdmin -> {
+                    startActivity(Intent(requireContext(), AdminHomeActivity::class.java))
+                    true
+                }
+                R.id.navChuKS -> {
+                    startActivity(Intent(requireContext(), AdminHotelActivity::class.java))
+                    true
+                }
+
+                R.id.navLeTan -> {
+                    startActivity(Intent(requireContext(), ReceptionActivity::class.java))
+                    true
+                }
+                R.id.navDonPhong -> {
+                    startActivity(Intent(requireContext(), CleanerActivity::class.java))
+                    true
+                }
+
+                else -> false
+            }
         }
     }
 

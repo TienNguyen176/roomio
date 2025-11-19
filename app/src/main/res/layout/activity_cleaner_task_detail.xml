@@ -103,25 +103,22 @@
                 android:textColor="#000000"
                 android:layout_marginBottom="24dp" />
 
-            <!-- Image Upload Area -->
-            <FrameLayout
-                android:id="@+id/viewImagePlaceholder"
+            <!-- Image Upload Section -->
+            <TextView
                 android:layout_width="match_parent"
-                android:layout_height="200dp"
-                android:background="#F5F5F5"
-                android:backgroundTint="#F5F5F5"
-                android:minHeight="200dp"
-                android:layout_marginBottom="8dp"
-                android:gravity="center">
+                android:layout_height="wrap_content"
+                android:text="Cleaning Images"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:layout_marginBottom="8dp" />
 
-                <ImageView
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
-                    android:src="@android:drawable/ic_menu_gallery"
-                    android:contentDescription="Image placeholder"
-                    android:layout_gravity="center"
-                    app:tint="#9E9E9E" />
-            </FrameLayout>
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvCleaningImages"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="120dp"
+                android:layout_marginBottom="8dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnUploadImages"
@@ -142,7 +139,7 @@
         android:id="@+id/btnStartCleaning"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Start Cleaning"
+        android:text="Mark as clean"
         android:textColor="#000000"
         android:backgroundTint="#E0E0E0"
         app:cornerRadius="20dp"

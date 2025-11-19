@@ -16,14 +16,17 @@ import com.tdc.nhom6.roomio.adapters.MiniBarAdapter
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class CleaningInspectionActivity : AppCompatActivity() {
     private lateinit var tvReservationInfo: TextView
     private lateinit var tvTotalCharges: TextView
+    private lateinit var tvReservationAmount: TextView
 
     private lateinit var lostAdapter: LostItemAdapter
     private lateinit var brokenAdapter: BrokenFurnitureAdapter
@@ -35,14 +38,16 @@ class CleaningInspectionActivity : AppCompatActivity() {
         setContentView(R.layout.activity_cleaning_inspection)
 
         tvReservationInfo = findViewById(R.id.tvReservationInfo)
+        tvReservationAmount = findViewById(R.id.tvReservationAmount)
         tvTotalCharges = findViewById(R.id.tvTotalCharges)
 
         // Back button
         findViewById<ImageView>(R.id.btnBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
-        // Show simple reservation/room id if provided
+        // Show basic room id until booking data loads
         val roomId = intent.getStringExtra("ROOM_ID") ?: ""
-        tvReservationInfo.text = roomId
+        tvReservationInfo.text = if (roomId.isNotEmpty()) "Room: $roomId" else getString(R.string.cleaning_reservation_placeholder)
+        tvReservationAmount.text = getString(R.string.cleaning_amount_placeholder)
 
         // Setup lists
         val rvLost = findViewById<RecyclerView>(R.id.rvLostItems)
@@ -66,11 +71,27 @@ class CleaningInspectionActivity : AppCompatActivity() {
             // Post cleaning fee result back to repository for reception
             val fee = currentTotal()
             val id = intent.getStringExtra("ROOM_ID") ?: ""
+            val bookingId = intent.getStringExtra("BOOKING_ID")?.takeIf { it.isNotBlank() }
             CleanerTaskRepository.postCleaningResult(id, fee)
+            
+            // Update booking with cleaning completed timestamp and cleaning fee to notify reception
+            if (bookingId != null) {
+                firestore.collection("bookings").document(bookingId)
+                    .update(
+                        mapOf(
+                            "cleaningCompletedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                            "cleaningFee" to fee
+                        )
+                    )
+                    .addOnFailureListener { e ->
+                        android.util.Log.e("CleaningInspection", "Failed to update cleaningCompletedAt and cleaningFee", e)
+                    }
+            }
             
             // Navigate to cleaner task detail screen
             val detailIntent = Intent(this, CleanerTaskDetailActivity::class.java)
             detailIntent.putExtra("ROOM_ID", id)
+            detailIntent.putExtra("BOOKING_ID", bookingId ?: "")
             // Get checkout time from task if available, otherwise use default
             val tasks = CleanerTaskRepository.tasks().value ?: emptyList()
             val task = tasks.find { it.roomId == id }
@@ -86,11 +107,68 @@ class CleaningInspectionActivity : AppCompatActivity() {
         val roomTypeId = intent.getStringExtra("ROOM_TYPE_ID")?.takeIf { it.isNotBlank() }
         val bookingId = intent.getStringExtra("BOOKING_ID")?.takeIf { it.isNotBlank() }
 
+        if (bookingId != null) {
+            observeBookingHeader(bookingId)
+        }
+
         if (roomTypeId != null) {
             loadDamageRates(roomTypeId)
         } else if (bookingId != null) {
             resolveRoomTypeFromBooking(bookingId)
         }
+    }
+
+    private var bookingListener: ListenerRegistration? = null
+
+    private fun observeBookingHeader(bookingId: String) {
+        bookingListener?.remove()
+        bookingListener = firestore.collection("bookings")
+            .document(bookingId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    bindBookingHeader(snapshot)
+                }
+            }
+    }
+
+    private fun bindBookingHeader(doc: com.google.firebase.firestore.DocumentSnapshot) {
+        val reservationId = doc.getString("reservationId")
+            ?: doc.getString("bookingCode")
+            ?: doc.getString("bookingNumber")
+            ?: doc.id
+        val roomNumber = doc.getString("roomNumber")
+            ?: doc.getString("roomId")
+            ?: doc.getString("room")
+            ?: intent.getStringExtra("ROOM_ID")
+        val guestName = doc.getString("guestName")
+            ?: doc.getString("customerName")
+            ?: doc.getString("name")
+        val totalFinal = when (val raw = doc.get("totalFinal")) {
+            is Number -> raw.toDouble()
+            is String -> raw.toDoubleOrNull()
+            else -> null
+        }
+        val amountText = totalFinal?.let { String.format(Locale.getDefault(), "Reservation amount: %,.0fVND", it) }
+            ?: getString(R.string.cleaning_amount_placeholder)
+
+        val headerParts = mutableListOf<String>()
+        if (!roomNumber.isNullOrBlank()) headerParts += "Room: $roomNumber"
+        if (!reservationId.isNullOrBlank()) headerParts += "Reservation: $reservationId"
+        if (!guestName.isNullOrBlank()) headerParts += "Guest: $guestName"
+
+        if (headerParts.isNotEmpty()) {
+            tvReservationInfo.text = headerParts.joinToString(" • \n")
+        }
+        tvReservationAmount.text = amountText
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        bookingListener?.remove()
+        bookingListener = null
     }
 
     private fun updateTotal() {
@@ -159,18 +237,10 @@ class CleaningInspectionActivity : AppCompatActivity() {
             extractRoomTypeId(doc.get("roomTypeRef")
                 ?: doc.get("roomTypeId")
                 ?: doc.get("room_type_id")
-                ?: doc.get("roomType"))?.let { return it }
+                ?: doc.get("roomType")
+                ?: doc.get("roomTypeInfo"))?.let { return it }
         }
-        val query = firestore.collection("bookings")
-            .whereEqualTo("reservationId", bookingId)
-            .limit(1)
-            .get()
-            .await()
-        val snapshot = query.documents.firstOrNull() ?: return null
-        return extractRoomTypeId(snapshot.get("roomTypeRef")
-            ?: snapshot.get("roomTypeId")
-            ?: snapshot.get("room_type_id")
-            ?: snapshot.get("roomType"))
+        return null
     }
 
     private data class DamageRateResult(
@@ -179,6 +249,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
     )
 
     private suspend fun fetchDamageRates(roomTypeId: String): DamageRateResult {
+        val statusLookup = loadFacilityStatus()
         val snapshot = firestore.collection("roomTypes")
             .document(roomTypeId)
             .collection("damageLossRates")
@@ -193,7 +264,10 @@ class CleaningInspectionActivity : AppCompatActivity() {
                 is String -> raw.toDoubleOrNull()
                 else -> null
             } ?: 0.0
-            val status = doc.getString("statusId") ?: "0"
+            val status = doc.getString("statusId")
+                ?: doc.getString("status")
+                ?: statusLookup[facilityId]
+                ?: "0"
             RateEntry(facilityId, price, status)
         }
         if (entries.isEmpty()) return DamageRateResult(emptyList(), emptyList())
@@ -228,6 +302,23 @@ class CleaningInspectionActivity : AppCompatActivity() {
     }
 
     private data class RateEntry(val facilityId: String, val price: Double, val statusId: String)
+
+    private suspend fun loadFacilityStatus(): Map<String, String> {
+        return try {
+            firestore.collection("facilitiesStatus")
+                .document("damageLoss")
+                .get()
+                .await()
+                ?.data
+                ?.mapNotNull { (key, value) ->
+                    if (value is Number) key to value.toInt().toString() else null
+                }
+                ?.toMap()
+                ?: emptyMap()
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
 
     private fun extractRoomTypeId(source: Any?): String? = when (source) {
         is String -> source

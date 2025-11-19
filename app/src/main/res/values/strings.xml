@@ -67,7 +67,134 @@
     <string name="in_progress">In progress</string>
     <string name="start">Start</string>
     <string name="complete">Complete</string>
+    <string name="cleaning_reservation_placeholder">Reservation information unavailable</string>
+    <string name="cleaning_amount_placeholder">Reservation amount: -</string>
     <string name="default_web_client_id">230796417369-7fh174mc1aga69ko8eltnrbm5lql193l.apps.googleusercontent.com</string>
+        <string name="app_bar_title_hotel_manager">Quản lý khách sạn</string>
+        <string name="app_bar_title_dang_ky_kinh_doanh">Đăng ký kinh doanh</string>
+        <string name="app_bar_title_service">Danh sách dịch vụ</string>
+        <string name="app_bar_title_facilities">Danh sách tiện ích</string>
+        <string name="cloudinary_cloud_name">dgxcjxzqi</string>
+        <string name="cloudinary_upload_preset">upload_images</string>
+        <string name="btn_danh_sach_don">Danh sách đơn đăng ký</string>
+        <string name="btn_quan_ly_tai_khoan">Quản lý tài khoản</string>
+        <string name="btn_quan_ly_hotel">Quản lý khách sạn</string>
+        <string name="btn_logout">ĐĂNG XUẤT</string>
+        <string name="text_xem_them"><u>Xem thêm</u></string>
+        <string name="title_thong_tin_chinh_chu">I. Thông tin chính chủ khách sạn</string>
+        <string name="title_thong_tin_khach_san">II. Thông tin khách sạn</string>
+        <string name="title_thong_tin_phap_ly">III. Thông tin pháp lý</string>
+        <string name="hint_username">Họ và tên</string>
+        <string name="text_username">Họ và tên:</string>
+        <string name="hint_cccd_cmnd">CCCD/CMND</string>
+        <string name="text_cccd_cmnd">CCCD/CMND:</string>
+        <string name="text_cccd_cmnd_mat_truoc">Mặt trước:</string>
+        <string name="text_cccd_cmnd_mat_sau">Mặt sau:</string>
+        <string name="cccd_mat_truoc">Ảnh mặt trước</string>
+        <string name="cccd_mat_sau">Ảnh mặt sau</string>
+        <string name="text_gioi_tinh">Giới tính:</string>
+        <string name="text_gioi_tinh_nam">Nam</string>
+        <string name="text_gioi_tinh_nu">Nữ</string>
+        <string name="hint_dia_chi_thuong_tru">Địa chỉ thường trú</string>
+        <string name="text_dia_chi_thuong_tru">Địa chỉ thường trú:</string>
+        <string name="hint_sdt_lien_he">Số điện thoại liên hệ</string>
+        <string name="text_sdt_lien_he">Số điện thoại:</string>
+        <string name="text_ngay_sinh">Ngày sinh: </string>
+        <string name="hint_ngay_sinh">Ngày sinh</string>
+        <string name="hint_nam_sinh">Năm sinh</string>
+        <string name="hint_email_lien_he">Email liên hệ</string>
+        <string name="text_email_lien_he">Email:</string>
+        <string name="hint_ten_khach_san">Tên khách sạn</string>
+        <string name="text_ten_khach_san">Tên khách sạn:</string>
+        <string name="hint_dia_chi_khach_san">Địa chỉ khách sạn</string>
+        <string name="text_dia_chi_khach_san">Địa chỉ khách sạn:</string>
+        <string name="text_quy_mo_khach_san">Quy mô khách sạn:</string>
+        <string name="hint_khach_san_so_tang">Số tầng</string>
+        <string name="hint_khach_san_so_phong_tang">Số phòng/tầng</string>
+        <string name="hint_chon_loai_hinh_khach_san">Chọn loại hình khách sạn</string>
+        <string name="text_loai_hinh_khach_san">Loại hình khách sạn:</string>
+        <string name="text_upload">Upload</string>
+        <string name="text_xem_anh">Xem ảnh</string>
+        <string name="text_giay_chung_nhan_PCCC">Giấy chứng nhận PCCC:</string>
+        <string name="text_giay_phep_kinh_doanh">Giấy phép kinh doanh:</string>
+        <string name="text_giay_chung_nhan_ANTT">Giấy chứng nhận ANTT:</string>
+        <string name="text_giay_chung_nhan_VSATTP">Giấy chứng nhận VSATTP:</string>
+        <string name="btn_nop_don">Nộp đơn</string>
+        <string name="btn_huy">Hủy</string>
+        <string name="text_dieu_khoan_dich_vu">Điều khoản dịch vụ:</string>
+        <string name="text_ghi_chu_thu_phi">Phí: 200.000đ/tháng (Miễn phí 2 tháng đầu sử dụng dịch vụ)</string>
+        <string name="text_trang_thai_anh">Trạng thái hình ảnh</string>
+        <string name="text_phone_number">Phone Number: </string>
+        <string name="text_address">Address: </string>
+
+    <!-- Home Fragment -->
+    <string name="home_title">What are you\nlooking for?</string>
+    <string name="search_hint">Search</string>
+    <string name="hot_review_title">Hot review</string>
+    <string name="deals_title">Deals</string>
+    <string name="view_all">View all</string>
+    <string name="seed_firebase_data">Seed Firebase Data</string>
+    <string name="clear_firebase_data">Clear Data</string>
+    <string name="test_firebase_connection">Test Connection</string>
+    <string name="initialize_database">Initialize Database</string>
+
+    <!-- Search Results Screen -->
+    <string name="back">Back</string>
+    <string name="sort">Sort</string>
+    <string name="filter">Filter</string>
+    <string name="sort_by_price_increasing">Sort by price increasing</string>
+    <string name="hotel_image">Hotel Image</string>
+    <string name="location">Location</string>
+    <string name="star">Star</string>
+    <string name="sample_location">Vung Tau</string>
+
+    <!-- Hot Review Item -->
+    <string name="sample_hotel_name">Ares Home</string>
+    <string name="sample_rating">5.0 (500)</string>
+    <string name="sample_price">VND 150.000</string>
+
+    <!-- Deal Item -->
+    <string name="sample_deal_title">The Harmony Hotel</string>
+    <string name="sample_deal_subtitle">Quận 1, TP. Hồ Chí Minh</string>
+
+    <!-- Common -->
+    <string name="currency_vnd">VND</string>
+    <string name="rating_format" formatted="false">%.1f (%d)</string>
+    <string name="price_format" formatted="false">VND %s</string>
+    <string name="canceled">Canceled</string>
+    <string name="completed">Completed</string>
+    <string name="pending">Pending</string>
+    <string name="uncompleted">Uncompleted</string>
+    <string name="all">All</string>
+    <string name="notifications">Notifications</string>
+    <string name="roomio">Roomio</string>
+    <string name="search">Search</string>
+    <string name="reservation_id_r8zzpqr7">Reservation ID: R8ZZPQR7</string>
+    <string name="deposit_paid">Deposit paid</string>
+    <string name="check_in_20_09_1025_check_out_22_09_2025">Check-in: 20/09/1025 - Check-out: 22/09/2025</string>
+    <string name="payment_method_online">Payment method: Online</string>
+    <string name="guest_name_harper">Guest name: Harper</string>
+    <string name="check_in">Check-in</string>
+    <string name="plus">+</string>
+    <string name="minus">-</string>
+    <string name="number_of_guest">Number of guest:</string>
+    <string name="date_and_time">Date and time:</string>
+    <string name="ok">Ok</string>
+    <string name="cancel">Cancel</string>
+    <string name="confirm_check_in">Confirm check-in?</string>
+    <string name="confirm_check_out">Confirm check-out?</string>
+    <string name="confirm_payment">Confirm payment?</string>
+    <string name="notification">Notification</string>
+
+    <!-- Cleaner Screen -->
+    <string name="cleaner_tasks">Cleaner | Tasks</string>
+    <string name="room_to_clean">Room to clean</string>
+    <string name="dirty">Dirty</string>
+    <string name="in_progress">In progress</string>
+    <string name="start">Start</string>
+    <string name="complete">Complete</string>
+    <string name="cleaning_reservation_placeholder">Reservation information unavailable</string>
+    <string name="cleaning_amount_placeholder">Reservation amount: -</string>
     <string name="cloudinary_cloud_name">dgxcjxzqi</string>
     <string name="cloudinary_upload_preset">upload_images</string>
     <!-- TODO: Remove or change this placeholder text -->
