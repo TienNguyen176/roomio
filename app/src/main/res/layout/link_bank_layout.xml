@@ -73,7 +73,8 @@
         <ImageView
             android:id="@+id/imgBankLogo"
             android:layout_width="40dp"
-            android:layout_height="40dp" />
+            android:layout_height="40dp"
+            android:src="@drawable/nganhang"/>
 
         <TextView
             android:id="@+id/tvBankName"
@@ -120,6 +121,21 @@
             android:inputType="text" />
     </com.google.android.material.textfield.TextInputLayout>
 
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        android:layout_marginTop="5dp"
+        android:hint="Chi nhánh"
+        android:textColorHint="#AAAAAA">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/edtChiNhanh"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColorHint="#FFFFFF"
+            android:inputType="text" />
+    </com.google.android.material.textfield.TextInputLayout>
 
     <!-- Nút xác nhận -->
     <Button
