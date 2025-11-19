@@ -229,16 +229,7 @@ class ProfileActivity : AppCompatActivity() {
         return true
     }
 
-        override fun onOptionsItemSelected(item: MenuItem): Boolean {
-            when (item.itemId) {
-                R.id.navAdmin -> startActivity(Intent(this, AdminHomeActivity::class.java))
-                R.id.navChuKS -> startActivity(Intent(this, AdminHotelActivity::class.java))
-                //R.id.navLeTan -> startActivity(Intent(this, LeTanActivity::class.java))
-                //R.id.navDonPhong -> startActivity(Intent(this, DonPhongActivity::class.java))
-                //R.id.navXuLy -> startActivity(Intent(this, XuLyDonActivity::class.java))
-            }
-            return super.onOptionsItemSelected(item)
-        }
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
 //            R.id.navAdmin -> startActivity(Intent(this, AdminActivity::class.java))
