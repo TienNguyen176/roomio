@@ -1,5 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
+
     <!-- Base application theme (Material-compatible) -->
     <style name="Base.Theme.Roomio" parent="Theme.MaterialComponents.Light.NoActionBar">
         <!-- Màu chính của ứng dụng -->
@@ -149,4 +150,5 @@
         <item name="android:textAlignment">center</item>
         <item name="android:textColor">@color/black</item>
     </style>
+
 </resources>

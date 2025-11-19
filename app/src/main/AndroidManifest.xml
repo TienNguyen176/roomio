@@ -99,6 +99,26 @@
             android:name=".activities.ForgotPasswordActivity"
             android:exported="true" />
         <activity
+            android:name=".activities.AdminHotelActivity"
+            android:theme="@style/Theme.Roomio.M3"
+            android:exported="true" />
+        <activity
+            android:name=".activities.RoomHotelActivity"
+            android:theme="@style/Theme.Roomio.M3"
+            android:exported="true" />
+        <activity
+            android:name=".activities.DiscountActivity"
+            android:theme="@style/Theme.Roomio.M3"
+            android:exported="true" />
+        <activity
+            android:name=".activities.EditHotelActivity"
+            android:theme="@style/Theme.Roomio.M3"
+            android:exported="true" />
+        <activity
+            android:name=".activities.RoleManagerActivity"
+            android:theme="@style/Theme.Roomio.M3"
+            android:exported="true" />
+        <activity
             android:name=".activities.LoginActivity"
             android:exported="true">
             <intent-filter>
