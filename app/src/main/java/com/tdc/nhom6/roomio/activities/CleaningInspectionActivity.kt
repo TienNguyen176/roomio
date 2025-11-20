@@ -58,8 +58,8 @@ class CleaningInspectionActivity : AppCompatActivity() {
         rvBroken.layoutManager = LinearLayoutManager(this)
         rvMini.layoutManager = LinearLayoutManager(this)
 
-        lostAdapter = LostItemAdapter(defaultLostItems().toMutableList()) { updateTotal() }
-        brokenAdapter = BrokenFurnitureAdapter(defaultBrokenItems().toMutableList()) { updateTotal() }
+        lostAdapter = LostItemAdapter(mutableListOf()) { updateTotal() }
+        brokenAdapter = BrokenFurnitureAdapter(mutableListOf()) { updateTotal() }
         miniBarAdapter = MiniBarAdapter(defaultMiniBarItems().toMutableList()) { updateTotal() }
 
         rvLost.adapter = lostAdapter
@@ -68,38 +68,61 @@ class CleaningInspectionActivity : AppCompatActivity() {
 
         // Done button - navigate to cleaner task detail screen
         findViewById<MaterialButton>(R.id.btnDone).setOnClickListener {
-            // Post cleaning fee result back to repository for reception
-            val fee = currentTotal()
-            val id = intent.getStringExtra("ROOM_ID") ?: ""
-            val bookingId = intent.getStringExtra("BOOKING_ID")?.takeIf { it.isNotBlank() }
-            CleanerTaskRepository.postCleaningResult(id, fee)
-            
-            // Update booking with cleaning completed timestamp and cleaning fee to notify reception
-            if (bookingId != null) {
-                firestore.collection("bookings").document(bookingId)
-                    .update(
-                        mapOf(
-                            "cleaningCompletedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
-                            "cleaningFee" to fee
-                        )
-                    )
-                    .addOnFailureListener { e ->
-                        android.util.Log.e("CleaningInspection", "Failed to update cleaningCompletedAt and cleaningFee", e)
+            try {
+                android.util.Log.d("CleaningInspection", "btnDone clicked")
+                android.widget.Toast.makeText(this, "Saving inspection result...", android.widget.Toast.LENGTH_SHORT).show()
+
+                // Post cleaning fee result back to repository for reception
+                val fee = currentTotal()
+                val id = intent.getStringExtra("ROOM_ID") ?: ""
+                val bookingId = intent.getStringExtra("BOOKING_ID")?.takeIf { it.isNotBlank() }
+                CleanerTaskRepository.postCleaningResult(id, fee)
+                
+                // Update booking with cleaning completed timestamp, cleaning fee, and checked items
+                if (bookingId != null) {
+                    val lostItems = lostAdapter.getCheckedItems().map { 
+                        mapOf("name" to it.name, "pricePerItem" to it.pricePerItem, "quantity" to it.quantity)
                     }
+                    val brokenItems = brokenAdapter.getCheckedItems().map { 
+                        mapOf("name" to it.name, "pricePerItem" to it.pricePerItem, "description" to it.description)
+                    }
+                    val miniBarItems = miniBarAdapter.getCheckedItems().map { 
+                        mapOf("name" to it.name, "pricePerItem" to it.pricePerItem, "quantity" to it.quantity)
+                    }
+                    
+                    firestore.collection("bookings").document(bookingId)
+                        .update(
+                            mapOf(
+                                "cleaningCompletedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                                "cleaningFee" to fee,
+                                "roomFees" to mapOf(
+                                    "lostItems" to lostItems,
+                                    "brokenItems" to brokenItems,
+                                    "miniBarItems" to miniBarItems
+                                )
+                            )
+                        )
+                        .addOnFailureListener { e ->
+                            android.util.Log.e("CleaningInspection", "Failed to update cleaningCompletedAt and cleaningFee", e)
+                        }
+                }
+                
+                // Navigate to cleaner task detail screen
+                val detailIntent = Intent(this, CleanerTaskDetailActivity::class.java)
+                detailIntent.putExtra("ROOM_ID", id)
+                detailIntent.putExtra("BOOKING_ID", bookingId ?: "")
+                // Get checkout time from task if available, otherwise use default
+                val tasks = CleanerTaskRepository.tasks().value ?: emptyList()
+                val task = tasks.find { it.roomId == id }
+                val checkoutTime = "11.00 PM" // Default, can be enhanced later
+                detailIntent.putExtra("CHECKOUT_TIME", checkoutTime)
+                detailIntent.putExtra("NOTES", "Replace bedding and towels") // Default notes
+                startActivity(detailIntent)
+                finish()
+            } catch (e: Exception) {
+                android.util.Log.e("CleaningInspection", "Error handling btnDone click", e)
+                android.widget.Toast.makeText(this, "Error saving inspection. Check logs.", android.widget.Toast.LENGTH_SHORT).show()
             }
-            
-            // Navigate to cleaner task detail screen
-            val detailIntent = Intent(this, CleanerTaskDetailActivity::class.java)
-            detailIntent.putExtra("ROOM_ID", id)
-            detailIntent.putExtra("BOOKING_ID", bookingId ?: "")
-            // Get checkout time from task if available, otherwise use default
-            val tasks = CleanerTaskRepository.tasks().value ?: emptyList()
-            val task = tasks.find { it.roomId == id }
-            val checkoutTime = "11.00 PM" // Default, can be enhanced later
-            detailIntent.putExtra("CHECKOUT_TIME", checkoutTime)
-            detailIntent.putExtra("NOTES", "Replace bedding and towels") // Default notes
-            startActivity(detailIntent)
-            finish()
         }
 
         updateTotal()
@@ -179,23 +202,6 @@ class CleaningInspectionActivity : AppCompatActivity() {
     private fun currentTotal(): Double =
         lostAdapter.totalCharges() + brokenAdapter.totalCharges() + miniBarAdapter.totalCharges()
 
-    private fun defaultLostItems(): List<LostItemAdapter.LostItem> = listOf(
-        LostItemAdapter.LostItem("Flipflop", 0.0),
-        LostItemAdapter.LostItem("Towel", 0.0),
-        LostItemAdapter.LostItem("Remote", 0.0),
-        LostItemAdapter.LostItem("Blanket", 0.0),
-        LostItemAdapter.LostItem("Shampoo", 0.0),
-        LostItemAdapter.LostItem("Hair dryer", 0.0)
-    )
-
-    private fun defaultBrokenItems(): List<BrokenFurnitureAdapter.BrokenItem> = listOf(
-        BrokenFurnitureAdapter.BrokenItem("Bed", 0.0),
-        BrokenFurnitureAdapter.BrokenItem("TV", 0.0),
-        BrokenFurnitureAdapter.BrokenItem("Shower", 0.0),
-        BrokenFurnitureAdapter.BrokenItem("Lamp", 0.0),
-        BrokenFurnitureAdapter.BrokenItem("Window", 0.0),
-        BrokenFurnitureAdapter.BrokenItem("Hair dryer", 0.0)
-    )
 
     private fun defaultMiniBarItems(): List<MiniBarAdapter.MiniItem> = listOf(
         MiniBarAdapter.MiniItem("Snacks", 15000.0),
@@ -210,12 +216,13 @@ class CleaningInspectionActivity : AppCompatActivity() {
             val rates = withContext(Dispatchers.IO) {
                 runCatching { fetchDamageRates(roomTypeId) }.getOrElse { DamageRateResult(emptyList(), emptyList()) }
             }
-            if (rates.brokenItems.isNotEmpty()) {
-                brokenAdapter.replaceItems(rates.brokenItems.toMutableList())
-            }
-            if (rates.lostItems.isNotEmpty()) {
-                lostAdapter.replaceItems(rates.lostItems.toMutableList())
-            }
+            
+            android.util.Log.d("CleaningInspection", "Fetched ${rates.brokenItems.size} broken items and ${rates.lostItems.size} lost items from Firebase")
+            
+
+            brokenAdapter.replaceItems(rates.brokenItems.toMutableList())
+            lostAdapter.replaceItems(rates.lostItems.toMutableList())
+            
             updateTotal()
         }
     }
@@ -255,34 +262,64 @@ class CleaningInspectionActivity : AppCompatActivity() {
             .collection("damageLossRates")
             .get()
             .await()
-        if (snapshot.isEmpty) return DamageRateResult(emptyList(), emptyList())
+        if (snapshot.isEmpty) {
+            android.util.Log.d("CleaningInspection", "No damageLossRates found for roomTypeId: $roomTypeId")
+            return DamageRateResult(emptyList(), emptyList())
+        }
+
+        // First, collect all facility IDs and fetch their names
+        val facilityIds = snapshot.documents.mapNotNull { doc ->
+            doc.getString("facilityId")
+        }.toSet()
+        
+        if (facilityIds.isEmpty()) {
+            android.util.Log.d("CleaningInspection", "No facilityIds found in damageLossRates")
+            return DamageRateResult(emptyList(), emptyList())
+        }
+
+        val namesMap = fetchFacilityNames(facilityIds)
+        android.util.Log.d("CleaningInspection", "Fetched ${namesMap.size} facility names for ${facilityIds.size} facility IDs")
 
         val entries = snapshot.documents.mapNotNull { doc ->
             val facilityId = doc.getString("facilityId") ?: return@mapNotNull null
             val price = when (val raw = doc.get("price")) {
                 is Number -> raw.toDouble()
                 is String -> raw.toDoubleOrNull()
+                is java.math.BigDecimal -> raw.toDouble()
                 else -> null
             } ?: 0.0
             val status = doc.getString("statusId")
                 ?: doc.getString("status")
                 ?: statusLookup[facilityId]
                 ?: "0"
-            RateEntry(facilityId, price, status)
+            
+            val facilityName = namesMap[facilityId] ?: facilityId
+            
+            // Only include entries with valid prices from Firebase
+            if (price > 0) {
+                android.util.Log.d("CleaningInspection", "Found rate: facilityId=$facilityId, name=$facilityName, price=$price, status=$status")
+                RateEntry(facilityId, facilityName, price, status)
+            } else {
+                null
+            }
         }
-        if (entries.isEmpty()) return DamageRateResult(emptyList(), emptyList())
+        
+        if (entries.isEmpty()) {
+            android.util.Log.d("CleaningInspection", "No valid entries with prices > 0")
+            return DamageRateResult(emptyList(), emptyList())
+        }
 
-        val namesMap = fetchFacilityNames(entries.map { it.facilityId }.toSet())
         val lost = mutableListOf<LostItemAdapter.LostItem>()
         val broken = mutableListOf<BrokenFurnitureAdapter.BrokenItem>()
         entries.forEach { entry ->
-            val name = namesMap[entry.facilityId] ?: entry.facilityId
             if (entry.statusId == "1") {
-                lost += LostItemAdapter.LostItem(name, entry.price, checked = false, quantity = 0)
+                lost += LostItemAdapter.LostItem(entry.facilityName, entry.price, checked = false, quantity = 0)
             } else {
-                broken += BrokenFurnitureAdapter.BrokenItem(name, entry.price)
+                broken += BrokenFurnitureAdapter.BrokenItem(entry.facilityName, entry.price)
             }
         }
+        
+        android.util.Log.d("CleaningInspection", "Created ${lost.size} lost items and ${broken.size} broken items from Firebase")
         return DamageRateResult(lost, broken)
     }
 
@@ -290,18 +327,27 @@ class CleaningInspectionActivity : AppCompatActivity() {
         if (ids.isEmpty()) return emptyMap()
         val map = mutableMapOf<String, String>()
         ids.chunked(10).forEach { chunk ->
-            val snap = firestore.collection("facilities")
-                .whereIn(FieldPath.documentId(), chunk)
-                .get()
-                .await()
-            for (doc in snap.documents) {
-                map[doc.id] = doc.getString("facilities_name") ?: doc.id
+            try {
+                val snap = firestore.collection("facilities")
+                    .whereIn(FieldPath.documentId(), chunk)
+                    .get()
+                    .await()
+                for (doc in snap.documents) {
+                    val name = doc.getString("facilities_name")
+                        ?: doc.getString("name")
+                        ?: doc.getString("facility_name")
+                        ?: doc.id
+                    map[doc.id] = name
+                    android.util.Log.d("CleaningInspection", "Mapped facilityId ${doc.id} to name: $name")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("CleaningInspection", "Error fetching facility names for chunk", e)
             }
         }
         return map
     }
 
-    private data class RateEntry(val facilityId: String, val price: Double, val statusId: String)
+    private data class RateEntry(val facilityId: String, val facilityName: String, val price: Double, val statusId: String)
 
     private suspend fun loadFacilityStatus(): Map<String, String> {
         return try {

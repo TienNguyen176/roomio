@@ -45,6 +45,8 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
     private var cleaningFee: Double = 0.0
     private var extraTotal: Double = 0.0
     private var lastExtraTotal: Double = 0.0
+    private var roomFeesLoaded: Boolean = false
+    private var currentRoomFeeItems: List<ServiceFeeAdapter.ServiceItem> = emptyList()
     private var discountLabel: String = "-"
     private var guestsCount: Int = 0
     private var invoiceListener: ListenerRegistration? = null
@@ -138,10 +140,17 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             btnNext.postDelayed({ btnNext.isEnabled = true }, 600)
         }
 
-        when {
-            hotelId != null -> loadServiceRates(hotelId)
-            bookingId != null -> resolveHotelIdFromBooking(bookingId)
-            else -> serviceAdapter.replaceItems(emptyList())
+        // Load room fees first, then hotel services
+        if (bookingId != null) {
+            when {
+                hotelId != null -> loadRoomFeesThenServices(bookingId, hotelId)
+                else -> loadRoomFeesThenResolveHotel(bookingId)
+            }
+        } else {
+            when {
+                hotelId != null -> loadServiceRates(hotelId)
+                else -> serviceAdapter.replaceItems(emptyList())
+            }
         }
     }
 
@@ -176,8 +185,9 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
     private fun refreshPriceSummary() {
         lastExtraTotal = extraTotal
+        val effectiveCleaningFee = if (roomFeesLoaded) 0.0 else cleaningFee
         // Grand total = (reservation amount + extra fees + cleaning fee) - paid amount
-        val grandTotal = max(0.0, reservationAmount + extraTotal + cleaningFee - paidAmount)
+        val grandTotal = max(0.0, reservationAmount + extraTotal + effectiveCleaningFee - paidAmount)
         tvGrandTotal.text = "Total amount: ${formatCurrency(grandTotal)}"
     }
     
@@ -314,11 +324,21 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
                         cleaningFee = fee
                         updateCleaningFee(cleaningFee)
                     }
+                    // Reload room fees when booking is updated
+                    lifecycleScope.launch {
+                        val roomFees = withContext(Dispatchers.IO) {
+                            runCatching { fetchRoomFees(bookingId) }.getOrElse { emptyList() }
+                        }
+                        applyRoomFees(roomFees)
+                    }
                 }
             }
     }
 
     private fun iconForService(name: String): Int = when {
+        name.contains("lost", true) -> R.drawable.ic_service_roomsvc // Placeholder for lost items
+        name.contains("broken", true) -> R.drawable.ic_service_roomsvc // Placeholder for broken furniture
+        name.contains("mini bar", true) || name.contains("minibar", true) -> R.drawable.ic_service_roomsvc // Placeholder for mini bar
         name.contains("tour", true) -> R.drawable.ic_service_tour
         name.contains("laundry", true) -> R.drawable.ic_service_laundry
         name.contains("spa", true) || name.contains("gym", true) -> R.drawable.ic_service_spa
@@ -337,13 +357,16 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         serviceFetchJob?.cancel()
         serviceFetchJob = lifecycleScope.launch {
             try {
-                val items = withContext(Dispatchers.IO) {
+                val serviceItems = withContext(Dispatchers.IO) {
                     val rates = fetchServiceRates(hotelId)
                     if (rates.isNotEmpty()) rates else fetchHotelServices(hotelId)
                 }
-                serviceAdapter.replaceItems(items)
+                val currentSelections = serviceAdapter.getServiceItems()
+                val mergedServices = mergeServiceSelections(serviceItems, currentSelections)
+                serviceAdapter.replaceItems(currentRoomFeeItems + mergedServices)
             } catch (e: Exception) {
-                serviceAdapter.replaceItems(emptyList())
+                val currentSelections = serviceAdapter.getServiceItems()
+                serviceAdapter.replaceItems(currentRoomFeeItems + currentSelections)
                 Toast.makeText(this@ServiceExtraFeeActivity, "Failed to load service prices", Toast.LENGTH_SHORT).show()
             }
         }
@@ -372,6 +395,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             queries += collection.whereEqualTo("hotelId", hotelIdNumber)
         }
         queries += collection.whereEqualTo("hotelRef", hotelDocRef)
+        queries += collection.whereEqualTo("hotelRef.id", hotelId)
 
         for (query in queries) {
             val snap = query.get().await()
@@ -497,6 +521,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
                     ?: doc.id
                 result[doc.id] = name
                 result[doc.reference.path] = name
+                doc.getString("id")?.let { result[it] = name }
             }
         }
 
@@ -517,6 +542,24 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
                     .get()
                     .await()
                 addDocs(hotelSnap.documents)
+            }
+
+            idSet.chunked(10).forEach { chunk ->
+                val snapByField = firestore.collection("services")
+                    .whereIn("id", chunk)
+                    .get()
+                    .await()
+                addDocs(snapByField.documents)
+            }
+
+            idSet.chunked(10).forEach { chunk ->
+                val hotelSnapByField = firestore.collection("hotels")
+                    .document(hotelId)
+                    .collection("services")
+                    .whereIn("id", chunk)
+                    .get()
+                    .await()
+                addDocs(hotelSnapByField.documents)
             }
         }
 
@@ -557,15 +600,205 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             ?: doc.getString("serviceRefId")
     }
 
+    private fun applyRoomFees(roomFees: List<ServiceFeeAdapter.ServiceItem>) {
+        currentRoomFeeItems = roomFees
+        roomFeesLoaded = roomFees.isNotEmpty()
+        val existingServices = serviceAdapter.getServiceItems()
+        serviceAdapter.replaceItems(currentRoomFeeItems + existingServices)
+    }
+
+    private fun mergeServiceSelections(
+        newItems: List<ServiceFeeAdapter.ServiceItem>,
+        previousSelections: List<ServiceFeeAdapter.ServiceItem>
+    ): List<ServiceFeeAdapter.ServiceItem> {
+        val previousMap = previousSelections.associateBy { it.name.lowercase() }
+        return newItems.map { item ->
+            val prev = previousMap[item.name.lowercase()]
+            if (prev != null) item.copy(checked = prev.checked) else item
+        }
+    }
+
+    private fun loadRoomFees(bookingId: String) {
+        lifecycleScope.launch {
+            val roomFees = withContext(Dispatchers.IO) {
+                runCatching { fetchRoomFees(bookingId) }.getOrElse { emptyList() }
+            }
+            applyRoomFees(roomFees)
+        }
+    }
+
+    private fun loadRoomFeesThenServices(bookingId: String, hotelId: String) {
+        lifecycleScope.launch {
+            val roomFees = withContext(Dispatchers.IO) {
+                runCatching { fetchRoomFees(bookingId) }.getOrElse { emptyList() }
+            }
+            android.util.Log.d("ServiceExtraFee", "Loaded ${roomFees.size} room fees")
+            applyRoomFees(roomFees)
+            
+            // Then load services
+            try {
+                val serviceItems = withContext(Dispatchers.IO) {
+                    val rates = fetchServiceRates(hotelId)
+                    if (rates.isNotEmpty()) rates else fetchHotelServices(hotelId)
+                }
+                android.util.Log.d("ServiceExtraFee", "Loaded ${serviceItems.size} service items")
+                val currentSelections = serviceAdapter.getServiceItems()
+                val mergedServices = mergeServiceSelections(serviceItems, currentSelections)
+                serviceAdapter.replaceItems(currentRoomFeeItems + mergedServices)
+            } catch (e: Exception) {
+                android.util.Log.e("ServiceExtraFee", "Error loading services", e)
+                val currentSelections = serviceAdapter.getServiceItems()
+                serviceAdapter.replaceItems(currentRoomFeeItems + currentSelections)
+                Toast.makeText(this@ServiceExtraFeeActivity, "Failed to load service prices", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun loadRoomFeesThenResolveHotel(bookingId: String) {
+        lifecycleScope.launch {
+            val roomFees = withContext(Dispatchers.IO) {
+                runCatching { fetchRoomFees(bookingId) }.getOrElse { emptyList() }
+            }
+            applyRoomFees(roomFees)
+            
+            // Then resolve hotel and load services
+            val hotelId = withContext(Dispatchers.IO) {
+                runCatching { fetchHotelIdFromBooking(bookingId) }.getOrNull()
+            }
+            if (!hotelId.isNullOrBlank()) {
+                try {
+                    val serviceItems = withContext(Dispatchers.IO) {
+                        val rates = fetchServiceRates(hotelId)
+                        if (rates.isNotEmpty()) rates else fetchHotelServices(hotelId)
+                    }
+                    val currentSelections = serviceAdapter.getServiceItems()
+                    val mergedServices = mergeServiceSelections(serviceItems, currentSelections)
+                    serviceAdapter.replaceItems(currentRoomFeeItems + mergedServices)
+                } catch (e: Exception) {
+                    val currentSelections = serviceAdapter.getServiceItems()
+                    serviceAdapter.replaceItems(currentRoomFeeItems + currentSelections)
+                    Toast.makeText(this@ServiceExtraFeeActivity, "Failed to load service prices", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                val currentSelections = serviceAdapter.getServiceItems()
+                serviceAdapter.replaceItems(currentRoomFeeItems + currentSelections)
+            }
+        }
+    }
+
+    private suspend fun fetchRoomFees(bookingId: String): List<ServiceFeeAdapter.ServiceItem> {
+        val bookingDoc = firestore.collection("bookings").document(bookingId).get().await()
+        if (!bookingDoc.exists()) {
+            android.util.Log.d("ServiceExtraFee", "Booking document $bookingId does not exist")
+            return emptyList()
+        }
+
+        val roomFees = bookingDoc.get("roomFees") as? Map<*, *>
+        if (roomFees == null) {
+            android.util.Log.d("ServiceExtraFee", "No roomFees found in booking $bookingId")
+            return emptyList()
+        }
+        
+        android.util.Log.d("ServiceExtraFee", "Found roomFees in booking $bookingId")
+        val items = mutableListOf<ServiceFeeAdapter.ServiceItem>()
+
+        // Load lost items
+        val lostItems = roomFees["lostItems"] as? List<*> ?: emptyList<Any>()
+        lostItems.forEach { item ->
+            val itemMap = item as? Map<*, *> ?: return@forEach
+            val name = itemMap["name"] as? String ?: return@forEach
+            val pricePerItem = when (val raw = itemMap["pricePerItem"]) {
+                is Number -> raw.toDouble()
+                is String -> raw.toDoubleOrNull() ?: 0.0
+                else -> 0.0
+            }
+            val quantity = when (val raw = itemMap["quantity"]) {
+                is Number -> raw.toInt()
+                is String -> raw.toIntOrNull() ?: 1
+                else -> 1
+            }
+            val totalPrice = pricePerItem * quantity
+            if (totalPrice > 0) {
+                items.add(ServiceFeeAdapter.ServiceItem(
+                    iconRes = iconForService("lost"),
+                    name = "$name (x$quantity)",
+                    price = totalPrice,
+                    checked = true, // Read-only, already checked
+                    isReadOnly = true
+                ))
+            }
+        }
+
+        // Load broken furniture
+        val brokenItems = roomFees["brokenItems"] as? List<*> ?: emptyList<Any>()
+        brokenItems.forEach { item ->
+            val itemMap = item as? Map<*, *> ?: return@forEach
+            val name = itemMap["name"] as? String ?: return@forEach
+            val pricePerItem = when (val raw = itemMap["pricePerItem"]) {
+                is Number -> raw.toDouble()
+                is String -> raw.toDoubleOrNull() ?: 0.0
+                else -> 0.0
+            }
+            if (pricePerItem > 0) {
+                items.add(ServiceFeeAdapter.ServiceItem(
+                    iconRes = iconForService("broken"),
+                    name = name,
+                    price = pricePerItem,
+                    checked = true, // Read-only, already checked
+                    isReadOnly = true
+                ))
+            }
+        }
+
+        // Load mini bar items
+        val miniBarItems = roomFees["miniBarItems"] as? List<*> ?: emptyList<Any>()
+        miniBarItems.forEach { item ->
+            val itemMap = item as? Map<*, *> ?: return@forEach
+            val name = itemMap["name"] as? String ?: return@forEach
+            val pricePerItem = when (val raw = itemMap["pricePerItem"]) {
+                is Number -> raw.toDouble()
+                is String -> raw.toDoubleOrNull() ?: 0.0
+                else -> 0.0
+            }
+            val quantity = when (val raw = itemMap["quantity"]) {
+                is Number -> raw.toInt()
+                is String -> raw.toIntOrNull() ?: 1
+                else -> 1
+            }
+            val totalPrice = pricePerItem * quantity
+            if (totalPrice > 0) {
+                items.add(ServiceFeeAdapter.ServiceItem(
+                    iconRes = iconForService("mini bar"),
+                    name = "$name (x$quantity)",
+                    price = totalPrice,
+                    checked = true, // Read-only, already checked
+                    isReadOnly = true
+                ))
+            }
+        }
+
+        return items
+    }
+
     private fun resolveHotelIdFromBooking(bookingId: String) {
         lifecycleScope.launch {
             val hotelId = withContext(Dispatchers.IO) {
                 runCatching { fetchHotelIdFromBooking(bookingId) }.getOrNull()
             }
             if (!hotelId.isNullOrBlank()) {
-                loadServiceRates(hotelId)
-            } else {
-                serviceAdapter.replaceItems(emptyList())
+                try {
+                    val serviceItems = withContext(Dispatchers.IO) {
+                        val rates = fetchServiceRates(hotelId)
+                        if (rates.isNotEmpty()) rates else fetchHotelServices(hotelId)
+                    }
+                    val currentSelections = serviceAdapter.getServiceItems()
+                    val mergedServices = mergeServiceSelections(serviceItems, currentSelections)
+                    serviceAdapter.replaceItems(currentRoomFeeItems + mergedServices)
+                } catch (e: Exception) {
+                    val currentSelections = serviceAdapter.getServiceItems()
+                    serviceAdapter.replaceItems(currentRoomFeeItems + currentSelections)
+                    Toast.makeText(this@ServiceExtraFeeActivity, "Failed to load service prices", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

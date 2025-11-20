@@ -18,7 +18,8 @@ class ServiceFeeAdapter(
         val iconRes: Int,
         val name: String,
         val price: Double,
-        var checked: Boolean = false
+        var checked: Boolean = false,
+        val isReadOnly: Boolean = false // For room fees that can't be unchecked
     )
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -45,6 +46,12 @@ class ServiceFeeAdapter(
 
     fun currentTotal(): Double = total()
 
+    fun getReadOnlyItems(): List<ServiceItem> = items.filter { it.isReadOnly }
+
+    fun getServiceItems(): List<ServiceItem> = items.filter { !it.isReadOnly }
+
+    fun getAllItems(): List<ServiceItem> = items.toList()
+
     class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val icon: ImageView = itemView.findViewById(R.id.ivIcon)
         private val name: TextView = itemView.findViewById(R.id.tvName)
@@ -56,9 +63,12 @@ class ServiceFeeAdapter(
             name.text = item.name
             price.text = String.format("% ,.0f VND", item.price)
             cb.isChecked = item.checked
+            cb.isEnabled = !item.isReadOnly // Disable checkbox for read-only items
             cb.setOnCheckedChangeListener { _, isChecked ->
-                item.checked = isChecked
-                onChange()
+                if (!item.isReadOnly) {
+                    item.checked = isChecked
+                    onChange()
+                }
             }
         }
     }

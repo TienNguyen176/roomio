@@ -7,6 +7,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
@@ -16,6 +17,7 @@ import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.CleaningImageAdapter
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
 import com.tdc.nhom6.roomio.fragments.TaskStatus
+import java.io.File
 import java.util.UUID
 
 class CleanerTaskDetailActivity : AppCompatActivity() {
@@ -24,19 +26,20 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
     private lateinit var imageAdapter: CleaningImageAdapter
     private val uploadedImageUrls = mutableListOf<String>()
     private var bookingId: String = ""
+    private var cameraImageUri: Uri? = null
 
-    private val pickImagesLauncher = registerForActivityResult(
-        ActivityResultContracts.GetMultipleContents()
-    ) { uris ->
-        if (uris.isNotEmpty()) {
-            uris.forEach { uri ->
-                val item = CleaningImageAdapter.ImageItem(uri = uri, isUploading = false)
-                val position = imageAdapter.images.size
-                imageAdapter.addImage(item)
-                updateMarkAsCleanButton()
+    private val takePhotoLauncher =
+        registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            if (success) {
+                cameraImageUri?.let { uri ->
+                    val item = CleaningImageAdapter.ImageItem(uri = uri, isUploading = false)
+                    imageAdapter.addImage(item)
+                    updateMarkAsCleanButton()
+                }
+            } else {
+                Toast.makeText(this, "Camera canceled", Toast.LENGTH_SHORT).show()
             }
         }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -95,9 +98,9 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         }
         rvImages.adapter = imageAdapter
 
-        // Upload images button
+        // Upload images button - require taking photos with camera
         findViewById<MaterialButton>(R.id.btnUploadImages).setOnClickListener {
-            pickImagesLauncher.launch("image/*")
+            openCamera()
         }
 
         // Mark as clean button - initially disabled
@@ -118,6 +121,23 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         val hasImages = imageAdapter.itemCount > 0
         btnMarkAsClean.isEnabled = hasImages
         btnMarkAsClean.alpha = if (hasImages) 1.0f else 0.5f
+    }
+
+    private fun openCamera() {
+        try {
+            val fileName = "cleaning_${System.currentTimeMillis()}.jpg"
+            val file = File(cacheDir, fileName)
+            if (!file.exists()) file.createNewFile()
+            cameraImageUri = FileProvider.getUriForFile(
+                this,
+                "${packageName}.fileprovider",
+                file
+            )
+            takePhotoLauncher.launch(cameraImageUri!!)
+        } catch (e: Exception) {
+            android.util.Log.e("CleanerTaskDetail", "Failed to open camera", e)
+            Toast.makeText(this, "Unable to open camera", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun uploadImagesAndMarkAsClean(roomId: String, task: com.tdc.nhom6.roomio.fragments.CleanerTask?) {
