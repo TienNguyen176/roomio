@@ -81,30 +81,18 @@ class FacilityPriceSelectorDialog(
     private fun loadFacilities(onLoaded: (List<Facility>) -> Unit) {
         scope.launch(Dispatchers.IO) {
             try {
-                // Facility chung (không có hotelId)
-                val globalSnap = db.collection("facilities")
-                    .whereEqualTo("hotelId", null)
-                    .get()
-                    .await()
+                val snapshot = db.collection("facilities").get().await()
 
-                // Facility riêng của khách sạn
-                val hotelSnap = db.collection("facilities")
-                    .whereEqualTo("hotelId", hotelId)
-                    .get()
-                    .await()
-
-                val all = (globalSnap.documents + hotelSnap.documents)
-                    .mapNotNull {
-                        it.toObject(Facility::class.java)?.apply { id = it.id }
-                    }
-                    .toMutableList()
+                val all = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Facility::class.java)?.apply { id = doc.id }
+                }.filter { facility ->
+                    // Facility global hoặc Facility thuộc hotel
+                    facility.hotelId.isEmpty() || facility.hotelId == hotelId
+                }.toMutableList()
 
                 allFacilities = all
 
-                withContext(Dispatchers.Main) {
-                    onLoaded(all)
-                }
-
+                withContext(Dispatchers.Main) { onLoaded(all) }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Lỗi tải tiện ích!", Toast.LENGTH_SHORT).show()
@@ -112,6 +100,7 @@ class FacilityPriceSelectorDialog(
             }
         }
     }
+
 
     // ========================== RECYCLER ==========================
 
