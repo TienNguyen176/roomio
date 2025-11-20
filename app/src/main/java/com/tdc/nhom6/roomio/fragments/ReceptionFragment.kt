@@ -78,7 +78,7 @@ class ReceptionFragment : Fragment() {
         
         // Initialize data
         allReservations.clear()
-        allReservations.addAll(placeholderItems())
+
         
         reservationAdapter = ReservationAdapter(allReservations.toMutableList())
         rv.adapter = reservationAdapter
@@ -913,83 +913,8 @@ class ReceptionFragment : Fragment() {
             .show()
     }
 
-    private fun placeholderItems(): List<ReservationUi> = listOf(
-        ReservationUi(
-            documentId = "doc-R8ZZPQR7",
-            reservationId = "R8ZZPQR7",
-            displayReservationCode = formatReservationCode(1),
-            badge = "Deposit paid",
-            line1 = "Check-in: 20/09/1025 - Check-out: 22/09/2025",
-            line2 = "",
-            line3 = "Guest name: Harper",
-            action = "Check-in",
-            headerColor = HeaderColor.BLUE,
-            status = ReservationStatus.UNCOMPLETED,
-            numberGuest = 2,
-            roomType = "Deluxe",
-            cleaningCompletedAtMillis = null
-        ),
-        ReservationUi(
-            documentId = "doc-R8ZZPQR8",
-            reservationId = "R8ZZPQR8",
-            displayReservationCode = formatReservationCode(2),
-            badge = "Paid",
-            line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025",
-            line2 = "",
-            line3 = "Guest name: Lily",
-            action = "Check-out",
-            headerColor = HeaderColor.GREEN,
-            status = ReservationStatus.UNCOMPLETED,
-            numberGuest = 3,
-            roomType = "Suite",
-            cleaningCompletedAtMillis = null
-        ),
-        ReservationUi(
-            documentId = "doc-R8ZZPQR9",
-            reservationId = "R9ZZPQR9",
-            displayReservationCode = formatReservationCode(3),
-            badge = "",
-            line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025",
-            line2 = "",
-            line3 = "Guest name: Cap",
-            action = "Payment",
-            headerColor = HeaderColor.YELLOW,
-            status = ReservationStatus.PENDING,
-            numberGuest = 1,
-            roomType = "Standard",
-            cleaningCompletedAtMillis = null
-        ),
-        ReservationUi(
-            documentId = "doc-R8ZZPQR0",
-            reservationId = "R8ZZPQR0",
-            displayReservationCode = formatReservationCode(4),
-            badge = "Paid",
-            line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025",
-            line2 = "",
-            line3 = "Guest name: Ahri",
-            action = "Check-in",
-            headerColor = HeaderColor.GREEN,
-            status = ReservationStatus.COMPLETED,
-            numberGuest = 4,
-            roomType = "Deluxe",
-            cleaningCompletedAtMillis = null
-        ),
-        ReservationUi(
-            documentId = "doc-R9ABC123",
-            reservationId = "R9ABC123",
-            displayReservationCode = formatReservationCode(5),
-            badge = "Cancelled",
-            line1 = "Check-in: 15/09/1025 - check-out: 17/09/2025",
-            line2 = "",
-            line3 = "Guest name: Bob",
-            action = "Payment",
-            headerColor = HeaderColor.RED,
-            status = ReservationStatus.CANCELED,
-            numberGuest = 2,
-            roomType = "Standard",
-            cleaningCompletedAtMillis = null
-        )
-    )
+
+
 }
 
 private data class ReservationMeta(
