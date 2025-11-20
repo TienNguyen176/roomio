@@ -4,13 +4,13 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.tdc.nhom6.roomio.databinding.ItemFacilitySelectorBinding
-import com.tdc.nhom6.roomio.models.Facility
+import com.tdc.nhom6.roomio.models.FacilityModel
 import com.tdc.nhom6.roomio.models.FacilityPrice
 
 class FacilitySelectorAdapter(
-    private val facilities: List<Facility>,
+    private val facilities: List<FacilityModel>,
     private val preselected: MutableList<FacilityPrice>,
-    private val onEnterPrice: (Facility, () -> Unit) -> Unit
+    private val onEnterPrice: (FacilityModel, () -> Unit) -> Unit
 ) : RecyclerView.Adapter<FacilitySelectorAdapter.ViewHolder>() {
 
     inner class ViewHolder(val binding: ItemFacilitySelectorBinding) :
@@ -36,6 +36,7 @@ class FacilitySelectorAdapter(
         val binding = holder.binding
 
         binding.cbSelected.setOnCheckedChangeListener(null)
+
         binding.cbSelected.text = facility.facilities_name
         binding.cbSelected.isChecked = selectedMap[facility.id] == true
 
@@ -44,7 +45,6 @@ class FacilitySelectorAdapter(
                 selectedMap[facility.id] = true
 
                 onEnterPrice(facility) {
-                    // onCancel khi người dùng bấm "Hủy"
                     selectedMap[facility.id] = false
                     binding.cbSelected.isChecked = false
                 }
@@ -56,6 +56,6 @@ class FacilitySelectorAdapter(
         }
     }
 
-    fun getSelectedFacilities(): List<Facility> =
+    fun getSelectedFacilities(): List<FacilityModel> =
         facilities.filter { selectedMap[it.id] == true }
 }
