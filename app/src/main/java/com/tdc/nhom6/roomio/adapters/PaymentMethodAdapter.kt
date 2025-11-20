@@ -16,7 +16,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter.Format
 import com.tdc.nhom6.roomio.databinding.ItemPaymentMethodBinding
-import com.tdc.nhom6.roomio.models.Discount
+import com.tdc.nhom6.roomio.models.DiscountPaymentMethod
 import com.tdc.nhom6.roomio.models.PaymentMethod
 
 @Suppress("DEPRECATION")
@@ -187,7 +187,7 @@ class PaymentMethodAdapter(
                     var description: String? = null
                     if (dataSnapshot != null && dataSnapshot.exists()) {
                         try {
-                            val discount = dataSnapshot.toObject(Discount::class.java)
+                            val discount = dataSnapshot.toObject(DiscountPaymentMethod::class.java)
                             description = discount?.discountDescription
                         } catch (ex: Exception) {
                             Log.e("Firebase", "Lỗi chuyển đổi dữ liệu cho Discount: ${dataSnapshot.id}", ex)

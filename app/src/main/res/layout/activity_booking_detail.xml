@@ -257,8 +257,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp">
+                android:orientation="horizontal">
 
                 <TextView
                     android:layout_width="0dp"
@@ -270,13 +269,58 @@
                     android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/tvTotalAfter"
+                    android:id="@+id/tvTotalOrigin"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="VND 700.000"
-                    android:textColor="@color/red"
+                    android:textColor="@color/black"
                     android:textSize="18sp"
                     android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutTotalFinal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp"
+                android:weightSum="5">
+                <TextView
+                    android:id="@+id/tvDiscountName"
+                    android:layout_weight="3"
+                    android:layout_width="0sp"
+                    android:layout_height="wrap_content"
+                    android:text="3% discount for first time booking with e-wallet"
+                    android:textSize="11sp"
+                    android:textColor="@color/green"
+                    android:layout_gravity="center_vertical"
+                    android:textStyle="bold"/>
+
+                <LinearLayout
+                    android:layout_width="0sp"
+                    android:layout_weight="2"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    >
+                    <TextView
+                        android:id="@+id/tvDiscountPrice"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="- VND 21.000"
+                        android:textSize="13sp"
+                        android:textColor="@color/red"
+                        android:textStyle="bold"
+                        android:gravity="right"/>
+                    <TextView
+                        android:id="@+id/tvTotalAfter"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="VND 700.000"
+                        android:textSize="16sp"
+                        android:textColor="@color/green"
+                        android:textStyle="bold"
+                        android:gravity="right"/>
+                </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
@@ -292,7 +336,7 @@
                     android:text="Fund amount"
                     android:textStyle="bold"
                     android:textColor="@android:color/black"
-                    android:textSize="14sp" />
+                    android:textSize="16sp" />
 
                 <TextView
                     android:id="@+id/tvFundAmount"
@@ -301,14 +345,14 @@
                     android:text="VND 70.000 (10%)"
                     android:layout_marginStart="8dp"
                     android:textColor="@android:color/black"
-                    android:textSize="14sp" />
+                    android:textSize="16sp" />
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="4dp">
 
                 <TextView
                     android:layout_width="0dp"
@@ -328,7 +372,16 @@
                     android:textColor="@android:color/black"
                     android:textSize="14sp" />
             </LinearLayout>
-
+            <TextView
+                android:id="@+id/tvPaymentStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:text="Paid"
+                android:textColor="@color/green"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp"/>
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
@@ -355,7 +408,6 @@
                 android:id="@+id/tvSpecialRequest"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Enter your Request"
                 android:gravity="top|start"
                 android:textSize="14sp"
                 android:background="@drawable/shape_foreground_radius"
