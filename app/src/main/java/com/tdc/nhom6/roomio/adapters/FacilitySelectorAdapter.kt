@@ -10,7 +10,7 @@ import com.tdc.nhom6.roomio.models.FacilityPrice
 class FacilitySelectorAdapter(
     private val facilities: List<Facility>,
     private val preselected: MutableList<FacilityPrice>,
-    private val onEnterPrice: (Facility, () -> Unit) -> Unit // callback thêm onCancel
+    private val onEnterPrice: (Facility, () -> Unit) -> Unit
 ) : RecyclerView.Adapter<FacilitySelectorAdapter.ViewHolder>() {
 
     inner class ViewHolder(val binding: ItemFacilitySelectorBinding) :
@@ -42,11 +42,13 @@ class FacilitySelectorAdapter(
         binding.cbSelected.setOnCheckedChangeListener { _, checked ->
             if (checked) {
                 selectedMap[facility.id] = true
-                // Truyền callback cancel để bỏ chọn nếu người dùng bấm Hủy
+
                 onEnterPrice(facility) {
+                    // onCancel khi người dùng bấm "Hủy"
                     selectedMap[facility.id] = false
                     binding.cbSelected.isChecked = false
                 }
+
             } else {
                 selectedMap[facility.id] = false
                 preselected.removeAll { it.facilityId == facility.id }

@@ -345,7 +345,8 @@ class RoomHotelActivity : AppCompatActivity() {
                 FacilityPriceSelectorDialog(
                     context = this@RoomHotelActivity,
                     scope = lifecycleScope,
-                    preselected = selectedFacilityPrices
+                    preselected = selectedFacilityPrices,
+                    hotelId = hotelId!!
                 ) { selectedRates ->
                     selectedFacilityPrices.clear()
                     selectedFacilityPrices.addAll(selectedRates.facilityRates)
@@ -357,6 +358,7 @@ class RoomHotelActivity : AppCompatActivity() {
                         "Đã chọn ${selectedRates.facilityRates.size} tiện ích"
                 }.show()
             }
+
 
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val name = dialogBinding.edtRoomTypeName.text.toString().trim()
