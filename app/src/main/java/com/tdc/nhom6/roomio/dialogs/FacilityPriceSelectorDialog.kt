@@ -19,14 +19,15 @@ class FacilityPriceSelectorDialog(
     private val context: Context,
     private val scope: CoroutineScope,
     private val preselected: MutableList<FacilityPrice>,
-    private val onConfirm: (SelectedRates) -> Unit          // ⬅️ đổi callback
+    private val hotelId: String,                    // ⬅️ NHẬN HOTEL ID
+    private val onConfirm: (SelectedRates) -> Unit
 ) {
     private val db = FirebaseFirestore.getInstance()
     private lateinit var binding: DialogFacilitySelectorLayoutBinding
     private lateinit var adapter: FacilitySelectorAdapter
     private var allFacilities: MutableList<Facility> = mutableListOf()
 
-    // Map tạm cho giá hư hỏng
+    // Map giá hư hỏng
     val damagePriceMap = mutableMapOf<String, Long>()
 
     fun show() {
@@ -36,7 +37,6 @@ class FacilityPriceSelectorDialog(
             .create()
 
         binding.btnConfirm.setOnClickListener {
-            // danh sách facility đã tick
             val selectedFacilities = adapter.getSelectedFacilities()
 
             val facilityRates = selectedFacilities.map { f ->
@@ -76,14 +76,35 @@ class FacilityPriceSelectorDialog(
         dialog.show()
     }
 
+    // ========================== LOAD FACILITY ==========================
+
     private fun loadFacilities(onLoaded: (List<Facility>) -> Unit) {
         scope.launch(Dispatchers.IO) {
             try {
-                val snapshot = db.collection("facilities").get().await()
-                allFacilities = snapshot.documents.mapNotNull {
-                    it.toObject(Facility::class.java)?.apply { id = it.id }
-                }.toMutableList()
-                withContext(Dispatchers.Main) { onLoaded(allFacilities) }
+                // Facility chung (không có hotelId)
+                val globalSnap = db.collection("facilities")
+                    .whereEqualTo("hotelId", null)
+                    .get()
+                    .await()
+
+                // Facility riêng của khách sạn
+                val hotelSnap = db.collection("facilities")
+                    .whereEqualTo("hotelId", hotelId)
+                    .get()
+                    .await()
+
+                val all = (globalSnap.documents + hotelSnap.documents)
+                    .mapNotNull {
+                        it.toObject(Facility::class.java)?.apply { id = it.id }
+                    }
+                    .toMutableList()
+
+                allFacilities = all
+
+                withContext(Dispatchers.Main) {
+                    onLoaded(all)
+                }
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Lỗi tải tiện ích!", Toast.LENGTH_SHORT).show()
@@ -92,6 +113,8 @@ class FacilityPriceSelectorDialog(
         }
     }
 
+    // ========================== RECYCLER ==========================
+
     private fun setupRecycler(facilities: List<Facility>) {
         adapter = FacilitySelectorAdapter(facilities, preselected) { facility, onCancel ->
             showEnterPriceDialog(facility, onCancel)
@@ -99,6 +122,8 @@ class FacilityPriceSelectorDialog(
         binding.rvFacilities.layoutManager = LinearLayoutManager(context)
         binding.rvFacilities.adapter = adapter
     }
+
+    // ========================== NHẬP GIÁ ==========================
 
     private fun showEnterPriceDialog(facility: Facility, onCancel: () -> Unit) {
         val layout = LinearLayout(context).apply {
@@ -111,6 +136,7 @@ class FacilityPriceSelectorDialog(
             inputType = InputType.TYPE_CLASS_NUMBER
             setText(preselected.find { it.facilityId == facility.id }?.price?.toString() ?: "")
         }
+
         val edtDamage = EditText(context).apply {
             hint = "Giá hư hỏng (VND)"
             inputType = InputType.TYPE_CLASS_NUMBER
@@ -127,7 +153,6 @@ class FacilityPriceSelectorDialog(
                 val usePrice = edtUse.text.toString().toLongOrNull() ?: 0L
                 val damagePrice = edtDamage.text.toString().toLongOrNull() ?: 0L
 
-                // cập nhật list giá sử dụng
                 preselected.removeAll { it.facilityId == facility.id }
                 preselected.add(
                     FacilityPrice(
@@ -137,7 +162,6 @@ class FacilityPriceSelectorDialog(
                     )
                 )
 
-                // cập nhật map giá hư hỏng
                 damagePriceMap[facility.id] = damagePrice
 
                 Toast.makeText(context, "Đã lưu: dùng $usePrice • hư hỏng $damagePrice", Toast.LENGTH_SHORT).show()
@@ -146,12 +170,14 @@ class FacilityPriceSelectorDialog(
             .show()
     }
 
+    // ========================== THÊM FACILITY MỚI ==========================
+
     private fun showAddNewFacilityDialog() {
-        val layout = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-        }
+        val layout = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
+
         val edtName = EditText(context).apply { hint = "Tên tiện ích" }
         val edtDesc = EditText(context).apply { hint = "Mô tả (tùy chọn)" }
+
         layout.addView(edtName)
         layout.addView(edtDesc)
 
@@ -164,14 +190,20 @@ class FacilityPriceSelectorDialog(
                     Toast.makeText(context, "Tên không được trống", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
+
                 val data = mapOf(
                     "facilities_name" to name,
-                    "description" to edtDesc.text.toString()
+                    "description" to edtDesc.text.toString(),
+                    "hotelId" to hotelId                 // ⬅️ LƯU THEO HOTEL
                 )
+
                 db.collection("facilities").add(data)
                     .addOnSuccessListener {
                         Toast.makeText(context, "Đã thêm '$name'", Toast.LENGTH_SHORT).show()
-                        show()
+                        show() // reload dialog
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(context, "Lỗi thêm tiện ích!", Toast.LENGTH_SHORT).show()
                     }
             }
             .setNegativeButton("Hủy", null)
