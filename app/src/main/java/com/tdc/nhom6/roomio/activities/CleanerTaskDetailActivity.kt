@@ -32,14 +32,14 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
             if (success) {
                 cameraImageUri?.let { uri ->
-                    val item = CleaningImageAdapter.ImageItem(uri = uri, isUploading = false)
-                    imageAdapter.addImage(item)
-                    updateMarkAsCleanButton()
-                }
+                val item = CleaningImageAdapter.ImageItem(uri = uri, isUploading = false)
+                imageAdapter.addImage(item)
+                updateMarkAsCleanButton()
+            }
             } else {
                 Toast.makeText(this, "Camera canceled", Toast.LENGTH_SHORT).show()
-            }
         }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

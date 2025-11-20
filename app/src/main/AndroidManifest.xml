@@ -105,7 +105,7 @@
             android:exported="false" />
 
         <activity
-            android:name=".activities.ReceptionActivity"
+            android:name=".activities.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -137,7 +137,7 @@
             android:exported="false"
             android:label="Service Extra Fee" />
         <activity
-            android:name=".activities.MainActivity"
+            android:name=".activities.ReceptionActivity"
             android:exported="false"/>
 
 

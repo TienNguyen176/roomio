@@ -22,6 +22,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Locale
+import java.util.Date
 import com.tdc.nhom6.roomio.adapters.ReservationAdapter
 import com.tdc.nhom6.roomio.models.HeaderColor
 import com.tdc.nhom6.roomio.models.ReservationStatus
@@ -133,10 +134,10 @@ class ReceptionFragment : Fragment() {
                             val documentId = doc.id
                             val previousReservation = allReservations.find { it.documentId == documentId }
                             val previousCleaningMillis = previousReservation?.cleaningCompletedAtMillis
-                            val newCleaningMillis = valueToMillis(doc.get("cleaningCompletedAt"))
+                            val newCleaningTimestamp = valueToTimestamp(doc.get("cleaningCompletedAt"))
                             
                             // Only notify if cleaning was just completed (null -> not null)
-                            if (previousCleaningMillis == null && newCleaningMillis != null) {
+                            if (previousCleaningMillis == null && newCleaningTimestamp != null) {
                                 val reservationId = doc.getString("reservationId") ?: documentId
                                 val roomTypeName = doc.getString("roomTypeName")
                                     ?: doc.getString("room_type_name")
@@ -245,15 +246,15 @@ class ReceptionFragment : Fragment() {
 
                             val checkInText = valueToDateTimeString(checkInValue)
                             val checkOutText = valueToDateTimeString(checkOutValue)
-                            val checkInMillis = valueToMillis(checkInValue)
-                            val checkOutMillis = valueToMillis(checkOutValue)
+            val checkInTimestamp = valueToTimestamp(checkInValue)
+            val checkOutTimestamp = valueToTimestamp(checkOutValue)
                             val discountText = doc.getString("discountText")
                                 ?: doc.getString("discountDescription")
                                 ?: doc.getString("promotion")
                                 ?: "-"
                             
                             // Read cleaningCompletedAt timestamp
-                            val cleaningCompletedAtMillis = valueToMillis(doc.get("cleaningCompletedAt"))
+                            val cleaningCompletedAtTimestamp = valueToTimestamp(doc.get("cleaningCompletedAt"))
                             
                             // Resolve room type name
                             val finalRoomTypeName = if (roomTypeInlineName.isNullOrBlank()) {
@@ -315,16 +316,16 @@ class ReceptionFragment : Fragment() {
                                 numberGuest = numberGuest,
                                 roomType = finalRoomTypeName,
                                 roomTypeId = roomTypeId,
-                                hotelId = doc.getString("hotelId"),
+                                hotelId = doc.getString("hotel_id"),
                                 guestPhone = doc.getString("guestPhone"),
                                 guestEmail = doc.getString("guestEmail"),
                                 totalFinalAmount = totalFinal,
                                 checkInText = checkInText,
                                 checkOutText = checkOutText,
-                                checkInMillis = checkInMillis,
-                                checkOutMillis = checkOutMillis,
+                                checkInMillis = checkInTimestamp,
+                                checkOutMillis = checkOutTimestamp,
                                 discountLabel = discountText,
-                                cleaningCompletedAtMillis = cleaningCompletedAtMillis
+                                cleaningCompletedAtMillis = cleaningCompletedAtTimestamp
                             )
                             updated.add(ui)
                             val uiIndex = updated.lastIndex
@@ -340,7 +341,7 @@ class ReceptionFragment : Fragment() {
                                 totalFinal = totalFinal,
                                 invoiceKeys = invoiceKeys.toSet(),
                                 roomTypeId = roomTypeId,
-                                hotelId = doc.getString("hotelId"),
+                                hotelId = doc.getString("hotelId") ?: doc.getString("hotel_id"),
                                 guestPhone = doc.getString("guestPhone"),
                                 guestEmail = doc.getString("guestEmail")
                             )
@@ -720,15 +721,16 @@ class ReceptionFragment : Fragment() {
         }
     }
 
-    private fun valueToMillis(value: Any?): Long? {
+    private fun valueToTimestamp(value: Any?): Timestamp? {
         return when (value) {
             null -> null
-            is Timestamp -> value.toDate().time
-            is java.util.Date -> value.time
-            is Number -> value.toLong()
+            is Timestamp -> value
+            is java.util.Date -> Timestamp(value)
+            is Number -> Timestamp(Date(value.toLong()))
             is String -> {
                 val trimmed = value.trim()
-                trimmed.toLongOrNull() ?: parseDateString(trimmed)
+                trimmed.toLongOrNull()?.let { Timestamp(Date(it)) }
+                    ?: parseDateString(trimmed)?.let { Timestamp(Date(it)) }
             }
             else -> null
         }
@@ -898,7 +900,7 @@ class ReceptionFragment : Fragment() {
         
         // Sort: reservations with recent cleaningCompletedAt go to the top
         val sorted = filtered.sortedByDescending { reservation ->
-            reservation.cleaningCompletedAtMillis ?: Long.MIN_VALUE
+            reservation.cleaningCompletedAtMillis?.toDate()?.time ?: Long.MIN_VALUE
         }
         
         reservationAdapter.updateData(sorted.toMutableList())

@@ -90,7 +90,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                         mapOf("name" to it.name, "pricePerItem" to it.pricePerItem, "quantity" to it.quantity)
                     }
                     
-                    firestore.collection("bookings").document(bookingId)
+                    firestore.collection("invoices").document(bookingId)
                         .update(
                             mapOf(
                                 "cleaningCompletedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
@@ -111,6 +111,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                 val detailIntent = Intent(this, CleanerTaskDetailActivity::class.java)
                 detailIntent.putExtra("ROOM_ID", id)
                 detailIntent.putExtra("BOOKING_ID", bookingId ?: "")
+                detailIntent.putExtra("HOTEL_ID", intent.getStringExtra("HOTEL_ID") ?: "")
                 // Get checkout time from task if available, otherwise use default
                 val tasks = CleanerTaskRepository.tasks().value ?: emptyList()
                 val task = tasks.find { it.roomId == id }

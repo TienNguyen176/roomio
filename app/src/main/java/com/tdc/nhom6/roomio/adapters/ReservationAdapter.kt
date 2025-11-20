@@ -223,8 +223,10 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) :
                     putExtra("CHECK_OUT_TEXT", current.checkOutText)
                     putExtra("CHECK_IN", current.checkInText)
                     putExtra("CHECK_OUT", current.checkOutText)
-                    putExtra("CHECK_IN_MILLIS", current.checkInMillis ?: -1L)
-                    putExtra("CHECK_OUT_MILLIS", current.checkOutMillis ?: -1L)
+                    val checkInMillis = current.checkInMillis?.toDate()?.time ?: -1L
+                    val checkOutMillis = current.checkOutMillis?.toDate()?.time ?: -1L
+                    putExtra("CHECK_IN_MILLIS", checkInMillis)
+                    putExtra("CHECK_OUT_MILLIS", checkOutMillis)
                     putExtra("RESERVATION_AMOUNT", current.totalFinalAmount)
                     putExtra("BOOKING_ID", current.documentId)
                     putExtra("ROOM_TYPE_ID", current.roomTypeId ?: "")
