@@ -1,10 +1,10 @@
 package com.tdc.nhom6.roomio.activities
 
-import android.content.Intent
+import android.app.Dialog
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.View
+import android.util.Log
 import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.Toast
@@ -17,36 +17,61 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.BankAdapter
-import com.tdc.nhom6.roomio.api.RetrofitClient
+import com.tdc.nhom6.roomio.apis.BankLookupClient
+import com.tdc.nhom6.roomio.apis.VietQRClient
 import com.tdc.nhom6.roomio.databinding.LinkBankLayoutBinding
-import com.tdc.nhom6.roomio.models.Bank
-import com.tdc.nhom6.roomio.models.BankResponse
+import com.tdc.nhom6.roomio.models.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.text.SimpleDateFormat
-import java.util.*
 
 class LinkBankActivity : AppCompatActivity() {
 
     private lateinit var binding: LinkBankLayoutBinding
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-
     private var selectedBank: Bank? = null
+    private var loadingDialog: Dialog? = null
+    private var lastLookupAcc: String? = null
+
+    private val apiKey = "44a4a79c-1f4f-4df7-ac3f-31ed52c8d644key"
+    private val apiSecret = "5ae25b4e-77f4-41fa-abc8-a3174bf1cafesecret"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = LinkBankLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        initLoading()
+
         binding.layoutSelectBank.setOnClickListener { showBankList() }
-        binding.btnLinkBank.setOnClickListener { linkBankAccount() }
-        binding.btnBack.setOnClickListener {
-            onBackPressedDispatcher.onBackPressed()
+        binding.btnLinkBank.setOnClickListener { saveBankInfo() }
+        binding.btnBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+
+        // Lookup khi rời focus
+        binding.edtAccountNumber.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                val bank = selectedBank
+                val accNum = binding.edtAccountNumber.text.toString().trim()
+                if (bank != null && accNum.isNotEmpty()) lookupAccount(bank.id, accNum)
+            }
         }
+
+        // Lookup khi nhập đủ số tài khoản
+        binding.edtAccountNumber.addTextChangedListener(object: TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                val bank = selectedBank
+                val accNum = s.toString().trim()
+                if (bank != null && accNum.length >= 10) { // chỉnh theo ngân hàng
+                    lookupAccount(bank.id, accNum)
+                }
+            }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
     }
 
+    // ===== SHOW BANK LIST (VietQR API) =====
     private fun showBankList() {
         val bottomSheet = BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottomsheet_select_bank, null)
@@ -55,35 +80,35 @@ class LinkBankActivity : AppCompatActivity() {
         val progressBar = view.findViewById<ProgressBar>(R.id.progressBar)
 
         recycler.layoutManager = LinearLayoutManager(this)
-        progressBar.visibility = View.VISIBLE
+        progressBar.visibility = ProgressBar.VISIBLE
 
-        RetrofitClient.instance.getBanks().enqueue(object : Callback<BankResponse> {
-            override fun onResponse(call: Call<BankResponse>, response: Response<BankResponse>) {
-                progressBar.visibility = View.GONE
-                if (response.isSuccessful) {
-                    val banks = response.body()?.data?.map {
-                        // map API -> Bank model (sửa theo cấu trúc API)
-                        Bank(
-                            id = it.bin.ifEmpty { it.shortName }, // ưu tiên bin, fallback shortName
-                            name = it.shortName.ifEmpty { it.bin },
-                            logoUrl = it.logo
-                        )
-                    } ?: emptyList()
+        VietQRClient.api.getBanks().enqueue(object: Callback<VietQRBankResponse> {
+            override fun onResponse(call: Call<VietQRBankResponse>, response: Response<VietQRBankResponse>) {
+                progressBar.visibility = ProgressBar.GONE
+                if (response.isSuccessful && response.body() != null) {
+                    val banks = response.body()!!.data.map {
+                        Bank(id = it.code, name = it.name, logoUrl = it.logo ?: "")
+                    }
 
                     val adapter = BankAdapter(banks) { bank ->
                         selectedBank = bank
                         binding.tvBankName.text = bank.name
                         Glide.with(this@LinkBankActivity).load(bank.logoUrl).into(binding.imgBankLogo)
                         bottomSheet.dismiss()
+
+                        // Lookup nếu số tài khoản đã nhập
+                        val accNum = binding.edtAccountNumber.text.toString().trim()
+                        if (accNum.isNotEmpty()) lookupAccount(bank.id, accNum)
                     }
 
                     recycler.adapter = adapter
 
-                    edtSearch.addTextChangedListener(object : TextWatcher {
-                        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    // Search filter
+                    edtSearch.addTextChangedListener(object: TextWatcher {
                         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                             adapter.filter.filter(s)
                         }
+                        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                         override fun afterTextChanged(s: Editable?) {}
                     })
                 } else {
@@ -91,8 +116,8 @@ class LinkBankActivity : AppCompatActivity() {
                 }
             }
 
-            override fun onFailure(call: Call<BankResponse>, t: Throwable) {
-                progressBar.visibility = View.GONE
+            override fun onFailure(call: Call<VietQRBankResponse>, t: Throwable) {
+                progressBar.visibility = ProgressBar.GONE
                 Toast.makeText(this@LinkBankActivity, "Lỗi: ${t.message}", Toast.LENGTH_SHORT).show()
             }
         })
@@ -101,51 +126,69 @@ class LinkBankActivity : AppCompatActivity() {
         bottomSheet.show()
     }
 
-    private fun linkBankAccount() {
-        val uid = auth.currentUser?.uid
-        if (uid == null) {
-            Toast.makeText(this, "Vui lòng đăng nhập lại", Toast.LENGTH_SHORT).show()
-            return
-        }
+    // ===== LOOKUP ACCOUNT (BankLookup API) =====
+    private fun lookupAccount(bankBin: String, accountNumber: String) {
+        if (accountNumber == lastLookupAcc) return
+        lastLookupAcc = accountNumber
 
-        val bank = selectedBank
-        val accNum = binding.edtAccountNumber.text.toString().trim()
+        showLoading()
+        Log.e("LOOKUP_DEBUG", "Lookup → bank: $bankBin | acc: $accountNumber")
+
+        val req = BankLookupRequest(bank = bankBin, account = accountNumber)
+        BankLookupClient.api.lookupAccount(apiKey, apiSecret, req)
+            .enqueue(object: Callback<BankLookupResponse> {
+                override fun onResponse(call: Call<BankLookupResponse>, response: Response<BankLookupResponse>) {
+                    hideLoading()
+                    val name = response.body()?.data?.ownerName ?: ""
+                    binding.edtAccountHolder.setText(name)
+                    if (!response.isSuccessful || name.isEmpty()) {
+                        Toast.makeText(this@LinkBankActivity, "Không tìm thấy thông tin", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                override fun onFailure(call: Call<BankLookupResponse>, t: Throwable) {
+                    hideLoading()
+                    binding.edtAccountHolder.setText("")
+                    Toast.makeText(this@LinkBankActivity, "Lỗi mạng: ${t.message}", Toast.LENGTH_SHORT).show()
+                }
+            })
+    }
+
+    // ===== SAVE BANK INFO =====
+    private fun saveBankInfo() {
+        val uid = auth.currentUser?.uid ?: return
+        val bank = selectedBank ?: run { Toast.makeText(this, "Vui lòng chọn ngân hàng", Toast.LENGTH_SHORT).show(); return }
+        val accNumber = binding.edtAccountNumber.text.toString().trim()
         val accHolder = binding.edtAccountHolder.text.toString().trim()
+        val chiNhanh = binding.edtChiNhanh.text.toString().trim()
+        if (accNumber.isEmpty()) { Toast.makeText(this, "Vui lòng nhập số tài khoản", Toast.LENGTH_SHORT).show(); return }
+        if (accHolder.isEmpty()) { Toast.makeText(this, "Không thể xác thực số tài khoản", Toast.LENGTH_SHORT).show(); return }
 
-        if (bank == null) {
-            Toast.makeText(this, "Vui lòng chọn ngân hàng", Toast.LENGTH_SHORT).show()
-            return
-        }
-        if (accNum.isEmpty() || accHolder.isEmpty()) {
-            Toast.makeText(this, "Vui lòng nhập đầy đủ thông tin", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-        val bankInfo: HashMap<String, Any> = hashMapOf(
-            "bank_code" to bank.id,
-            "bank_name" to bank.name,
-            "account_number" to accNum,
-            "account_holder" to accHolder,
-            "linked_at" to timestamp,
-            "logo_url" to bank.logoUrl
+        val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+        val bankInfo = BankInfo(
+            account_holder = accHolder,
+            account_number = accNumber,
+            bank_code = bank.id,
+            bank_name = bank.name,
+            chi_nhanh = chiNhanh,
+            default = false,
+            linked_at = timestamp,
+            logo_url = bank.logoUrl
         )
 
+        showLoading()
         db.collection("users").document(uid)
             .collection("bank_info")
             .add(bankInfo)
-            .addOnSuccessListener {
-                Toast.makeText(this, "Liên kết ngân hàng thành công!", Toast.LENGTH_SHORT).show()
-
-                // Quay về ProfileActivity
-                val intent = Intent(this, ProfileActivity::class.java)
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-                finish()
-            }
-            .addOnFailureListener { e ->
-                Toast.makeText(this, "Lỗi khi lưu dữ liệu: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-
+            .addOnSuccessListener { hideLoading(); Toast.makeText(this, "Liên kết thành công!", Toast.LENGTH_SHORT).show(); finish() }
+            .addOnFailureListener { hideLoading(); Toast.makeText(this, "Lỗi: ${it.message}", Toast.LENGTH_SHORT).show() }
     }
+
+    // ===== LOADING =====
+    private fun initLoading() {
+        loadingDialog = Dialog(this)
+        loadingDialog!!.setContentView(R.layout.dialog_loading)
+        loadingDialog!!.setCancelable(false)
+    }
+    private fun showLoading() { try { if (!loadingDialog!!.isShowing) loadingDialog!!.show() } catch (_: Exception) {} }
+    private fun hideLoading() { try { if (loadingDialog!!.isShowing) loadingDialog!!.dismiss() } catch (_: Exception) {} }
 }
