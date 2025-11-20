@@ -1,9 +1,6 @@
 package com.tdc.nhom6.roomio.models
 
-import com.google.firebase.firestore.DocumentId
-
-data class Discount(
-    @DocumentId
+data class Diiiiiscount(
     var id: String? = null,
     var hotelId: String? = null,
 

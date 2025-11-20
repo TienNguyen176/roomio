@@ -104,6 +104,9 @@
             android:name=".activities.RoomHotelActivity"
             android:exported="false" />
         <activity
+            android:name=".activities.DiscountActivity"
+            android:exported="true" />
+        <activity
             android:name=".activities.EditHotelActivity"
             android:exported="false" />
         <activity

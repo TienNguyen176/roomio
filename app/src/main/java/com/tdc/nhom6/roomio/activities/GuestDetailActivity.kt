@@ -7,7 +7,6 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.RadioButton
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -15,6 +14,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.adapters.PaymentMethodAdapter
@@ -209,13 +209,29 @@ class GuestDetailActivity : AppCompatActivity() {
 
                     updatedBooking.status = "pending"
                     updatedBooking.discountId= currentDiscount?.id
+
                     updatedBooking.discountPaymentMethodId= currentDiscountPM?.discountId
+                    val hotelDiscountId = updatedBooking.discountId
+                    if (hotelDiscountId != null && currentHotel != null) {
+                        db.collection("hotels")
+                            .document(currentHotel!!.hotelId)
+                            .collection("discounts")
+                            .document(hotelDiscountId)
+                            .update("availableCount", FieldValue.increment(-1))
+                            .addOnSuccessListener {
+                                Log.d("Firestore", "Discount count decremented successfully.")
+                            }
+                            .addOnFailureListener { e ->
+                                // It is still crucial to log this failure
+                                Log.e("Firestore", "ERROR: Failed to decrement discount count.", e)
+                            }
+                    }
                     db.collection("bookings")
                         .add(updatedBooking)
                         .addOnSuccessListener { documentReference ->
                             newBookingId = documentReference.id
                             Log.d("Firebase", "Thêm booking thành công. ID: $newBookingId")
-
+                            updateRoomStatus(updatedBooking.roomId)
                             addInvoice(updatedBooking, documentReference.id, false)
 
                             handleNextPaymentStep(documentReference.id, safePaymentMethod)
@@ -231,6 +247,24 @@ class GuestDetailActivity : AppCompatActivity() {
                     Log.e("Firebase", "Lỗi: Không tìm thấy phòng có sẵn. ${exception.message}")
                 }
             )
+        }
+    }
+
+    private fun updateRoomStatus(roomId: String?) {
+        currentHotel?.let { hotel ->
+            roomId?.let { id ->
+                db.collection("hotels")
+                    .document(hotel.hotelId)
+                    .collection("rooms")
+                    .document(id)
+                    .update("status_id", "room_occupied")
+                    .addOnSuccessListener {
+                        Log.d("Firestore", "Cập nhật trạng thái phòng $id thành công: room_occupied")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("Firestore", "LỖI: Không thể cập nhật trạng thái phòng $id", e)
+                    }
+            }
         }
     }
 
@@ -279,29 +313,28 @@ class GuestDetailActivity : AppCompatActivity() {
             }
     }
 
-    private fun getAmountPayment():Double {
-        val checkedId = binding.groupFundAmount.checkedRadioButtonId
-
-        val radioButton = findViewById<RadioButton>(checkedId)
-
-        if (radioButton == null) {
-            Log.e("Firebase", "Lỗi: Không tìm thấy RadioButton đã chọn.")
+    private fun getAmountPayment(): Double {
+        val safeBooking = booking
+        if (safeBooking == null || safeBooking.totalFinal == null) {
+            Log.e("GuestDetail", "Lỗi: Đối tượng Booking hoặc totalFinal không hợp lệ.")
             return 0.0
         }
 
-        val rawText = radioButton.text.toString()
+        val finalPrice = safeBooking.totalFinal!!
+        val checkedId = binding.groupFundAmount.checkedRadioButtonId
 
-        val cleanedForSplit = rawText.replace("[^\\d\\.,\\s]".toRegex(), "")
-
-        val amountString = cleanedForSplit
-            .split(" ")
-            .firstOrNull { it.isNotEmpty() && it.first().isDigit() } ?: ""
-
-        var valueWithoutSeparators = amountString.replace("\\.".toRegex(), "")
-        valueWithoutSeparators = amountString.replace(",".toRegex(), "")
-
-        val totalAmountValue = valueWithoutSeparators.toDoubleOrNull() ?: 0.0
-        return totalAmountValue
+        return when (checkedId) {
+            binding.radFund10.id -> {
+                (finalPrice * 10.0) / 100.0
+            }
+            binding.radFund100.id -> {
+                finalPrice
+            }
+            else -> {
+                Log.e("GuestDetail", "Lỗi: Không tìm thấy RadioButton thanh toán hợp lệ được chọn.")
+                0.0
+            }
+        }
     }
 
     private fun openDialogPaymentConfirm(customerId: String, ownerId: String, bookingId: String) {

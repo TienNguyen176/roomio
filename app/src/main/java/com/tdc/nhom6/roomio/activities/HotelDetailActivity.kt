@@ -1,10 +1,8 @@
 package com.tdc.nhom6.roomio.activities
 
-import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
 import android.view.MenuItem
-import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -13,28 +11,21 @@ import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.PhotoGridAdapter
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter
 import com.tdc.nhom6.roomio.databinding.ActivityHotelDetailBinding
-import com.tdc.nhom6.roomio.models.FacilityDamageLossRateModel
-import com.tdc.nhom6.roomio.models.FacilityPriceRateModel
 import com.tdc.nhom6.roomio.models.HotelModel
-import com.tdc.nhom6.roomio.models.RoomImage
 import com.tdc.nhom6.roomio.models.RoomType
 import com.tdc.nhom6.roomio.models.Service
 import com.tdc.nhom6.roomio.models.ServiceHotelAdapter
-import com.tdc.nhom6.roomio.models.ServiceRate
-import java.util.Date
 
 @Suppress("DEPRECATION")
 class HotelDetailActivity: AppCompatActivity() {
@@ -42,7 +33,7 @@ class HotelDetailActivity: AppCompatActivity() {
     private lateinit var roomTypeAdapter: RoomTypeAdapter
     private var listRoomType: MutableList<RoomType> = mutableListOf()
     private var listServices: MutableList<Service> = mutableListOf()
-    private lateinit var hotelData: HotelModel
+    lateinit var currentHotel: HotelModel
     private lateinit var serviceAdapter: ServiceHotelAdapter
     private lateinit var photoGridAdapter: PhotoGridAdapter
     private var systemBarsInsets: Insets? = null
@@ -176,16 +167,16 @@ class HotelDetailActivity: AppCompatActivity() {
                         val hotel = snapShot.toObject(HotelModel::class.java)
 
                         if (hotel != null) {
-                            hotelData = hotel
+                            currentHotel = hotel
 
-                            Glide.with(this).load(hotelData.images?.get(0)).into(binding.imgHotel)
-                            binding.tvAddress.text = hotelData.hotelAddress
-                            binding.ratingBar.rating = hotelData.averageRating.toFloat()
-                            binding.tvReviews.text = "(${hotelData.totalReviews})"
-                            binding.tvNameHotel.text = hotelData.hotelName
-                            binding.tvDescription.text = hotelData.description
+                            Glide.with(this).load(currentHotel.images?.get(0)).into(binding.imgHotel)
+                            binding.tvAddress.text = currentHotel.hotelAddress
+                            binding.ratingBar.rating = currentHotel.averageRating.toFloat()
+                            binding.tvReviews.text = "(${currentHotel.totalReviews})"
+                            binding.tvNameHotel.text = currentHotel.hotelName
+                            binding.tvDescription.text = currentHotel.description
 
-                            val images = hotelData.images ?: listOf()
+                            val images = currentHotel.images ?: listOf()
                             photoGridAdapter = PhotoGridAdapter(this, images)
                             binding.gridPhotos.adapter = photoGridAdapter
 
@@ -202,11 +193,11 @@ class HotelDetailActivity: AppCompatActivity() {
             }
     }
 
-    fun loadServices() {
+    private fun loadServices() {
         servicesListener?.remove()
 
         servicesListener = db.collection("serviceRates")
-            .whereEqualTo("hotel_id", HOTEL_ID)
+            .whereEqualTo("hotelId", HOTEL_ID)
             .addSnapshotListener { querySnapshot, exception ->
                 if (exception != null) {
                     Log.e("Firestore", "Error listening to Service Rates: ", exception)
