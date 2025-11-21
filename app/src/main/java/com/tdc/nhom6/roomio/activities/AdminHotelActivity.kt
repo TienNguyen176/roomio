@@ -148,6 +148,12 @@ class AdminHotelActivity : AppCompatActivity() {
             intent.putExtra("hotelId", currentHotelId)
             startActivity(intent)
         }
+        btnMinibar.setOnClickListener {
+            if (!checkHotelId()) return@setOnClickListener
+            val intent = Intent(this@AdminHotelActivity, MinibarActivity::class.java)
+            intent.putExtra("hotelId", currentHotelId)
+            startActivity(intent)
+        }
 
         btnRoleManager.setOnClickListener {
             if (!checkHotelId()) return@setOnClickListener

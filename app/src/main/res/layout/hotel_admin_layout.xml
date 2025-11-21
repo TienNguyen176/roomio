@@ -10,30 +10,28 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="center_horizontal"
         android:paddingHorizontal="20dp"
         android:paddingTop="24dp"
-        android:paddingBottom="40dp">
+        android:paddingBottom="50dp">
 
-        <!-- EXIT -->
+        <!-- EXIT ROW -->
         <LinearLayout
             android:id="@+id/rowExit"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:padding="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
-            android:focusable="true"
-            android:background="?android:attr/selectableItemBackgroundBorderless">
+            android:focusable="true">
 
             <ImageView
                 android:id="@+id/ivExit"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_arrow_back"
-                app:tint="@color/onSurface"
-                android:contentDescription="Thoát" />
+                app:tint="@color/onSurface" />
 
             <TextView
                 android:id="@+id/tvExit"
@@ -41,22 +39,24 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
                 android:text="Thoát"
-                android:textColor="@color/onSurface"
                 android:textSize="16sp"
+                android:textColor="@color/onSurface"
                 android:fontFamily="@font/poppins_medium" />
         </LinearLayout>
 
-        <!-- SUBTITLE -->
+
+        <!-- LOGO / TITLE -->
         <TextView
             android:id="@+id/tvSubTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="18dp"
             android:text="Hotel Admin"
             android:textColor="#777777"
             android:textSize="14sp"
             android:gravity="center"
             android:fontFamily="@font/poppins_regular" />
+
         <TextView
             android:id="@+id/tvTitle"
             android:layout_width="match_parent"
@@ -64,75 +64,124 @@
             android:layout_marginTop="4dp"
             android:text="roomio"
             android:textColor="#0C6FEF"
-            android:textSize="28sp"
+            android:textSize="32sp"
             android:textStyle="italic"
-            android:fontFamily="sans-serif-medium"
-            android:gravity="center" />
+            android:gravity="center"
+            android:fontFamily="sans-serif-medium" />
 
-        <!-- HOTEL NAME SELECT -->
+
+        <!-- SELECT HOTEL -->
         <TextView
             android:id="@+id/tvHotelName"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="26dp"
             android:text="[Chạm để chọn khách sạn]"
             android:textColor="@color/onSurface"
             android:textSize="16sp"
             android:fontFamily="@font/poppins_medium"
             android:background="@drawable/bg_chip_select"
-            android:paddingHorizontal="20dp"
-            android:paddingVertical="10dp"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="12dp"
+            android:gravity="center"
             android:clickable="true"
             android:focusable="true" />
 
-        <!-- BUTTONS -->
-        <Button
-            android:id="@+id/btnRoomManagement"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="32dp"
-            android:text="Quản lý phòng"
-            style="@style/Widget.Roomio.Button.Filled" />
 
-        <Button
-            android:id="@+id/btnDiscount"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="16dp"
-            android:text="Mã giảm giá"
-            style="@style/Widget.Roomio.Button.Filled" />
 
-        <Button
-            android:id="@+id/btnRating"
+        <!-- CARD 1 - HOTEL MANAGEMENT -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="16dp"
-            android:text=" Đánh giá"
-            style="@style/Widget.Roomio.Button.Filled" />
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="30dp"
+            android:padding="20dp"
+            android:background="@drawable/bg_card_rounded_modern">
 
-        <Button
-            android:id="@+id/btnEditHotel"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="16dp"
-            android:text="Chỉnh sửa khách sạn"
-            style="@style/Widget.Roomio.Button.Filled" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Quản lý khách sạn"
+                android:textSize="15sp"
+                android:textColor="@color/onSurface"
+                android:fontFamily="@font/poppins_semibold"
+                android:paddingBottom="14dp" />
 
-        <Button
-            android:id="@+id/btnRoleManager"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="16dp"
-            android:text="Quản lý quyền"
-            style="@style/Widget.Roomio.Button.Filled" />
+            <Button
+                android:id="@+id/btnRoomManagement"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Quản lý phòng"
+                style="@style/Widget.Roomio.Button.Filled" />
 
-        <Button
-            android:id="@+id/btnViewBooking"
+            <Button
+                android:id="@+id/btnMinibar"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Minibar"
+                android:layout_marginTop="14dp"
+                style="@style/Widget.Roomio.Button.Filled" />
+
+            <Button
+                android:id="@+id/btnDiscount"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Mã giảm giá"
+                android:layout_marginTop="14dp"
+                style="@style/Widget.Roomio.Button.Filled" />
+
+            <Button
+                android:id="@+id/btnRating"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Đánh giá"
+                android:layout_marginTop="14dp"
+                style="@style/Widget.Roomio.Button.Filled" />
+        </LinearLayout>
+
+
+        <!-- CARD 2 - SYSTEM -->
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="16dp"
-            android:text="Xem đặt phòng"
-            style="@style/Widget.Roomio.Button.Filled" />
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="24dp"
+            android:padding="20dp"
+            android:background="@drawable/bg_card_rounded_modern">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Hệ thống"
+                android:textSize="15sp"
+                android:textColor="@color/onSurface"
+                android:fontFamily="@font/poppins_semibold"
+                android:paddingBottom="14dp" />
+
+            <Button
+                android:id="@+id/btnEditHotel"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Chỉnh sửa khách sạn"
+                style="@style/Widget.Roomio.Button.Filled" />
+
+            <Button
+                android:id="@+id/btnRoleManager"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Quản lý quyền"
+                android:layout_marginTop="14dp"
+                style="@style/Widget.Roomio.Button.Filled" />
+
+            <Button
+                android:id="@+id/btnViewBooking"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Xem đặt phòng"
+                android:layout_marginTop="14dp"
+                style="@style/Widget.Roomio.Button.Filled" />
+
+        </LinearLayout>
 
     </LinearLayout>
 </ScrollView>

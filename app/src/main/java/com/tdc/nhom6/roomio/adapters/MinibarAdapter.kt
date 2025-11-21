@@ -44,7 +44,7 @@ class MiniBarAdapter(
             cb.text = item.name
             cb.isChecked = item.checked
             tvQty.text = item.quantity.toString()
-            
+
             // Update button states based on checked state
             updateButtonStates(item.checked, item.quantity)
 
@@ -83,20 +83,15 @@ class MiniBarAdapter(
                 }
             }
         }
-        
+
         private fun updateButtonStates(isChecked: Boolean, quantity: Int) {
             // Enable/disable buttons based on checkbox state
             btnMinus.isEnabled = isChecked && quantity > 1
             btnPlus.isEnabled = isChecked
-            
+
             // Set alpha for visual feedback (blurred when disabled)
             btnMinus.alpha = if (isChecked && quantity > 1) 1.0f else 0.5f
             btnPlus.alpha = if (isChecked) 1.0f else 0.5f
         }
     }
 }
-
-
-
-
-

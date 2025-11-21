@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Glass -->
+    <path
+        android:fillColor="#0C6FEF"
+        android:pathData="M7,2h10.7c0.55,0 1,0.90 1,1v4.59c0,0.26 -0.11,0.52 -0.29,0.71l-4.42,4.42v6.28c0,0.55 -0.45,1 -1,1h-2c-0.55,0 -1,-0.45 -1,-1v-6.28l-4.42,-4.42c-0.18,-0.19 -0.29,-0.45 -0.29,-0.71V3c0,-0.55 0.45,-1 1,-1z" />
+
+    <!-- Liquid -->
+    <path
+        android:fillColor="#78B7FF"
+        android:pathData="M8.5,4h7v3.17L12,10.67l-3.5,-3.5z" />
+
+</vector>
