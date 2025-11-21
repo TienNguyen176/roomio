@@ -2,6 +2,7 @@ package com.tdc.nhom6.roomio.activities
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
@@ -19,6 +20,10 @@ import com.google.firebase.firestore.SetOptions
 
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.PaymentMethodAdapter
+import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter.Format
+import com.tdc.nhom6.roomio.databinding.DialogPaymentConfirmBinding
+import com.tdc.nhom6.roomio.databinding.DialogPaymentSuccessBinding
+import com.tdc.nhom6.roomio.models.Invoice
 import com.tdc.nhom6.roomio.models.PaymentMethod
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -48,8 +53,9 @@ class PaymentDetailsActivity : AppCompatActivity() {
     private var baseExtraFee: Double = 0.0
     private var baseCleaningFee: Double = 0.0
     private var invoiceDocId: String? = null
+    private lateinit var  hotelId: String
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_payment_details)
 
@@ -71,7 +77,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
         val roomPrice = intent.getDoubleExtra("ROOM_PRICE", 0.0)
         val extraFee = intent.getDoubleExtra("EXTRA_FEE", 0.0)
         val cleaningFee = intent.getDoubleExtra("CLEANING_FEE", 0.0)
-        val hotelId = intent.getStringExtra("HOTEL_ID")
+        hotelId = intent.getStringExtra("HOTEL_ID").toString()
         bookingDocId = intent.getStringExtra("BOOKING_ID")
 
         val checkInText = if (rawCheckIn.isNotBlank()) rawCheckIn else formatDateTimeOrEmpty(checkInMillis)
@@ -310,120 +316,153 @@ class PaymentDetailsActivity : AppCompatActivity() {
             .setPositiveButton("Confirm") { dialog, _ ->
                 dialog.dismiss()
                 if (isTransferMethod(method)) {
-                    openTransferPaymentScreen()
+                    openTransferPaymentScreen(method)
                 } else {
-                    completeBooking(method)
+                    val ownerId=getOwnerId(hotelId)
+                    customerId?.let { openDialogPaymentConfirm(it, ownerId,method) }
                 }
             }
             .show()
+    }
+
+    private fun getOwnerId(hotelId: String): String {
+        var ownerId=""
+        firestore.collection("hotels").document(hotelId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null && document.exists()) {
+                    ownerId=document.getString("ownerId").toString()
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.d("PaymentDetailsActivity", "getOwnerId failed with ", exception)
+            }
+        return ownerId
     }
 
     private fun isTransferMethod(method: PaymentMethod): Boolean {
         return method.paymentMethodName.equals("Transfer payment", ignoreCase = true)
     }
 
-    private fun openTransferPaymentScreen() {
+    private fun openTransferPaymentScreen(method: PaymentMethod) {
         val bookingId = bookingDocId
         if (bookingId.isNullOrBlank()) {
             Toast.makeText(this, "Missing booking reference", Toast.LENGTH_SHORT).show()
             return
         }
-        ensureInvoiceForTransfer(bookingId) { invoiceId ->
+        addInvoice(method) { invoiceId ->
             invoiceDocId = invoiceId
             val intent = Intent(this, PaymentActivity::class.java).apply {
                 putExtra("BOOKING_ID", bookingId)
-                // Pass data for immediate display
-                putExtra("ROOM_TYPE_NAME", findViewById<TextView>(R.id.tvRoomType).text.toString().replace("Room type: ", ""))
-                putExtra("NIGHTS_COUNT", computeNights(
-                    intent.getLongExtra("CHECK_IN_MILLIS", -1L),
-                    intent.getLongExtra("CHECK_OUT_MILLIS", -1L)
-                ))
-                putExtra("GUESTS_COUNT", intent.getIntExtra("GUESTS_COUNT", 0))
-                putExtra("TOTAL_AMOUNT", totalAmountToPay)
+                putExtra("INVOICE_ID", bookingId)
             }
             startActivity(intent)
         }
     }
-    private fun ensureInvoiceForTransfer(bookingId: String, onReady: (String) -> Unit) {
-        val invoices = firestore.collection("invoices")
-        val targetRef = invoiceDocId?.let { invoices.document(it) } ?: invoices.document(bookingId)
-        targetRef.get()
-            .addOnSuccessListener { snapshot ->
-                val payload = mutableMapOf<String, Any>(
-                    "bookingId" to bookingId,
-                    "totalAmount" to totalAmountToPay,
-                    "totalDueAmount" to totalAmountToPay,
-                    "status" to "pending_transfer",
-                    "lastPaymentMethod" to "Transfer payment",
-                    "updatedAt" to FieldValue.serverTimestamp()
-                )
-                if (!snapshot.exists()) {
-                    payload["createdAt"] = FieldValue.serverTimestamp()
-                    payload["invoiceId"] = targetRef.id
-                }
-                targetRef.set(payload, SetOptions.merge())
-                    .addOnSuccessListener { onReady(targetRef.id) }
-                    .addOnFailureListener {
-                        Toast.makeText(
-                            this,
-                            "Failed to prepare transfer invoice.",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-            }
-            .addOnFailureListener {
-                Toast.makeText(
-                    this,
-                    "Failed to prepare transfer invoice.",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-    }
 
-    private fun completeBooking(method: PaymentMethod) {
+    private fun addInvoice(method: PaymentMethod, onComplete: (invoiceDocId: String?) -> Unit = {}) {
         val docId = bookingDocId
         if (docId.isNullOrBlank()) {
             Toast.makeText(this, "Missing booking reference", Toast.LENGTH_SHORT).show()
             finish()
+            onComplete(null)
             return
         }
 
-        val updates = mutableMapOf<String, Any>(
-            "status" to "completed",
-            "paymentStatus" to "completed",
-            "paymentMethodName" to method.paymentMethodName,
-            "paymentCompletedAt" to FieldValue.serverTimestamp(),
-            "totalPaidAmount" to totalAmountToPay
-        )
-        method.paymentMethodId?.let { updates["paymentMethodId"] = it }
-
-        val bookingRef = firestore.collection("bookings").document(docId)
         val invoices = firestore.collection("invoices")
-        val invoiceRef = invoiceDocId?.let { invoices.document(it) } ?: invoices.document(docId)
+        val finalInvoiceRef = invoiceDocId?.let { invoices.document(it) } ?: invoices.document(docId)
+
         if (invoiceDocId == null) {
-            invoiceDocId = invoiceRef.id
+            invoiceDocId = finalInvoiceRef.id
         }
+
         val newPaidTotal = invoicePaidAmount + totalAmountToPay
         val invoiceUpdates = mapOf(
+            "bookingId" to docId,
             "totalAmount" to newPaidTotal,
-            "totalPaidAmount" to newPaidTotal,
-            "paidAmount" to newPaidTotal,
-            "lastPaymentMethod" to (method.paymentMethodName ?: "Unknown"),
-            "updatedAt" to FieldValue.serverTimestamp()
+            "paymentMethodId" to method.paymentMethodId
         )
 
         firestore.runBatch { batch ->
-            batch.update(bookingRef, updates)
-            batch.set(invoiceRef, invoiceUpdates, SetOptions.merge())
+            batch.set(finalInvoiceRef, invoiceUpdates, SetOptions.merge())
         }.addOnSuccessListener {
             Toast.makeText(this, "Payment confirmed", Toast.LENGTH_SHORT).show()
-            finish()
+            onComplete(finalInvoiceRef.id)
         }.addOnFailureListener { error ->
             Toast.makeText(
                 this,
                 "Failed to confirm payment: ${error.localizedMessage ?: "Unknown error"}",
                 Toast.LENGTH_LONG
             ).show()
+            onComplete(null)
         }
+    }
+    private fun openDialogPaymentConfirm(customerId: String, ownerId: String,method: PaymentMethod) {
+        val amount=totalAmountToPay
+        val viewBinding = DialogPaymentConfirmBinding.inflate(layoutInflater)
+        viewBinding.tvAmountPayment.text= Format.formatCurrency(amount)
+
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setView(viewBinding.root)
+            .create()
+
+        viewBinding.btnYes.setOnClickListener {
+            dialog.dismiss()
+            addInvoice(method) { invoiceId ->
+                invoiceDocId = invoiceId
+                firestore.runTransaction { transition ->
+                    val userRef=firestore.collection("users").document(customerId)
+                    val ownerRef=firestore.collection("users").document(ownerId)
+                    val userSnapshot=transition.get(userRef)
+                    val ownerSnapshot=transition.get(ownerRef)
+                    val currentCustomerBalance=userSnapshot.getDouble("walletBalance")
+                    val currentOwnerBalance=ownerSnapshot.getDouble("walletBalance")
+                    val newCustomerBalance = currentCustomerBalance?.minus(amount)
+                    val newOwnerBalance = currentOwnerBalance?.plus(amount)
+                    transition.update(userRef,"walletBalance",newCustomerBalance)
+                    transition.update(ownerRef,"walletBalance",newOwnerBalance)
+                }
+                    .addOnSuccessListener {
+                        Log.d("Payment", "Transaction success!")
+                        firestore.collection("bookings").document(bookingDocId!!)
+                            .update("status","completed")
+                        firestore.collection("invoices").document(invoiceId!!)
+                            .update("paymentStatus","paid")
+                        openDialogPaymentSuccess(amount)
+                    }.addOnFailureListener { e ->
+                        Log.w("Payment", "Transaction failure.", e)
+                    }
+            }
+
+        }
+
+        viewBinding.btnNo.setOnClickListener {
+            dialog.dismiss()
+        }
+        dialog.show()
+    }
+    private fun openDialogPaymentSuccess(amount: Double){
+        val viewBinding = DialogPaymentSuccessBinding.inflate(layoutInflater)
+        viewBinding.tvAmountPayment.text=  Format.formatCurrency(amount)
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setView(viewBinding.root)
+            .create()
+
+        viewBinding.btnOK.setOnClickListener{
+            dialog.dismiss()
+            val intent=Intent(this,ReceptionActivity::class.java).apply {
+                flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            startActivity(intent)
+        }
+        dialog.setOnCancelListener{
+            dialog.dismiss()
+            val intent=Intent(this,ReceptionActivity::class.java).apply {
+                flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            startActivity(intent)
+        }
+
+        dialog.show()
     }
 }

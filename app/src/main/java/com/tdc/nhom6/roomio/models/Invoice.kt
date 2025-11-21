@@ -13,6 +13,8 @@ data class Invoice(
 
     var paymentMethodId: String = "",
 
+    var paymentStatus: String = "payment_pending",
+
     var createdAt: Timestamp = Timestamp.now(),
 
     var issuedById: Int? = null,

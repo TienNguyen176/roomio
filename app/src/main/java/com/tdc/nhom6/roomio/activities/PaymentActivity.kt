@@ -8,7 +8,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
+import com.google.android.gms.tasks.Tasks.await
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.type.DateTime
@@ -20,6 +22,9 @@ import com.tdc.nhom6.roomio.models.Booking
 import com.tdc.nhom6.roomio.models.HotelModel
 import com.tdc.nhom6.roomio.models.Invoice
 import com.tdc.nhom6.roomio.models.RoomType
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -28,6 +33,7 @@ import java.util.concurrent.TimeUnit
 class PaymentActivity : AppCompatActivity() {
     private lateinit var binding: ActivityPaymentBinding
     private lateinit var bookingId: String
+    private lateinit var invoiceId: String
     private lateinit var countDownTimer: CountDownTimer
     private var currentHotel: HotelModel? = null
     private var currentBooking: Booking?= null
@@ -61,6 +67,8 @@ class PaymentActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         bookingId = intent.getStringExtra("BOOKING_ID").toString()
+        invoiceId = intent.getStringExtra("INVOICE_ID").toString()
+
 
         loadBooking(bookingId) {
             loadInvoice(bookingId) {
@@ -83,29 +91,35 @@ class PaymentActivity : AppCompatActivity() {
 
                 binding.tvTotalAfter.text ="Total: ${RoomTypeAdapter.Format.formatCurrency(loadedBooking.totalFinal)}"
 
-                if (invoices.isNotEmpty()) {
-                    val invoice:Invoice = invoices.first()
-                    binding.tvInvoiceId.text = "#ID: ${invoice.invoiceId}"
-                    binding.tvCreateAt.text = convertTimestampToString(invoice.createdAt)
+                lifecycleScope.launch {
+                    getInvoice(invoiceId) { fetchedInvoice ->
 
-                    val bookingTotal = loadedBooking.totalFinal
-                    val invoiceAmount = invoice.totalAmount
+                        if (fetchedInvoice != null) {
 
-                    val percentagePaid = if (bookingTotal > 0) {
-                        (invoiceAmount?.div(bookingTotal))!! * 100.0
-                    } else 0.0
+                            val invoice: Invoice = fetchedInvoice
 
-                    val formattedPercent = String.format("%.2f", percentagePaid)
-                    binding.tvAmountPayment.text = "Payment: ${RoomTypeAdapter.Format.formatCurrency(
-                        invoice.totalAmount!!
-                    )} (${formattedPercent}%)"
+                            binding.tvInvoiceId.text = "#ID: ${invoice.invoiceId}"
+                            binding.tvCreateAt.text = convertTimestampToString(invoice.createdAt)
 
-                    setupTimer(invoice.createdAt)
-                    generateQRPayment(invoice)
-                } else {
-                    Log.w("PaymentActivity", "No invoices found for Booking ID: $bookingId.")
-                    binding.tvInvoiceId.text = "N/A"
-                    binding.tvAmountPayment.text = "Payment required"
+                            val bookingTotal = loadedBooking.totalFinal
+                            val invoiceAmount = invoice.totalAmount
+
+                            val percentagePaid = if (bookingTotal > 0 && invoiceAmount != null) {
+                                (invoiceAmount / bookingTotal) * 100.0
+                            } else 0.0
+
+                            val formattedPercent = String.format("%.2f", percentagePaid)
+                            binding.tvAmountPayment.text = "Payment: ${RoomTypeAdapter.Format.formatCurrency(
+                                invoice.totalAmount ?: 0.0
+                            )} (${formattedPercent}%)"
+
+                            setupTimer(invoice.createdAt)
+                            generateQRPayment(invoice)
+                        } else {
+                            Log.e("PaymentActivity", "Invoice data was null after listener finished.")
+
+                        }
+                    }
                 }
             }
         }
@@ -222,6 +236,35 @@ class PaymentActivity : AppCompatActivity() {
                         }
                     }
                     onComplete()
+                }
+            }
+    }
+
+    private fun getInvoice(invoiceId: String, onComplete: (invoice: Invoice?) -> Unit) {
+        invoicesListener?.remove()
+
+        invoicesListener = db.collection("invoices")
+            .whereEqualTo("invoiceId", invoiceId)
+            .addSnapshotListener { result, exception ->
+
+                if (exception != null) {
+                    Log.e("Firebase", "Lỗi lắng nghe hóa đơn: ${exception.message}", exception)
+                    onComplete(null)
+                    return@addSnapshotListener
+                }
+
+                if (result != null && !result.isEmpty) {
+                    val document = result.documents[0]
+
+                    try {
+                        val invoice = document.toObject(Invoice::class.java)
+                        onComplete(invoice)
+                    } catch (ex: Exception) {
+                        Log.e("Firebase", "Lỗi chuyển đổi dữ liệu cho Invoice: ${document.id}", ex)
+                        onComplete(null)
+                    }
+                } else if (result != null && result.isEmpty) {
+                    onComplete(null)
                 }
             }
     }
