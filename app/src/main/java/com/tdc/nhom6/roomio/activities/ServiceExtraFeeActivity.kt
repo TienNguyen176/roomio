@@ -333,23 +333,23 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             }
     }
 
-    private fun iconForService(name: String): Int = when {
-        name.contains("lost", true) -> R.drawable.ic_service_roomsvc // Placeholder for lost items
-        name.contains("broken", true) -> R.drawable.ic_service_roomsvc // Placeholder for broken furniture
-        name.contains("mini bar", true) || name.contains("minibar", true) -> R.drawable.ic_service_roomsvc // Placeholder for mini bar
-        name.contains("tour", true) -> R.drawable.ic_service_tour
-        name.contains("laundry", true) -> R.drawable.ic_service_laundry
-        name.contains("spa", true) || name.contains("gym", true) -> R.drawable.ic_service_spa
-        name.contains("airport", true) -> R.drawable.ic_service_airport
-        name.contains("meeting", true) -> R.drawable.ic_service_meeting
-        name.contains("pet", true) -> R.drawable.ic_service_pet
-        name.contains("upgrade", true) -> R.drawable.ic_service_upgrade
-        name.contains("meal", true) || name.contains("dinner", true) -> R.drawable.ic_service_meal
-        name.contains("delivery", true) -> R.drawable.ic_service_delivery
-        name.contains("decoration", true) -> R.drawable.ic_service_decoration
-        name.contains("room", true) && name.contains("service", true) -> R.drawable.ic_service_roomsvc
-        else -> R.drawable.ic_service_roomsvc
-    }
+//    private fun iconForService(name: String): Int = when {
+//        name.contains("lost", true) -> R.drawable.ic_service_roomsvc // Placeholder for lost items
+//        name.contains("broken", true) -> R.drawable.ic_service_roomsvc // Placeholder for broken furniture
+//        name.contains("mini bar", true) || name.contains("minibar", true) -> R.drawable.ic_service_roomsvc // Placeholder for mini bar
+//        name.contains("tour", true) -> R.drawable.ic_service_tour
+//        name.contains("laundry", true) -> R.drawable.ic_service_laundry
+//        name.contains("spa", true) || name.contains("gym", true) -> R.drawable.ic_service_spa
+//        name.contains("airport", true) -> R.drawable.ic_service_airport
+//        name.contains("meeting", true) -> R.drawable.ic_service_meeting
+//        name.contains("pet", true) -> R.drawable.ic_service_pet
+//        name.contains("upgrade", true) -> R.drawable.ic_service_upgrade
+//        name.contains("meal", true) || name.contains("dinner", true) -> R.drawable.ic_service_meal
+//        name.contains("delivery", true) -> R.drawable.ic_service_delivery
+//        name.contains("decoration", true) -> R.drawable.ic_service_decoration
+//        name.contains("room", true) && name.contains("service", true) -> R.drawable.ic_service_roomsvc
+//        else -> R.drawable.ic_service_roomsvc
+//    }
 
     private fun loadServiceRates(hotel_id: String) {
         serviceFetchJob?.cancel()
@@ -357,11 +357,11 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             try {
                 val serviceItems = withContext(Dispatchers.IO) {
                     val rates = fetchServiceRates(hotel_id)
-                    if (rates.isNotEmpty()) rates else fetchHotelServices(hotel_id)
+//                    if (rates.isNotEmpty()) rates else fetchHotelServices(hotel_id)
                 }
                 val currentSelections = serviceAdapter.getServiceItems()
-                val mergedServices = mergeServiceSelections(serviceItems, currentSelections)
-                serviceAdapter.replaceItems(currentRoomFeeItems + mergedServices)
+//                val mergedServices = mergeServiceSelections(serviceItems, currentSelections)
+                serviceAdapter.replaceItems(currentRoomFeeItems + currentSelections)
             } catch (e: Exception) {
                 val currentSelections = serviceAdapter.getServiceItems()
                 serviceAdapter.replaceItems(currentRoomFeeItems + currentSelections)
@@ -372,27 +372,28 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
     private data class ServiceRateEntry(
         val serviceId: String?,
-        val serviceRef: DocumentReference?,
-        val serviceRefPath: String?,
+        val serviceIcon: String?,
         val serviceName: String?,
         val price: Double
-    )
+    ) {
+    }
 
     private suspend fun fetchServiceRates(hotel_id: String): List<ServiceFeeAdapter.ServiceItem> {
         val docs = mutableListOf<com.google.firebase.firestore.DocumentSnapshot>()
         android.util.Log.d("ServiceExtraFee", "Fetching serviceRates for hotel_id=$hotel_id")
         val collection = firestore.collection("serviceRates")
+        val serviceRef =firestore.collection("services")
 
-        val hotelIdNumber = hotel_id.toLongOrNull()
-        val hotelDocRef = firestore.collection("hotels").document(hotel_id)
+//        val hotelIdNumber = hotel_id
+//        val hotelDocRef = firestore.collection("hotels").document(hotel_id)
 
         val queries = mutableListOf<com.google.firebase.firestore.Query>()
         queries += collection.whereEqualTo("hotel_id", hotel_id)
-        if (hotelIdNumber != null) {
-            queries += collection.whereEqualTo("hotel_id", hotelIdNumber)
-        }
-        queries += collection.whereEqualTo("hotelRef", hotelDocRef)
-        queries += collection.whereEqualTo("hotelRef.id", hotel_id)
+//        if (hotelIdNumber != null) {
+//            queries += collection.whereEqualTo("hotel_id", hotelIdNumber)
+//        }
+//        queries += collection.whereEqualTo("hotelRef", hotelDocRef)
+//        queries += collection.whereEqualTo("hotelRef.id", hotel_id)
 
         for (query in queries) {
             val snap = query.get().await()
@@ -415,168 +416,160 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
                 else -> null
             } ?: return@mapNotNull null
 
-            val serviceRefField = doc.get("serviceRef")
-            val serviceRef = when (serviceRefField) {
-                is DocumentReference -> serviceRefField
-                is String -> if (serviceRefField.contains('/')) firestore.document(serviceRefField) else null
-                else -> null
-            }
-            val servicePath = when (serviceRefField) {
-                is String -> serviceRefField
-                is DocumentReference -> serviceRefField.path
-                else -> doc.getString("servicePath")
-                    ?: doc.getString("service_ref")
-                    ?: doc.getString("serviceRefPath")
-            }
+//            val serviceRefField = doc.get("serviceRef")
+//            val servicePath = when (serviceRefField) {
+//                is String -> serviceRefField
+//                is DocumentReference -> serviceRefField.path
+//                else -> doc.getString("servicePath")
+//                    ?: doc.getString("service_ref")
+//                    ?: doc.getString("serviceRefPath")
+//            }
 
-            val serviceId = extractServiceId(doc, serviceRef)
-            val serviceName = doc.getString("service_name")
+            val serviceId = doc.getString("service_id")
+            val serviceName = serviceRef.document(serviceId ?: "").get().await().getString("service_name")
+            val serviceIcon = serviceRef.document(serviceId ?: "").get().await().getString("iconUrl")
+
+
             android.util.Log.d(
                 "ServiceExtraFee",
                 "serviceRate doc=${doc.id} hotel_id=$hotel_id service_id=$serviceId price=$price name=$serviceName"
             )
-            ServiceRateEntry(serviceId, serviceRef, servicePath, serviceName, price)
+            ServiceRateEntry(serviceId,serviceIcon, serviceName, price)
         }
         if (entries.isEmpty()) return emptyList()
 
-        val nameLookup = fetchServiceNames(hotel_id, entries)
         return entries.map { entry ->
-            val resolvedName = entry.serviceName
-                ?: entry.serviceRef?.let { nameLookup[it.path] ?: nameLookup[it.id] }
-                ?: entry.serviceRefPath?.let { path ->
-                    nameLookup[path] ?: nameLookup[path.substringAfterLast('/')] ?: nameLookup[path.substringBefore('/')] }
-                ?: entry.serviceId?.let { nameLookup[it] }
-                ?: entry.serviceId
-                ?: entry.serviceName
-                ?: "Service"
-            ServiceFeeAdapter.ServiceItem(iconForService(resolvedName), resolvedName, entry.price)
+            entry.serviceIcon?.let { entry.serviceName?.let { it1 ->
+                ServiceFeeAdapter.ServiceItem(it,
+                    it1, entry.price)
+            } }!!
         }
     }
+//
+//    private suspend fun fetchHotelServices(hotel_id: String): List<ServiceFeeAdapter.ServiceItem> {
+//        val snap = firestore.collection(" serviceRates")
+//            .whereEqualTo("hotel_id",hotel_id)
+//            .addSnapshotListener{querySnapshot, firebaseFirestoreException ->
+//                for ()
+//            }
+//        if (snap.isEmpty) return emptyList()
+//        return snap.documents.mapNotNull { doc ->
+//            val name = doc.getString("service_name")
+//                ?: doc.getString("name")
+//                ?: doc.getString("service")
+//                ?: return@mapNotNull null
+//            val price = (
+//                when (val raw = doc.get("price")) {
+//                    is Number -> raw.toDouble()
+//                    is String -> raw.toDoubleOrNull()
+//                    else -> null
+//                }
+//                    ?: when (val raw = doc.get("servicePrice")) {
+//                        is Number -> raw.toDouble()
+//                        is String -> raw.toDoubleOrNull()
+//                        else -> null
+//                    }
+//                    ?: when (val raw = doc.get("amount")) {
+//                        is Number -> raw.toDouble()
+//                        is String -> raw.toDoubleOrNull()
+//                        else -> null
+//                    }
+//                    ?: when (val raw = doc.get("cost")) {
+//                        is Number -> raw.toDouble()
+//                        is String -> raw.toDoubleOrNull()
+//                        else -> null
+//                    }
+//                    ?: when (val raw = doc.get("serviceRate")) {
+//                        is Number -> raw.toDouble()
+//                        is String -> raw.toDoubleOrNull()
+//                        else -> null
+//                    }
+//                    ?: doc.getString("servicePrice")?.toDoubleOrNull()
+//                    ?: 0.0
+//                )
+//            ServiceFeeAdapter.ServiceItem(iconForService(name), name, price)
+//        }
+//    }
 
-    private suspend fun fetchHotelServices(hotel_id: String): List<ServiceFeeAdapter.ServiceItem> {
-        val snap = firestore.collection("hotels")
-            .document(hotel_id)
-            .collection("services")
-            .get()
-            .await()
-        if (snap.isEmpty) return emptyList()
-        return snap.documents.mapNotNull { doc ->
-            val name = doc.getString("service_name")
-                ?: doc.getString("name")
-                ?: doc.getString("service")
-                ?: return@mapNotNull null
-            val price = (
-                when (val raw = doc.get("price")) {
-                    is Number -> raw.toDouble()
-                    is String -> raw.toDoubleOrNull()
-                    else -> null
-                }
-                    ?: when (val raw = doc.get("servicePrice")) {
-                        is Number -> raw.toDouble()
-                        is String -> raw.toDoubleOrNull()
-                        else -> null
-                    }
-                    ?: when (val raw = doc.get("amount")) {
-                        is Number -> raw.toDouble()
-                        is String -> raw.toDoubleOrNull()
-                        else -> null
-                    }
-                    ?: when (val raw = doc.get("cost")) {
-                        is Number -> raw.toDouble()
-                        is String -> raw.toDoubleOrNull()
-                        else -> null
-                    }
-                    ?: when (val raw = doc.get("serviceRate")) {
-                        is Number -> raw.toDouble()
-                        is String -> raw.toDoubleOrNull()
-                        else -> null
-                    }
-                    ?: doc.getString("servicePrice")?.toDoubleOrNull()
-                    ?: 0.0
-                )
-            ServiceFeeAdapter.ServiceItem(iconForService(name), name, price)
-        }
-    }
-
-    private suspend fun fetchServiceNames(
-        hotel_id: String,
-        entries: List<ServiceRateEntry>
-    ): Map<String, String> {
-        val result = mutableMapOf<String, String>()
-
-        entries.forEach { entry ->
-            entry.serviceName?.let { explicitName ->
-                entry.serviceRef?.let { result[it.path] = explicitName; result[it.id] = explicitName }
-                entry.serviceRefPath?.let { result[it] = explicitName }
-                entry.serviceId?.let { result[it] = explicitName }
-            }
-        }
-
-        val idSet = entries.mapNotNull { it.serviceId }.toMutableSet()
-        val refSet = entries.mapNotNull { it.serviceRef }.toMutableSet()
-        val refPathSet = entries.mapNotNull { it.serviceRefPath }.toMutableSet()
-
-        suspend fun addDocs(docs: List<DocumentSnapshot>) {
-            for (doc in docs) {
-                val name = doc.getString("service_name")
-                    ?: doc.getString("name")
-                    ?: doc.getString("service")
-                    ?: doc.id
-                result[doc.id] = name
-                result[doc.reference.path] = name
-                doc.getString("id")?.let { result[it] = name }
-            }
-        }
-
-        suspend fun queryServices(
-            collectionRef: com.google.firebase.firestore.CollectionReference,
-            fieldPath: FieldPath
-        ) {
-            if (idSet.isEmpty()) return
-            idSet.chunked(10).forEach { chunk ->
-                val snap = collectionRef.whereIn(fieldPath, chunk).get().await()
-                addDocs(snap.documents)
-            }
-        }
-
-        suspend fun queryServices(
-            collectionRef: com.google.firebase.firestore.CollectionReference,
-            fieldName: String
-        ) {
-            if (idSet.isEmpty()) return
-            idSet.chunked(10).forEach { chunk ->
-                val snap = collectionRef.whereIn(fieldName, chunk).get().await()
-                addDocs(snap.documents)
-            }
-        }
-
-        val servicesRoot = firestore.collection("services")
-        queryServices(servicesRoot, FieldPath.documentId())
-        queryServices(servicesRoot, "id")
-        queryServices(servicesRoot, "service_id")
-        queryServices(servicesRoot, "serviceId")
-
-        val hotelServices = firestore.collection("hotels").document(hotel_id).collection("services")
-        queryServices(hotelServices, FieldPath.documentId())
-        queryServices(hotelServices, "id")
-        queryServices(hotelServices, "service_id")
-        queryServices(hotelServices, "serviceId")
-
-        for (ref in refSet) {
-            val doc = ref.get().await()
-            if (doc.exists()) addDocs(listOf(doc))
-        }
-
-        for (path in refPathSet) {
-            if (result.containsKey(path)) continue
-            runCatching {
-                val doc = firestore.document(path).get().await()
-                if (doc.exists()) addDocs(listOf(doc))
-            }
-        }
-
-        return result
-    }
+//    private suspend fun fetchServiceNames(
+//        hotel_id: String,
+//        entries: List<ServiceRateEntry>
+//    ): Map<String, String> {
+//        val result = mutableMapOf<String, String>()
+//
+//        entries.forEach { entry ->
+//            entry.serviceName?.let { explicitName ->
+//                entry.serviceRef?.let { result[it.path] = explicitName; result[it.id] = explicitName }
+//                entry.serviceRefPath?.let { result[it] = explicitName }
+//                entry.serviceId?.let { result[it] = explicitName }
+//            }
+//        }
+//
+//        val idSet = entries.mapNotNull { it.serviceId }.toMutableSet()
+//        val refSet = entries.mapNotNull { it.serviceRef }.toMutableSet()
+//        val refPathSet = entries.mapNotNull { it.serviceRefPath }.toMutableSet()
+//
+//        suspend fun addDocs(docs: List<DocumentSnapshot>) {
+//            for (doc in docs) {
+//                val name = doc.getString("service_name")
+//                    ?: doc.getString("name")
+//                    ?: doc.getString("service")
+//                    ?: doc.id
+//                result[doc.id] = name
+//                result[doc.reference.path] = name
+//                doc.getString("id")?.let { result[it] = name }
+//            }
+//        }
+//
+//        suspend fun queryServices(
+//            collectionRef: com.google.firebase.firestore.CollectionReference,
+//            fieldPath: FieldPath
+//        ) {
+//            if (idSet.isEmpty()) return
+//            idSet.chunked(10).forEach { chunk ->
+//                val snap = collectionRef.whereIn(fieldPath, chunk).get().await()
+//                addDocs(snap.documents)
+//            }
+//        }
+//
+//        suspend fun queryServices(
+//            collectionRef: com.google.firebase.firestore.CollectionReference,
+//            fieldName: String
+//        ) {
+//            if (idSet.isEmpty()) return
+//            idSet.chunked(10).forEach { chunk ->
+//                val snap = collectionRef.whereIn(fieldName, chunk).get().await()
+//                addDocs(snap.documents)
+//            }
+//        }
+//
+//        val servicesRoot = firestore.collection("services")
+//        queryServices(servicesRoot, FieldPath.documentId())
+//        queryServices(servicesRoot, "id")
+//        queryServices(servicesRoot, "service_id")
+//
+//
+//        val hotelServices = firestore.collection("hotels").document(hotel_id).collection("services")
+//        queryServices(hotelServices, FieldPath.documentId())
+//        queryServices(hotelServices, "id")
+//        queryServices(hotelServices, "service_id")
+//
+//
+//        for (ref in refSet) {
+//            val doc = ref.get().await()
+//            if (doc.exists()) addDocs(listOf(doc))
+//        }
+//
+//        for (path in refPathSet) {
+//            if (result.containsKey(path)) continue
+//            runCatching {
+//                val doc = firestore.document(path).get().await()
+//                if (doc.exists()) addDocs(listOf(doc))
+//            }
+//        }
+//
+//        return result
+//    }
 
     private fun computeNights(checkInMillis: Long, checkOutMillis: Long): Int {
         if (checkInMillis <= 0L || checkOutMillis <= 0L) return 0
@@ -590,8 +583,6 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         serviceRef: DocumentReference?
     ): String? {
         return doc.getString("service_id")
-            ?: doc.getString("serviceId")
-            ?: doc.getString("serviceID")
             ?: doc.getString("service_id".uppercase())
             ?: doc.get("service_id")?.let { (it as? Number)?.toLong()?.toString() }
             ?: serviceRef?.id
@@ -637,8 +628,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             // Then load services
             try {
                 val serviceItems = withContext(Dispatchers.IO) {
-                    val rates = fetchServiceRates(hotel_id)
-                    if (rates.isNotEmpty()) rates else fetchHotelServices(hotel_id)
+                     fetchServiceRates(hotel_id)
                 }
                 android.util.Log.d("ServiceExtraFee", "Loaded ${serviceItems.size} service items")
                 val currentSelections = serviceAdapter.getServiceItems()
@@ -667,8 +657,8 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             if (!hotel_id.isNullOrBlank()) {
                 try {
                     val serviceItems = withContext(Dispatchers.IO) {
-                        val rates = fetchServiceRates(hotel_id)
-                        if (rates.isNotEmpty()) rates else fetchHotelServices(hotel_id)
+                        fetchServiceRates(hotel_id)
+//                        if (rates.isNotEmpty()) rates else fetchHotelServices(hotel_id)
                     }
                     val currentSelections = serviceAdapter.getServiceItems()
                     val mergedServices = mergeServiceSelections(serviceItems, currentSelections)
@@ -693,15 +683,8 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
                 invoiceDoc.get("roomFees") as Map<*, *>
             }
             else -> {
-                val bookingDoc = firestore.collection("bookings").document(bookingId).get().await()
-                val bookingRoomFees = bookingDoc.get("roomFees") as? Map<*, *>
-                if (bookingRoomFees != null) {
-                    android.util.Log.d("ServiceExtraFee", "Found roomFees in booking $bookingId")
-                    bookingRoomFees
-                } else {
-                    android.util.Log.d("ServiceExtraFee", "No roomFees found in invoice/booking $bookingId")
-                    return emptyList()
-                }
+                android.util.Log.d("ServiceExtraFee", "No roomFees found in invoice for bookingId=$bookingId")
+                emptyMap<Any, Any>()
             }
         }
 
@@ -733,13 +716,14 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         val lostItems = roomFees["lostItems"] as? List<*> ?: emptyList<Any>()
         lostItems.forEach { item ->
             val map = item as? Map<*, *> ?: return@forEach
+            val icon = map["iconUrl"] as? String ?: return@forEach
             val name = map["name"] as? String ?: return@forEach
             val price = asDouble(map["pricePerItem"]) ?: 0.0
             val qty = asInt(map["quantity"]) ?: 1
             val total = price * qty
             if (total > 0) {
                 items.add(ServiceFeeAdapter.ServiceItem(
-                    iconRes = iconForService("lost items"),
+                    iconRes = icon,
                     name = "$name (x$qty)",
                     price = total,
                     checked = true,
@@ -751,11 +735,12 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         val brokenItems = roomFees["brokenItems"] as? List<*> ?: emptyList<Any>()
         brokenItems.forEach { item ->
             val map = item as? Map<*, *> ?: return@forEach
+            val icon = map["iconUrl"] as? String ?: return@forEach
             val name = map["name"] as? String ?: return@forEach
             val price = asDouble(map["pricePerItem"]) ?: 0.0
             if (price > 0) {
                 items.add(ServiceFeeAdapter.ServiceItem(
-                    iconRes = iconForService("broken items"),
+                    iconRes = icon,
                     name = name,
                     price = price,
                     checked = true,
@@ -767,13 +752,14 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         val miniBarItems = roomFees["miniBarItems"] as? List<*> ?: emptyList<Any>()
         miniBarItems.forEach { item ->
             val map = item as? Map<*, *> ?: return@forEach
+            val icon = map["iconUrl"] as? String ?: return@forEach
             val name = map["name"] as? String ?: return@forEach
             val price = asDouble(map["pricePerItem"]) ?: 0.0
             val qty = asInt(map["quantity"]) ?: 1
             val total = price * qty
             if (total > 0) {
                 items.add(ServiceFeeAdapter.ServiceItem(
-                    iconRes = iconForService("mini bar"),
+                    iconRes = icon,
                     name = "$name (x$qty)",
                     price = total,
                     checked = true,
@@ -793,8 +779,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             if (!hotel_id.isNullOrBlank()) {
                 try {
                     val serviceItems = withContext(Dispatchers.IO) {
-                        val rates = fetchServiceRates(hotel_id)
-                        if (rates.isNotEmpty()) rates else fetchHotelServices(hotel_id)
+                       fetchServiceRates(hotel_id)
                     }
                     val currentSelections = serviceAdapter.getServiceItems()
                     val mergedServices = mergeServiceSelections(serviceItems, currentSelections)

@@ -7,6 +7,7 @@ import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
 
 class ServiceFeeAdapter(
@@ -15,7 +16,7 @@ class ServiceFeeAdapter(
 ) : RecyclerView.Adapter<ServiceFeeAdapter.VH>() {
 
     data class ServiceItem(
-        val iconRes: Int,
+        val iconRes: String,
         val name: String,
         val price: Double,
         var checked: Boolean = false,
@@ -59,7 +60,8 @@ class ServiceFeeAdapter(
         private val cb: CheckBox = itemView.findViewById(R.id.cb)
 
         fun bind(item: ServiceItem, onChange: () -> Unit) {
-            icon.setImageResource(item.iconRes)
+            Glide.with(itemView.context).load(item.iconRes).into(icon)
+//            icon.setImageResource(item.iconRes)
             name.text = item.name
             price.text = String.format("% ,.0f VND", item.price)
             cb.isChecked = item.checked
