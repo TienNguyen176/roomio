@@ -161,12 +161,12 @@ class HomeFragment : Fragment() {
 
             // Observe deals (realtime)
             dealsListener?.remove()
-            dealsListener = firebaseRepository.observeDeals { deals ->
-                if (::dealsAdapter.isInitialized) {
-                    dealsAdapter.updateData(deals.map { it.toDealItem() })
-                    Log.d("Firebase", "Realtime: ${deals.size} deals")
-                }
-            }
+//            dealsListener = firebaseRepository.observeDeals { deals ->
+//                if (::dealsAdapter.isInitialized) {
+//                    dealsAdapter.updateData(deals.map { it.toDealItem() })
+//                    Log.d("Firebase", "Realtime: ${deals.size} deals")
+//                }
+//            }
         } else {
             // Fallback to one-shot loads when Play Services missing
             firebaseRepository.getHotReviews { hotels ->
@@ -174,12 +174,12 @@ class HomeFragment : Fragment() {
                 hotReviewAdapter.updateData(hotReviews)
                 Log.d("Firebase", "One-shot: ${hotReviews.size} hot reviews")
             }
-            firebaseRepository.getDeals { deals ->
-                if (::dealsAdapter.isInitialized) {
-                    dealsAdapter.updateData(deals.map { it.toDealItem() })
-                    Log.d("Firebase", "One-shot: ${deals.size} deals")
-                }
-            }
+//            firebaseRepository.getDeals { deals ->
+//                if (::dealsAdapter.isInitialized) {
+//                    dealsAdapter.updateData(deals.map { it.toDealItem() })
+//                    Log.d("Firebase", "One-shot: ${deals.size} deals")
+//                }
+//            }
         }
     }
 

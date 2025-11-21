@@ -67,7 +67,7 @@
             android:name=".activities.HotelDetailActivity"
             android:exported="false" />
         <activity
-            android:name=".activities.LoginActivity"
+            android:name=".activities.ReceptionActivity"
             android:exported="false">
         </activity>
         <activity
@@ -105,7 +105,7 @@
             android:exported="false" />
 
         <activity
-            android:name=".activities.MainActivity"
+            android:name=".activities.CleanerActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -126,7 +126,7 @@
             android:exported="false"
             />
         <activity
-            android:name=".activities.CleanerActivity"
+            android:name=".activities.LoginActivity"
             android:exported="false"
              />
         <activity
@@ -137,9 +137,8 @@
             android:exported="false"
             android:label="Service Extra Fee" />
         <activity
-            android:name=".activities.ReceptionActivity"
+            android:name=".activities.MainActivity"
             android:exported="false"/>
-
 
     </application>
 

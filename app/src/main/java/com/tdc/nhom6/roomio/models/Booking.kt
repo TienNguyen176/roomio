@@ -12,7 +12,9 @@ data class Booking(
 
     val customerId: String = "",
     val roomTypeId: String = "",
+    var roomId: String? = null,
     var discountId: String? = null,
+    var discountPaymentMethodId: String? = null,
 
     var status: String = "pending",
 

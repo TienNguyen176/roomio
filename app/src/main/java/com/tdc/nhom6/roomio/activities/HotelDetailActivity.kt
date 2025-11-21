@@ -32,7 +32,7 @@ import com.tdc.nhom6.roomio.models.HotelModel
 import com.tdc.nhom6.roomio.models.RoomImage
 import com.tdc.nhom6.roomio.models.RoomType
 import com.tdc.nhom6.roomio.models.Service
-import com.tdc.nhom6.roomio.adapters.ServiceAdapter
+import com.tdc.nhom6.roomio.models.ServiceHotelAdapter
 import com.tdc.nhom6.roomio.models.ServiceRate
 import java.util.Date
 
@@ -42,9 +42,8 @@ class HotelDetailActivity: AppCompatActivity() {
     private lateinit var roomTypeAdapter: RoomTypeAdapter
     private var listRoomType: MutableList<RoomType> = mutableListOf()
     private var listServices: MutableList<Service> = mutableListOf()
-    private var selectedServiceRates: MutableMap<String, Double> = mutableMapOf()
     private lateinit var hotelData: HotelModel
-    private lateinit var serviceAdapter: ServiceAdapter
+    private lateinit var serviceAdapter: ServiceHotelAdapter
     private lateinit var photoGridAdapter: PhotoGridAdapter
     private var systemBarsInsets: Insets? = null
 
@@ -100,10 +99,10 @@ class HotelDetailActivity: AppCompatActivity() {
         HOTEL_ID = intent.getStringExtra("HOTEL_ID").toString()
         Log.d("Intent", HOTEL_ID)
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.title = "Guest Detail"
+        supportActionBar?.title = ""
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        serviceAdapter = ServiceAdapter(listServices, selectedServiceRates)
+        serviceAdapter = ServiceHotelAdapter(this, listServices)
         val spanCount = 3
         binding.gridServices.layoutManager = GridLayoutManager(this, spanCount)
         binding.gridServices.adapter = serviceAdapter
@@ -157,7 +156,6 @@ class HotelDetailActivity: AppCompatActivity() {
                     controller?.isAppearanceLightStatusBars=false
                     binding.toolbar.navigationIcon?.setTint(solidColor)
                 }
-
             }
         )
     }
@@ -217,24 +215,13 @@ class HotelDetailActivity: AppCompatActivity() {
 
                 if (querySnapshot != null) {
                     listServices.clear()
-                    selectedServiceRates.clear()
 
-                    // Extract service IDs and prices from serviceRates
-                    val serviceRateMap = querySnapshot.documents.associate { doc ->
-                        val serviceId = doc.getString("service_id") ?: ""
-                        val price = doc.getDouble("price") ?: 0.0
-                        serviceId to price
-                    }
-
-                    val serviceIdsToFetch = serviceRateMap.keys.filter { it.isNotEmpty() }
+                    val serviceIdsToFetch = querySnapshot.documents.mapNotNull { it.getString("service_id") }
 
                     if (serviceIdsToFetch.isEmpty()) {
                         serviceAdapter.notifyDataSetChanged()
                         return@addSnapshotListener
                     }
-
-                    // Populate selectedServiceRates with prices
-                    selectedServiceRates.putAll(serviceRateMap)
 
                     var fetchCount = 0
                     for (serviceId in serviceIdsToFetch) {
@@ -293,111 +280,5 @@ class HotelDetailActivity: AppCompatActivity() {
             }
             else -> super.onOptionsItemSelected(item)
         }
-    }
-
-    fun addServiceRateToFirebase(hotelId: String, serviceId: String, price: Double) {
-        val newRate = ServiceRate(
-            hotel_id = hotelId,
-            service_id = serviceId,
-            price = price,
-        )
-        db.collection("serviceRates")
-            .add(newRate)
-            .addOnSuccessListener {
-                println("Thêm giá dịch vụ thành công: Hotel $hotelId, Service $serviceId")
-            }
-            .addOnFailureListener { e ->
-                println("Lỗi khi thêm giá dịch vụ: $e")
-            }
-    }
-
-    private fun addRoomTypeFireBase() {
-        val ROOM_ID = "DLXR-003"
-        val sampleFacilityRates = listOf(
-            FacilityPriceRateModel(
-                facilityId = "facilities_01",
-                price = 0.0,
-                updateDate = Date().time.toFirestoreTimestamp(),
-            )
-        )
-
-        val sampleDamageLossRates = listOf(
-            FacilityDamageLossRateModel(
-                facilityId = "facilities_01",
-                statusId = "0",
-                price = 100000.0,
-                updateDate = Date().time.toFirestoreTimestamp()
-            ),
-            FacilityDamageLossRateModel(
-                facilityId = "facilities_01",
-                statusId = "1",
-                price = 200000.0,
-                updateDate = Date().time.toFirestoreTimestamp()
-            ),
-        )
-
-        val newImage = RoomImage(
-            imageUrl = "https://cf.bstatic.com/xdata/images/hotel/max1024x768/738129545.jpg?k=e715bb89becf44df04deb39a73a43cdc6048c6fd1f04eda71630eba62d771337&o=",
-            thumbnail = true,
-            uploadedAt = Date().time
-        )
-        val myTypeSafeRoom = RoomType(
-            roomTypeId = ROOM_ID,
-            hotelId = HOTEL_ID,
-            typeName = "SUPERIOR DOUBLE ROOM",
-            pricePerNight = 1300000.0,
-            maxPeople = 6,
-            area = 120,
-            viewId = "0",
-            roomImages = listOf(newImage,newImage,newImage)
-        )
-        addRoomType(myTypeSafeRoom, ROOM_ID)
-        sampleFacilityRates.forEach { rate -> addFacilityRate(rate, ROOM_ID) }
-        sampleDamageLossRates.forEach { rate -> addDamageLossRate(rate, ROOM_ID) }
-    }
-
-
-    private fun addRoomType(roomType: RoomType, roomTypeIdAbbr: String) {
-        db.collection("roomTypes")
-            .document(roomTypeIdAbbr)
-            .set(roomType)
-            .addOnSuccessListener {
-                Log.d("Firestore_Add", "RoomType $roomTypeIdAbbr added successfully!")
-            }
-            .addOnFailureListener { e ->
-                Log.e("Firestore_Add", "Error adding RoomType $roomTypeIdAbbr:", e)
-            }
-    }
-
-    private fun addFacilityRate(rate: FacilityPriceRateModel, roomTypeId: String) {
-        db.collection("roomTypes")
-            .document(roomTypeId)
-            .collection("facilityRates")
-            .add(rate)
-            .addOnSuccessListener { documentReference ->
-                println("FacilityRate added successfully. ID: ${documentReference.id}")
-            }
-            .addOnFailureListener { e ->
-                println("Error adding FacilityRate: $e")
-            }
-    }
-
-    private fun addDamageLossRate(rate: FacilityDamageLossRateModel, roomTypeId: String) {
-        db.collection("roomTypes")
-            .document(roomTypeId)
-            .collection("damageLossRates")
-            .add(rate)
-            .addOnSuccessListener { documentReference ->
-                println("DamageLossRate added successfully. ID: ${documentReference.id}")
-            }
-            .addOnFailureListener { e ->
-                println("Error adding DamageLossRate: $e")
-            }
-    }
-
-    fun Long.toFirestoreTimestamp(): Timestamp {
-        val seconds = this / 1000
-        val nanoseconds = (this % 1000) * 1_000_000
-        return Timestamp(seconds, nanoseconds.toInt())
     }
 }

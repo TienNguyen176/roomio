@@ -66,7 +66,7 @@
     </style>
 
     <!-- Base application theme (đã đúng Material3) -->
-    <style name="Base.Theme.Roomio" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Base.Theme.Roomios" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Nếu muốn bo góc mặc định toàn app -->
         <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.Roomio.Medium</item>
         <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.Roomio.Medium</item>
@@ -88,7 +88,7 @@
     </style>
 
     <!-- Base application theme (Material-compatible) -->
-    <style name="Base.Theme.Roomio2" parent="Theme.MaterialComponents.Light.NoActionBar">
+    <style name="Base.Theme.Roomio" parent="Theme.MaterialComponents.Light.NoActionBar">
         <!-- Màu chính của ứng dụng -->
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryVariant">@color/colorPrimaryVariant</item>
@@ -161,5 +161,6 @@
         <item name="android:textSize">16sp</item>
         <item name="android:fontFamily">sans-serif-medium</item>
     </style>
+
 
 </resources>

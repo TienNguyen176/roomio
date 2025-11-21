@@ -277,7 +277,7 @@ class SearchResultsFragment : Fragment() {
                 // Continue with deals search (only once)
                 if (!dealsSearchInitialized) {
                     dealsSearchInitialized = true
-                    performDealsSearch(results)
+//                    performDealsSearch(results)
                 }
             }
 
@@ -387,64 +387,64 @@ class SearchResultsFragment : Fragment() {
                 callback(hotels)
             }
     }
-
-    private fun performDealsSearch(results: MutableList<SearchResultItem>) {
-        // Realtime deals based on discounts
-        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
-        if (hasPlay) {
-            dealsListener?.remove()
-            dealsListener = firebaseRepository.observeDeals { deals ->
-                try {
-                    deals.filter {
-                        it.hotelName.lowercase().contains(searchQuery.lowercase()) ||
-                        it.hotelLocation.lowercase().contains(searchQuery.lowercase())
-                    }.forEach { deal ->
-                        results.add(
-                            SearchResultItem(
-                                type = SearchResultType.DEAL,
-                                hotel = null,
-                                deal = deal,
-                                review = null
-                            )
-                        )
-                    }
-
-                    searchResultsAdapter.updateData(results)
-
-                    val message = if (results.isEmpty()) {
-                        "No results found for '$searchQuery'. Try: Ares, Vung Tau, Saigon, Sapa, or Nha Trang"
-                    } else {
-                        "Found ${results.size} results for '$searchQuery'"
-                    }
-                    android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
-                } catch (e: Exception) {
-                    android.widget.Toast.makeText(requireContext(), "Error searching deals: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            }
-        } else {
-            // One-shot fallback
-            firebaseRepository.getDeals { deals ->
-                try {
-                    deals.filter {
-                        it.hotelName.lowercase().contains(searchQuery.lowercase()) ||
-                        it.hotelLocation.lowercase().contains(searchQuery.lowercase())
-                    }.forEach { deal ->
-                        results.add(
-                            SearchResultItem(
-                                type = SearchResultType.DEAL,
-                                hotel = null,
-                                deal = deal,
-                                review = null
-                            )
-                        )
-                    }
-                    searchResultsAdapter.updateData(results)
-                } catch (e: Exception) {
-                    android.widget.Toast.makeText(requireContext(), "Error searching deals: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-    }
+//
+//    private fun performDealsSearch(results: MutableList<SearchResultItem>) {
+//        // Realtime deals based on discounts
+//        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
+//        if (hasPlay) {
+//            dealsListener?.remove()
+//            dealsListener = firebaseRepository.observeDeals { deals ->
+//                try {
+//                    deals.filter {
+//                        it.hotelName.lowercase().contains(searchQuery.lowercase()) ||
+//                        it.hotelLocation.lowercase().contains(searchQuery.lowercase())
+//                    }.forEach { deal ->
+//                        results.add(
+//                            SearchResultItem(
+//                                type = SearchResultType.DEAL,
+//                                hotel = null,
+//                                deal = deal,
+//                                review = null
+//                            )
+//                        )
+//                    }
+//
+//                    searchResultsAdapter.updateData(results)
+//
+//                    val message = if (results.isEmpty()) {
+//                        "No results found for '$searchQuery'. Try: Ares, Vung Tau, Saigon, Sapa, or Nha Trang"
+//                    } else {
+//                        "Found ${results.size} results for '$searchQuery'"
+//                    }
+//                    android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+//                } catch (e: Exception) {
+//                    android.widget.Toast.makeText(requireContext(), "Error searching deals: ${e.message}", Toast.LENGTH_LONG).show()
+//                }
+//            }
+//        } else {
+//            // One-shot fallback
+//            firebaseRepository.getDeals { deals ->
+//                try {
+//                    deals.filter {
+//                        it.hotelName.lowercase().contains(searchQuery.lowercase()) ||
+//                        it.hotelLocation.lowercase().contains(searchQuery.lowercase())
+//                    }.forEach { deal ->
+//                        results.add(
+//                            SearchResultItem(
+//                                type = SearchResultType.DEAL,
+//                                hotel = null,
+//                                deal = deal,
+//                                review = null
+//                            )
+//                        )
+//                    }
+//                    searchResultsAdapter.updateData(results)
+//                } catch (e: Exception) {
+//                    android.widget.Toast.makeText(requireContext(), "Error searching deals: ${e.message}", Toast.LENGTH_LONG).show()
+//                }
+//            }
+//        }
+//    }
 
     // All offline/sample search code removed
 }
