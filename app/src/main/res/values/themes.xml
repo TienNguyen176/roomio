@@ -6,4 +6,9 @@
     </style>
 
     <style name="Theme.Roomio" parent="Base.Theme.Roomio" />
+
+    <style name="RatingBarColor" parent="Theme.Roomio" >
+        <item name="colorControlNormal">@color/dark</item>
+        <item name="colorControlActivated">@color/yellow</item>
+    </style>
 </resources>

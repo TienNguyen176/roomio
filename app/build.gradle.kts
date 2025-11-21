@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.google.gms.google.services)
+    id("kotlin-parcelize")
 }
 
 android {
@@ -51,6 +52,9 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
+    // BCrypt
+    implementation(libs.bcrypt)
+
     // Retrofit
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
@@ -69,4 +73,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
     implementation(libs.firebase.messaging)
+
+    // Google
+    implementation(libs.google.play.auth)
 }

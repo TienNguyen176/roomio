@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.tdc.nhom6.roomio.activities.auth.LoginActivity
 import com.tdc.nhom6.roomio.databinding.MainLayoutBinding
 
 class MainActivity : AppCompatActivity() {
@@ -167,7 +168,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun doItfPermission() {
-        Toast.makeText(this, "Đã đủ quyền!", Toast.LENGTH_SHORT).show()
-        // TODO: xử lý khi đã đủ quyền
+        val intent = Intent(this, LoginActivity::class.java)
+        startActivity(intent)
+        finish()
     }
 }
