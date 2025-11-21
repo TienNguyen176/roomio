@@ -244,16 +244,16 @@ class ProfileFragment : Fragment() {
         menu.findItem(R.id.navXuLy)?.isVisible = userRoleId == "xulydon"
     }
 
-//    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-//        when (item.itemId) {
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
 //            R.id.navAdmin -> startActivity(Intent(requireContext(), AdminActivity::class.java))
-//            R.id.navChuKS -> startActivity(Intent(requireContext(), ChuKhachSanActivity::class.java))
+            R.id.navChuKS -> startActivity(Intent(requireContext(), AdminHotelActivity::class.java))
 //            R.id.navLeTan -> startActivity(Intent(requireContext(), LeTanActivity::class.java))
 //            R.id.navDonPhong -> startActivity(Intent(requireContext(), DonPhongActivity::class.java))
 //            R.id.navXuLy -> startActivity(Intent(requireContext(), XuLyDonActivity::class.java))
-//        }
-//        return super.onOptionsItemSelected(item)
-//    }
+        }
+        return super.onOptionsItemSelected(item)
+    }
 
     // ================= Format =================
     private fun formatMoney(amount: Double) = String.format("%,.0f VNĐ", amount).replace(",", ".")
