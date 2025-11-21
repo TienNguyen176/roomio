@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -25,10 +26,8 @@ import com.tdc.nhom6.roomio.databinding.DialogPaymentConfirmBinding
 import com.tdc.nhom6.roomio.databinding.DialogPaymentSuccessBinding
 import com.tdc.nhom6.roomio.models.Invoice
 import com.tdc.nhom6.roomio.models.PaymentMethod
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.concurrent.TimeUnit
+import com.tdc.nhom6.roomio.utils.FormatUtils
+import com.tdc.nhom6.roomio.utils.InvoiceQueryUtils
 import kotlin.math.max
 
 class PaymentDetailsActivity : AppCompatActivity() {
@@ -54,6 +53,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
     private var baseCleaningFee: Double = 0.0
     private var invoiceDocId: String? = null
     private lateinit var  hotelId: String
+    private lateinit var tvDiscount: TextView
 
         override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,7 +110,8 @@ class PaymentDetailsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvNightPeople).text = "Night: $nightLabel - $guestLabel"
         findViewById<TextView>(R.id.tvRoomPrice).text = "Room price/night: ${formatCurrency(roomPrice)}"
         findViewById<TextView>(R.id.tvExtraFee).text = "Extra fee: ${formatCurrency(extraFee)}"
-        findViewById<TextView>(R.id.tvDiscount).text = "Discount/ voucher: $discount"
+        tvDiscount = findViewById(R.id.tvDiscount)
+        tvDiscount.text = "Discount/ voucher: $discount"
         tvTotalAmount = findViewById(R.id.tvTotalAmount)
         tvPaidAmount = findViewById(R.id.tvPaidAmount)
         updatePaymentSummary()
@@ -130,7 +131,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
 
         observePaymentMethods(hotelId)
         observeBookingCustomer(bookingDocId)
-        bookingDocId?.let { observeInvoiceTotals(it) }
+        bookingDocId?.let { observeInvoiceTotals(it, resId) }
 
         val btnConfirm = findViewById<MaterialButton>(R.id.btnConfirmPayment)
         btnConfirm.setOnClickListener {
@@ -151,22 +152,12 @@ class PaymentDetailsActivity : AppCompatActivity() {
         walletListener?.remove()
     }
 
-    private fun formatDateTimeOrEmpty(millis: Long): String {
-        if (millis <= 0L) return ""
-        return try {
-            SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(millis))
-        } catch (_: Exception) {
-            Date(millis).toString()
-        }
-    }
+    private fun formatDateTimeOrEmpty(millis: Long): String = FormatUtils.formatDateTimeOrEmpty(millis)
 
-    private fun computeNights(checkInMillis: Long, checkOutMillis: Long): Int {
-        val diff = checkOutMillis - checkInMillis
-        val dayMillis = TimeUnit.DAYS.toMillis(1)
-        return if (diff <= 0) 1 else max(1, ((diff + dayMillis - 1) / dayMillis).toInt())
-    }
+    private fun computeNights(checkInMillis: Long, checkOutMillis: Long): Int = 
+        FormatUtils.computeNights(checkInMillis, checkOutMillis)
 
-    private fun formatCurrency(value: Double): String = String.format("%,.0fVND", value)
+    private fun formatCurrency(value: Double): String = FormatUtils.formatCurrency(value)
 
     private fun observePaymentMethods(hotelId: String?) {
         paymentMethodsListener?.remove()
@@ -218,34 +209,64 @@ class PaymentDetailsActivity : AppCompatActivity() {
                         else -> null
                     }
                     customerId?.let { loadWalletBalance(it) }
+                    
+                    // Read discount information from booking
+                    val discountId = snapshot.getString("discountId")
+                    val discountPaymentMethodId = snapshot.getString("discountPaymentMethodId")
+                        ?: snapshot.getString("discountPaymentMethod")
+                        ?: snapshot.getString("discount_payment_method_id")
+                    
+                    if (!discountPaymentMethodId.isNullOrBlank()) {
+                        loadDiscountDetails(discountPaymentMethodId)
+                    } else if (!discountId.isNullOrBlank()) {
+                        // Fallback: try to load from discounts collection
+                        loadDiscountFromId(discountId)
+                    }
                 }
             }
     }
 
-    private fun observeInvoiceTotals(bookingId: String) {
+    private fun observeInvoiceTotals(bookingId: String, reservationId: String) {
         invoiceListener?.remove()
         val invoices = firestore.collection("invoices")
+        
+        // Try direct document lookup first
         invoices.document(bookingId).get()
             .addOnSuccessListener { doc ->
                 if (doc.exists()) {
                     attachInvoiceListener(doc.reference)
                 } else {
-                    invoices.whereEqualTo("bookingId", bookingId)
-                        .limit(1)
-                        .get()
-                        .addOnSuccessListener { result ->
-                            val found = result.documents.firstOrNull()
-                            if (found != null) {
-                                attachInvoiceListener(found.reference)
-                            } else {
-                                invoicePaidAmount = 0.0
-                                updatePaymentSummary()
+                    // Try queries using utility
+                    val queries = InvoiceQueryUtils.createInvoiceQueries(firestore, bookingId, reservationId)
+                    var listenerSet = false
+                    
+                    for (query in queries) {
+                        query.limit(1).get().addOnSuccessListener { result ->
+                            if (!result.isEmpty && !listenerSet) {
+                                listenerSet = true
+                                attachInvoiceListener(result.documents.first().reference)
                             }
                         }
-                        .addOnFailureListener {
-                            invoicePaidAmount = 0.0
+                    }
+                    
+                    // Fallback: listen to all invoices and filter
+                    if (!listenerSet) {
+                        invoiceListener = invoices.addSnapshotListener { snapshots, error ->
+                            if (error != null) {
+                                android.util.Log.e("PaymentDetails", "Invoice listener error", error)
+                                invoicePaidAmount = 0.0
+                                updatePaymentSummary()
+                                return@addSnapshotListener
+                            }
+                            val filtered = InvoiceQueryUtils.filterInvoicesInMemory(
+                                snapshots?.documents ?: emptyList(),
+                                bookingId,
+                                reservationId
+                            )
+                            invoicePaidAmount = filtered.sumOf { InvoiceQueryUtils.extractTotalAmount(it) }
                             updatePaymentSummary()
                         }
+                    }
                 }
             }
             .addOnFailureListener {
@@ -263,11 +284,11 @@ class PaymentDetailsActivity : AppCompatActivity() {
                 updatePaymentSummary()
                 return@addSnapshotListener
             }
-            val paid = snapshot?.getDouble("totalAmount")
-                ?: snapshot?.getDouble("totalPaidAmount")
-                ?: snapshot?.getDouble("paidAmount")
-                ?: 0.0
-            invoicePaidAmount = paid
+            invoicePaidAmount = if (snapshot != null && snapshot.exists()) {
+                InvoiceQueryUtils.extractTotalAmount(snapshot)
+            } else {
+                0.0
+            }
             updatePaymentSummary()
         }
     }
@@ -291,6 +312,59 @@ class PaymentDetailsActivity : AppCompatActivity() {
             }
     }
 
+    private fun loadDiscountDetails(discountPaymentMethodId: String) {
+        firestore.collection("discountPaymentMethods")
+            .document(discountPaymentMethodId)
+            .get()
+            .addOnSuccessListener { doc ->
+                if (doc.exists()) {
+                    val discountName = doc.getString("discountName") ?: ""
+                    val discountDescription = doc.getString("discountDescription") ?: ""
+                    val discountPercent = doc.getDouble("discountPercent")
+                    val discountAmount = doc.getDouble("discountAmount")
+                    
+                    val displayText = when {
+                        discountName.isNotBlank() -> discountName
+                        discountDescription.isNotBlank() -> discountDescription
+                        discountPercent != null -> "${discountPercent}% discount"
+                        discountAmount != null -> "${formatCurrency(discountAmount)} discount"
+                        else -> "-"
+                    }
+                    tvDiscount.text = "Discount/ voucher: $displayText"
+                } else {
+                    tvDiscount.text = "Discount/ voucher: -"
+                }
+            }
+            .addOnFailureListener {
+                tvDiscount.text = "Discount/ voucher: -"
+            }
+    }
+
+    private fun loadDiscountFromId(discountId: String) {
+        firestore.collection("discounts")
+            .document(discountId)
+            .get()
+            .addOnSuccessListener { doc ->
+                if (doc.exists()) {
+                    val discountName = doc.getString("discountName") ?: ""
+                    val discountPercent = doc.getLong("discountPercent")?.toInt() ?: 0
+                    val maxDiscount = doc.getLong("maxDiscount") ?: 0L
+                    
+                    val displayText = when {
+                        discountName.isNotBlank() -> discountName
+                        discountPercent > 0 -> "${discountPercent}% discount"
+                        else -> "-"
+                    }
+                    tvDiscount.text = "Discount/ voucher: $displayText"
+                } else {
+                    tvDiscount.text = "Discount/ voucher: -"
+                }
+            }
+            .addOnFailureListener {
+                tvDiscount.text = "Discount/ voucher: -"
+            }
+    }
+
     private fun updateEmptyState() {
         val isEmpty = paymentMethods.isEmpty()
         tvPaymentEmpty.visibility = if (isEmpty) View.VISIBLE else View.GONE
@@ -301,6 +375,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
         val remaining = max(0.0, gross - invoicePaidAmount)
         totalAmountToPay = remaining
         requiredAmount = remaining
+        android.util.Log.d("PaymentDetails", "Payment summary - Gross: $gross, Paid: $invoicePaidAmount, Remaining: $remaining")
         tvTotalAmount.text = "Total amount: ${formatCurrency(remaining)}"
         tvPaidAmount.text = "Paid amount: ${formatCurrency(invoicePaidAmount)}"
         paymentAdapter?.updateRequiredAmount(remaining)

@@ -1,6 +1,5 @@
 package com.tdc.nhom6.roomio.activities
 
-import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.os.StrictMode
@@ -14,18 +13,17 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.FirebaseApp
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.fragments.HomeFragment
-import com.tdc.nhom6.roomio.fragments.MyBookingFragment
 import com.tdc.nhom6.roomio.fragments.ProfileFragment
+
 
 class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG_HOME = "tag_home"
-        private const val TAG_BOOKING = "tag_booking"
         private const val TAG_PROFILE = "tag_profile"
         private const val KEY_CURRENT_TAG = "current_fragment_tag"
     }
-    private lateinit var bottomNav: BottomNavigationView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -63,11 +61,10 @@ class MainActivity : AppCompatActivity() {
         val initialTag = savedInstanceState?.getString(KEY_CURRENT_TAG) ?: TAG_HOME
         showFragment(initialTag)
         setupBottomNavigation(initialTag)
-        handleIntent(intent)
     }
 
     private fun setupBottomNavigation(initialTag: String) {
-        bottomNav = findViewById<BottomNavigationView>(R.id.bottom_nav)
+        val bottomNav = findViewById<BottomNavigationView>(R.id.bottom_nav)
         bottomNav.itemIconTintList = resources.getColorStateList(R.color.nav_item_color)
         bottomNav.itemTextColor = resources.getColorStateList(R.color.nav_item_color)
         bottomNav.selectedItemId = if (initialTag == TAG_PROFILE) R.id.menu_profile else R.id.menu_home
@@ -76,10 +73,6 @@ class MainActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.menu_home -> {
                     showFragment(TAG_HOME)
-                    true
-                }
-                R.id.menu_booking -> {
-                    showFragment(TAG_BOOKING)
                     true
                 }
                 R.id.menu_profile -> {
@@ -114,7 +107,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun createFragmentForTag(tag: String): Fragment = when (tag) {
         TAG_HOME -> HomeFragment()
-        TAG_BOOKING -> MyBookingFragment()
         TAG_PROFILE -> ProfileFragment()
         else -> throw IllegalArgumentException("Unknown fragment tag: $tag")
     }
@@ -123,21 +115,5 @@ class MainActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
         val currentTag = supportFragmentManager.primaryNavigationFragment?.tag ?: TAG_HOME
         outState.putString(KEY_CURRENT_TAG, currentTag)
-    }
-
-    fun navigateToHome() {
-        bottomNav.selectedItemId = R.id.menu_home
-        showFragment(TAG_HOME)
-    }
-    fun navigateToMyBooking() {
-        bottomNav.selectedItemId = R.id.menu_booking
-        showFragment(TAG_BOOKING)
-    }
-    private fun handleIntent(intent: Intent?) {
-        if (intent?.getBooleanExtra("NAVIGATE_TO_HOME", false) == true) {
-            navigateToHome()
-        }else if (intent?.getBooleanExtra("NAVIGATE_TO_BOOKING", false) == true) {
-            navigateToMyBooking()
-        }
     }
 }

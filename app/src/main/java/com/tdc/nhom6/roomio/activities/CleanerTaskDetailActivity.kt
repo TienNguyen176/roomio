@@ -1,5 +1,7 @@
 package com.tdc.nhom6.roomio.activities
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.widget.ImageView
@@ -7,16 +9,19 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.CleaningImageAdapter
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
 import com.tdc.nhom6.roomio.fragments.TaskStatus
+import com.tdc.nhom6.roomio.utils.CleanerStatusUtils
 import java.io.File
 import java.util.UUID
 
@@ -27,6 +32,7 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
     private val uploadedImageUrls = mutableListOf<String>()
     private var bookingId: String = ""
     private var cameraImageUri: Uri? = null
+    private var pendingPermissionRationaleShown = false
 
     private val takePhotoLauncher =
         registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
@@ -40,6 +46,15 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
                 Toast.makeText(this, "Camera canceled", Toast.LENGTH_SHORT).show()
         }
     }
+
+    private val cameraPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                openCamera()
+            } else {
+                Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,24 +79,8 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         val status = task?.status ?: TaskStatus.DIRTY
         
         val tvStatus = findViewById<TextView>(R.id.tvStatus)
-        when (status) {
-            TaskStatus.DIRTY -> {
-                tvStatus.text = "Dirty"
-                tvStatus.setBackgroundResource(R.drawable.bg_tab_chip)
-            }
-            TaskStatus.IN_PROGRESS -> {
-                tvStatus.text = "In progress"
-                tvStatus.setBackgroundResource(R.drawable.bg_tab_chip)
-            }
-            TaskStatus.CLEAN -> {
-                tvStatus.text = "Cleaned"
-                tvStatus.setBackgroundResource(R.drawable.bg_tab_chip)
-            }
-            else -> {
-                tvStatus.text = "Dirty"
-                tvStatus.setBackgroundResource(R.drawable.bg_tab_chip)
-            }
-        }
+        tvStatus.text = CleanerStatusUtils.getStatusText(status)
+        tvStatus.setBackgroundResource(R.drawable.bg_tab_chip)
 
         // Checked-out time
         findViewById<TextView>(R.id.tvCheckedOut).text = "Checked-out : $checkoutTime"
@@ -100,7 +99,7 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
 
         // Upload images button - require taking photos with camera
         findViewById<MaterialButton>(R.id.btnUploadImages).setOnClickListener {
-            openCamera()
+            ensureCameraPermissionAndOpenCamera()
         }
 
         // Mark as clean button - initially disabled
@@ -137,6 +136,22 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         } catch (e: Exception) {
             android.util.Log.e("CleanerTaskDetail", "Failed to open camera", e)
             Toast.makeText(this, "Unable to open camera", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun ensureCameraPermissionAndOpenCamera() {
+        val permissionState =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+        when {
+            permissionState == PackageManager.PERMISSION_GRANTED -> openCamera()
+            shouldShowRequestPermissionRationale(Manifest.permission.CAMERA) && !pendingPermissionRationaleShown -> {
+                pendingPermissionRationaleShown = true
+                Toast.makeText(this, "Camera permission is required to take cleaning photos", Toast.LENGTH_LONG).show()
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+            else -> {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
         }
     }
 
@@ -202,41 +217,81 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
             CleanerTaskRepository.updateTask(updated)
         }
 
-        // Save image URLs and update booking status to completed if bookingId is available
+        // Save image URLs to cleaner subcollection if bookingId is available
         if (bookingId.isNotEmpty()) {
-            val updates = mutableMapOf<String, Any>(
-                "cleaningImages" to imageUrls
-            )
-            
-            // Update booking status to completed
+            // Try to find the latest cleaner document or create a new one
             firestore.collection("bookings").document(bookingId)
+                .collection("cleaner")
+                .orderBy("cleaningCompletedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(1)
                 .get()
-                .addOnSuccessListener { doc ->
-                    val currentStatus = doc.getString("status")?.lowercase() ?: ""
-                    // Only update to completed if not already completed or canceled
-                    if (currentStatus != "completed" && currentStatus != "canceled" && currentStatus != "cancelled") {
-                        updates["status"] = "completed"
+                .addOnSuccessListener { snapshot ->
+                    val cleanerDocRef = if (!snapshot.isEmpty) {
+                        // Update existing cleaner document
+                        snapshot.documents.first().reference
+                    } else {
+                        // Create new cleaner document
+                        firestore.collection("bookings")
+                            .document(bookingId)
+                            .collection("cleaner")
+                            .document()
                     }
                     
-                    firestore.collection("bookings").document(bookingId)
-                        .update(updates)
+                    val updates = mapOf(
+                        "image" to imageUrls,
+                        "status" to "completed",
+                        "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                    )
+                    
+                    cleanerDocRef.set(updates, SetOptions.merge())
                         .addOnSuccessListener {
-                            Toast.makeText(this, "Room marked as clean", Toast.LENGTH_SHORT).show()
-                            finish() // Navigate back to task list
+                            android.util.Log.d("CleanerTaskDetail", "Saved cleaning images to cleaner subcollection")
+                            
+                            // Update booking status to completed if needed
+                            firestore.collection("bookings").document(bookingId)
+                                .get()
+                                .addOnSuccessListener { doc ->
+                                    val currentStatus = doc.getString("status")?.lowercase() ?: ""
+                                    if (currentStatus != "completed" && currentStatus != "canceled" && currentStatus != "cancelled") {
+                                        firestore.collection("bookings").document(bookingId)
+                                            .update("status", "completed")
+                                            .addOnCompleteListener {
+                                                Toast.makeText(this, "Room marked as clean", Toast.LENGTH_SHORT).show()
+                                                finish()
+                                            }
+                                    } else {
+                                        Toast.makeText(this, "Room marked as clean", Toast.LENGTH_SHORT).show()
+                                        finish()
+                                    }
+                                }
+                                .addOnFailureListener {
+                                    Toast.makeText(this, "Room marked as clean", Toast.LENGTH_SHORT).show()
+                                    finish()
+                                }
                         }
                         .addOnFailureListener { e ->
-                            android.util.Log.e("CleanerTaskDetail", "Failed to save cleaning images and status", e)
+                            android.util.Log.e("CleanerTaskDetail", "Failed to save cleaning images to cleaner subcollection", e)
                             Toast.makeText(this, "Room marked as clean", Toast.LENGTH_SHORT).show()
-                            finish() // Still navigate back even if update fails
+                            finish()
                         }
                 }
                 .addOnFailureListener { e ->
-                    // If we can't read the booking, just save images
-                    firestore.collection("bookings").document(bookingId)
-                        .update("cleaningImages", imageUrls)
+                    // If we can't query, create a new cleaner document
+                    val cleanerDocRef = firestore.collection("bookings")
+                        .document(bookingId)
+                        .collection("cleaner")
+                        .document()
+                    
+                    cleanerDocRef.set(
+                        mapOf(
+                            "image" to imageUrls,
+                            "status" to "completed",
+                            "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                        )
+                    )
                         .addOnCompleteListener {
                             Toast.makeText(this, "Room marked as clean", Toast.LENGTH_SHORT).show()
-                            finish() // Navigate back to task list
+                            finish()
                         }
                 }
         } else {
@@ -246,4 +301,3 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         }
     }
 }
-

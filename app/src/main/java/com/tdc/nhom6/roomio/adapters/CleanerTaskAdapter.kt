@@ -9,6 +9,7 @@ import com.google.android.material.button.MaterialButton
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.fragments.CleanerTask
 import com.tdc.nhom6.roomio.fragments.TaskStatus
+import com.tdc.nhom6.roomio.utils.CleanerStatusUtils
 
 class CleanerTaskAdapter(
     private var tasks: MutableList<CleanerTask>,
@@ -51,15 +52,8 @@ class CleanerTaskAdapter(
             tvTimestamp.text = task.timestamp
             
             // Set status text and color
-            val (statusText, statusColor) = when (task.status) {
-                TaskStatus.DIRTY -> Pair("Dirty", "#FF9800")
-                TaskStatus.IN_PROGRESS -> Pair("In progress", "#2196F3")
-                TaskStatus.CLEAN -> Pair("Clean", "#4CAF50")
-                else -> Pair("", "#757575")
-            }
-            
-            tvStatus.text = statusText
-            tvStatus.setTextColor(android.graphics.Color.parseColor(statusColor))
+            tvStatus.text = CleanerStatusUtils.getStatusText(task.status)
+            tvStatus.setTextColor(android.graphics.Color.parseColor(CleanerStatusUtils.getStatusColor(task.status)))
             
             // Set button text and state
             when (task.status) {

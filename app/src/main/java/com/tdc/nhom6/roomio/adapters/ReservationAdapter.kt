@@ -14,6 +14,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.activities.ServiceExtraFeeActivity
+import com.tdc.nhom6.roomio.data.CleanerTaskRepository
 import com.tdc.nhom6.roomio.models.HeaderColor
 import com.tdc.nhom6.roomio.models.ReservationStatus
 import com.tdc.nhom6.roomio.models.ReservationUi
@@ -181,6 +182,12 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) :
                     )
                     .addOnSuccessListener {
                         android.util.Log.d("Reception", "Checkout updated for $docId")
+                        CleanerTaskRepository.addDirtyTask(
+                            roomId = current.reservationId,
+                            bookingDocId = docId,
+                            roomTypeId = current.roomTypeId,
+                            hotelId = current.hotelId
+                        )
                     }
                     .addOnFailureListener { error ->
                         android.util.Log.e("Reception", "Failed to update checkout for $docId", error)
@@ -273,13 +280,16 @@ class ReservationViewHolder(view: View, private val onActionClick: (Int) -> Unit
 
         val isCanceled = item.status == ReservationStatus.CANCELED
         val isCompleted = item.status == ReservationStatus.COMPLETED
+        val waitingForCleaning = !item.actionEnabled && !isCanceled && !isCompleted && item.action.equals("payment", ignoreCase = true)
         btnAction.text = when {
             isCanceled -> "Cancelled"
             isCompleted -> "Completed"
+            waitingForCleaning -> "Waiting for cleaning"
             else -> item.action
         }
 
-        if (isCanceled || isCompleted) {
+        val shouldDisable = isCanceled || isCompleted || !item.actionEnabled
+        if (shouldDisable) {
             btnAction.isEnabled = false
             btnAction.isClickable = false
             btnAction.alpha = 0.5f

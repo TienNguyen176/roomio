@@ -14,9 +14,12 @@ import com.tdc.nhom6.roomio.adapters.BrokenFurnitureAdapter
 import com.tdc.nhom6.roomio.adapters.LostItemAdapter
 import com.tdc.nhom6.roomio.adapters.MiniBarAdapter
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
+import com.tdc.nhom6.roomio.fragments.TaskStatus
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -72,52 +75,82 @@ class CleaningInspectionActivity : AppCompatActivity() {
                 android.util.Log.d("CleaningInspection", "btnDone clicked")
                 android.widget.Toast.makeText(this, "Saving inspection result...", android.widget.Toast.LENGTH_SHORT).show()
 
-                // Post cleaning fee result back to repository for reception
                 val fee = currentTotal()
                 val id = intent.getStringExtra("ROOM_ID") ?: ""
                 val bookingId = intent.getStringExtra("BOOKING_ID")?.takeIf { it.isNotBlank() }
                 CleanerTaskRepository.postCleaningResult(id, fee)
-                
-                // Update booking with cleaning completed timestamp, cleaning fee, and checked items
+
                 if (bookingId != null) {
-                    val lostItems = lostAdapter.getCheckedItems().map { 
+                    val lostItems = lostAdapter.getCheckedItems().map {
                         mapOf("name" to it.name, "pricePerItem" to it.pricePerItem, "quantity" to it.quantity)
                     }
-                    val brokenItems = brokenAdapter.getCheckedItems().map { 
+                    val brokenItems = brokenAdapter.getCheckedItems().map {
                         mapOf("name" to it.name, "pricePerItem" to it.pricePerItem, "description" to it.description)
                     }
-                    val miniBarItems = miniBarAdapter.getCheckedItems().map { 
+                    val miniBarItems = miniBarAdapter.getCheckedItems().map {
                         mapOf("name" to it.name, "pricePerItem" to it.pricePerItem, "quantity" to it.quantity)
                     }
-                    
-                    firestore.collection("invoices").document(bookingId)
-                        .update(
-                            mapOf(
-                                "cleaningCompletedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
-                                "cleaningFee" to fee,
-                                "roomFees" to mapOf(
-                                    "lostItems" to lostItems,
-                                    "brokenItems" to brokenItems,
-                                    "miniBarItems" to miniBarItems
-                                )
+
+                    val cleaningTimestamp = com.google.firebase.firestore.FieldValue.serverTimestamp()
+                    lifecycleScope.launch {
+                        val invoiceRef = resolveInvoiceDocument(bookingId)
+                        invoiceRef
+                            .set(
+                                mapOf(
+                                    "cleaningCompletedAt" to cleaningTimestamp,
+                                    "cleaningFee" to fee,
+                                    "roomFees" to mapOf(
+                                        "lostItems" to lostItems,
+                                        "brokenItems" to brokenItems,
+                                        "miniBarItems" to miniBarItems
+                                    )
+                                ),
+                                SetOptions.merge()
                             )
+                            .addOnFailureListener { e ->
+                                android.util.Log.e("CleaningInspection", "Failed to update invoice cleaning info", e)
+                            }
+
+                        // Save all cleaner data to the cleaner subcollection
+                        val cleanerData = mapOf(
+                            "cleaningCompletedAt" to cleaningTimestamp,
+                            "cleaningFee" to fee,
+                            "roomFees" to mapOf(
+                                "lostItems" to lostItems,
+                                "brokenItems" to brokenItems,
+                                "miniBarItems" to miniBarItems
+                            ),
+                            "status" to "completed",
+                            "image" to emptyList<String>(),
+                            "updatedAt" to cleaningTimestamp
                         )
-                        .addOnFailureListener { e ->
-                            android.util.Log.e("CleaningInspection", "Failed to update cleaningCompletedAt and cleaningFee", e)
-                        }
+                        
+                        // Use a consistent document ID or create a new one
+                        val cleanerDocRef = firestore.collection("bookings")
+                            .document(bookingId)
+                            .collection("cleaner")
+                            .document() // Auto-generate document ID
+                        
+                        cleanerDocRef.set(cleanerData)
+                            .addOnSuccessListener {
+                                android.util.Log.d("CleaningInspection", "Saved cleaner data to cleaner subcollection: ${cleanerDocRef.id}")
+                                markCleanerTaskClean(bookingId)
+                            }
+                            .addOnFailureListener { e ->
+                                android.util.Log.e("CleaningInspection", "Failed to save cleaner data to subcollection for booking $bookingId", e)
+                            }
+                    }
                 }
-                
-                // Navigate to cleaner task detail screen
+
                 val detailIntent = Intent(this, CleanerTaskDetailActivity::class.java)
                 detailIntent.putExtra("ROOM_ID", id)
                 detailIntent.putExtra("BOOKING_ID", bookingId ?: "")
                 detailIntent.putExtra("HOTEL_ID", intent.getStringExtra("HOTEL_ID") ?: "")
-                // Get checkout time from task if available, otherwise use default
                 val tasks = CleanerTaskRepository.tasks().value ?: emptyList()
                 val task = tasks.find { it.roomId == id }
-                val checkoutTime = "11.00 PM" // Default, can be enhanced later
+                val checkoutTime = "11.00 PM"
                 detailIntent.putExtra("CHECKOUT_TIME", checkoutTime)
-                detailIntent.putExtra("NOTES", "Replace bedding and towels") // Default notes
+                detailIntent.putExtra("NOTES", "Replace bedding and towels")
                 startActivity(detailIntent)
                 finish()
             } catch (e: Exception) {
@@ -377,6 +410,28 @@ class CleaningInspectionActivity : AppCompatActivity() {
         }
         is com.google.firebase.firestore.DocumentReference -> source.id
         else -> null
+    }
+
+    private fun markCleanerTaskClean(bookingId: String) {
+        try {
+            val tasks = CleanerTaskRepository.tasks().value.orEmpty()
+            val task = tasks.firstOrNull { it.bookingDocId == bookingId }
+            if (task != null && task.status != TaskStatus.CLEAN) {
+                CleanerTaskRepository.updateTask(task.copy(status = TaskStatus.CLEAN))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CleaningInspection", "Failed to mark cleaner task clean for $bookingId", e)
+        }
+    }
+
+    private suspend fun resolveInvoiceDocument(bookingId: String): com.google.firebase.firestore.DocumentReference {
+        val invoices = firestore.collection("invoices")
+        val existing = invoices
+            .whereEqualTo("bookingId", bookingId)
+            .limit(1)
+            .get()
+            .await()
+        return existing.documents.firstOrNull()?.reference ?: invoices.document(bookingId)
     }
 }
 

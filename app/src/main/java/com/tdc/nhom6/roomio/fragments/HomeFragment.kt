@@ -9,16 +9,13 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.tdc.nhom6.roomio.utils.RecyclerViewUtils
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.DealsAdapter
 import com.tdc.nhom6.roomio.adapters.HotReviewAdapter
-import com.tdc.nhom6.roomio.models.Deal
-import com.tdc.nhom6.roomio.models.DealItem
-import com.tdc.nhom6.roomio.models.HotReviewItem
 import com.tdc.nhom6.roomio.models.Hotel
 import com.tdc.nhom6.roomio.repository.FirebaseRepository
 import com.google.firebase.firestore.ListenerRegistration
-
 
 class HomeFragment : Fragment() {
 
@@ -65,8 +62,8 @@ class HomeFragment : Fragment() {
 
         // Load data from Firebase
         loadDataFromFirebase()
-
     }
+
     /**
      * Sets up the Hot Reviews RecyclerView
      * This shows hotel reviews in a horizontal scrolling list
@@ -80,13 +77,7 @@ class HomeFragment : Fragment() {
             LinearLayoutManager.HORIZONTAL,
             false
         )
-
-        // Configure RecyclerView to prevent swap behavior issues
-        rvHotReviews.layoutManager = layoutManager
-        rvHotReviews.setItemViewCacheSize(20) // Cache more views to prevent recycling issues
-        rvHotReviews.itemAnimator = null // Disable animations to prevent swap behavior errors
-        rvHotReviews.setNestedScrollingEnabled(false) // Disable nested scrolling
-        rvHotReviews.isNestedScrollingEnabled = false
+        RecyclerViewUtils.configureRecyclerView(rvHotReviews, layoutManager)
 
         // Create adapter with empty list initially
         hotReviewAdapter = HotReviewAdapter(hotReviews)
@@ -102,13 +93,7 @@ class HomeFragment : Fragment() {
 
         // Set grid layout manager with 2 columns
         val gridLayoutManager = GridLayoutManager(requireContext(), 2)
-
-        // Configure RecyclerView to prevent swap behavior issues
-        rvDeals.layoutManager = gridLayoutManager
-        rvDeals.setItemViewCacheSize(20) // Cache more views to prevent recycling issues
-        rvDeals.itemAnimator = null // Disable animations to prevent swap behavior errors
-        rvDeals.setNestedScrollingEnabled(false) // Disable nested scrolling
-        rvDeals.isNestedScrollingEnabled = false
+        RecyclerViewUtils.configureRecyclerView(rvDeals, gridLayoutManager)
 
         // Create adapter with empty list initially
         dealsAdapter = DealsAdapter(emptyList())
@@ -146,8 +131,6 @@ class HomeFragment : Fragment() {
      * This replaces sample data with real Firebase data
      */
     private fun loadDataFromFirebase() {
-
-
         val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
         Log.d("Firebase", "HomeFragment: hasPlay=$hasPlay")
         if (hasPlay) {
@@ -159,14 +142,6 @@ class HomeFragment : Fragment() {
                 Log.d("Firebase", "Realtime: ${hotReviews.size} hot reviews")
             }
 
-            // Observe deals (realtime)
-            dealsListener?.remove()
-//            dealsListener = firebaseRepository.observeDeals { deals ->
-//                if (::dealsAdapter.isInitialized) {
-//                    dealsAdapter.updateData(deals.map { it.toDealItem() })
-//                    Log.d("Firebase", "Realtime: ${deals.size} deals")
-//                }
-//            }
         } else {
             // Fallback to one-shot loads when Play Services missing
             firebaseRepository.getHotReviews { hotels ->
@@ -174,22 +149,14 @@ class HomeFragment : Fragment() {
                 hotReviewAdapter.updateData(hotReviews)
                 Log.d("Firebase", "One-shot: ${hotReviews.size} hot reviews")
             }
-//            firebaseRepository.getDeals { deals ->
-//                if (::dealsAdapter.isInitialized) {
-//                    dealsAdapter.updateData(deals.map { it.toDealItem() })
-//                    Log.d("Firebase", "One-shot: ${deals.size} deals")
-//                }
-//            }
         }
     }
-
 
     /**
      * Navigates to search results screen
      * This is called when user searches for something
      */
     private fun navigateToSearchResults(query: String) {
-
         try {
             // Create SearchResultsFragment with the search query
             val searchFragment = SearchResultsFragment.newInstance(query, "")
@@ -218,41 +185,5 @@ class HomeFragment : Fragment() {
         } catch (_: Exception) { }
         hotReviewsListener = null
         dealsListener = null
-    }
-}
-
-// Extension functions to convert Firebase models to UI models
-private fun Hotel.toHotReviewItem(): HotReviewItem {
-    val imageRes = getDrawableResourceId(images.firstOrNull() ?: "hotel_64260231_1")
-    return HotReviewItem(
-        imageRes = imageRes,
-        title = hotelName,
-        ratingText = "${averageRating} (${totalReviews})",
-        priceText = "VND ${String.format("%.0f", pricePerNight)}"
-    )
-}
-
-private fun Deal.toDealItem(): DealItem {
-    val imageRes = getDrawableResourceId(imageUrl)
-    return DealItem(
-        imageRes = imageRes,
-        title = hotelName,
-        subtitle = hotelLocation
-    )
-}
-
-// Helper function to get drawable resource ID from name
-private fun getDrawableResourceId(imageName: String): Int {
-    return when (imageName) {
-        "bungalow" -> R.drawable.bungalow
-        "caption" -> R.drawable.caption
-        "dn587384532" -> R.drawable.dn587384532
-        "room_640278495" -> R.drawable.room_640278495
-        "radisson_blue_camranh" -> R.drawable.radisson_blue_camranh
-        "bungalow" -> R.drawable.bungalow
-        "dsc04512_scaled_1" -> R.drawable.dsc04512_scaled_1
-        "dn587384532" -> R.drawable.dn587384532
-        "cc449227_khach_san_quan_1_view_dep_19" -> R.drawable.cc449227_khach_san_quan_1_view_dep_19
-        else -> R.drawable.caption
     }
 }

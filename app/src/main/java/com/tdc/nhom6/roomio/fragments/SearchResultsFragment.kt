@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.tdc.nhom6.roomio.utils.RecyclerViewUtils
 import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.models.Hotel
@@ -19,6 +20,7 @@ import com.tdc.nhom6.roomio.repository.FirebaseRepository
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.toObject
 import com.tdc.nhom6.roomio.models.RoomType
+import com.tdc.nhom6.roomio.utils.FormatUtils
 
 class SearchResultsFragment : Fragment() {
     private lateinit var firebaseRepository: FirebaseRepository
@@ -64,12 +66,7 @@ class SearchResultsFragment : Fragment() {
         val recyclerView = view.findViewById<RecyclerView>(R.id.rvSearchResults)
 
         // Configure RecyclerView to prevent swap behavior issues
-        val layoutManager = LinearLayoutManager(requireContext())
-        recyclerView.layoutManager = layoutManager
-        recyclerView.setItemViewCacheSize(20) // Cache more views to prevent recycling issues
-        recyclerView.itemAnimator = null // Disable animations to prevent swap behavior errors
-        recyclerView.setNestedScrollingEnabled(false) // Disable nested scrolling
-        recyclerView.isNestedScrollingEnabled = false
+        RecyclerViewUtils.configureRecyclerView(recyclerView)
 
         searchResultsAdapter = SearchResultsAdapter(emptyList())
         recyclerView.adapter = searchResultsAdapter
@@ -342,51 +339,6 @@ class SearchResultsFragment : Fragment() {
         }
     }
 
-    /**
-     * Loads room types from Firebase and updates hotel prices with the lowest room price
-     */
-    private fun loadRoomTypesAndUpdatePrices(hotels: List<Hotel>, callback: (List<Hotel>) -> Unit) {
-        firebaseRepository.db.collection("roomTypes")
-            .get()
-            .addOnSuccessListener { roomTypesResult ->
-                val roomTypesMap = mutableMapOf<String, MutableList<RoomType>>()
-
-                // Group room types by hotel ID
-                for (document in roomTypesResult) {
-                    try {
-                        val roomType: RoomType = document.toObject<RoomType>()
-                        val hotelId = roomType.hotelId
-
-                        if (!roomTypesMap.containsKey(hotelId)) {
-                            roomTypesMap[hotelId] = mutableListOf()
-                        }
-                        roomTypesMap[hotelId]?.add(roomType)
-                    } catch (e: Exception) {
-                        Log.e("Search", "Error converting room type ${document.id}: ${e.message}")
-                    }
-                }
-
-                // Update hotel prices with lowest and highest room prices
-                val hotelsWithPrices = hotels.map { hotel ->
-                    val roomTypes = roomTypesMap[hotel.hotelId] ?: emptyList()
-                    val lowestPrice = roomTypes.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
-                    val highestPrice = roomTypes.maxOfOrNull { it.pricePerNight }
-
-                    hotel.copy(
-                        pricePerNight = lowestPrice,
-                        lowestPricePerNight = if (roomTypes.isNotEmpty()) lowestPrice else null,
-                        highestPricePerNight = highestPrice
-                    )
-                }
-
-                callback(hotelsWithPrices)
-            }
-            .addOnFailureListener { exception ->
-                Log.w("Search", "Error loading room types: ${exception.message}")
-                // Return hotels without price updates
-                callback(hotels)
-            }
-    }
 //
 //    private fun performDealsSearch(results: MutableList<SearchResultItem>) {
 //        // Realtime deals based on discounts
@@ -529,9 +481,8 @@ class SearchResultsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
         }
     }
 
-    @SuppressLint("DefaultLocale")
     private fun formatPrice(price: Double): String {
-        return "VND ${String.format("%,.0f", price)}"
+        return "VND ${FormatUtils.formatCurrency(price).replace("VND", "").trim()}"
     }
 
     private fun setStarRating(rating: Double) {

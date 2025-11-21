@@ -1,6 +1,6 @@
 // ProfileFragment.kt (đã sửa hoàn chỉnh – giữ nguyên toàn bộ chức năng)
 
-package com.tdc.nhom6.roomio.activities
+package com.tdc.nhom6.roomio.fragments
 
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
@@ -25,12 +25,11 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.AdminHomeActivity
 import com.tdc.nhom6.roomio.activities.AdminHotelActivity
-import com.tdc.nhom6.roomio.activities.CleanerActivity
+import com.tdc.nhom6.roomio.activities.BusinessRegistrationActivity
 import com.tdc.nhom6.roomio.activities.EditProfileActivity
 import com.tdc.nhom6.roomio.activities.LoginActivity
-import com.tdc.nhom6.roomio.activities.ReceptionActivity
+import com.tdc.nhom6.roomio.activities.ManageBanksActivity
 import com.tdc.nhom6.roomio.databinding.ProfileLayoutBinding
 import com.tdc.nhom6.roomio.models.User
 
@@ -180,53 +179,6 @@ class ProfileFragment : Fragment() {
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
         }
-
-        binding.topAppBar.setOnMenuItemClickListener { item ->
-            when(item.itemId) {
-                R.id.navAdmin -> {
-                    startActivity(Intent(requireContext(), AdminHomeActivity::class.java))
-                    true
-                }
-                R.id.navChuKS -> {
-                    startActivity(Intent(requireContext(), AdminHotelActivity::class.java))
-                    true
-                }
-
-                R.id.navLeTan -> {
-                    startActivity(Intent(requireContext(), ReceptionActivity::class.java))
-                    true
-                }
-                R.id.navDonPhong -> {
-                    startActivity(Intent(requireContext(), CleanerActivity::class.java))
-                    true
-                }
-
-                else -> false
-            }
-        }
-    }
-
-    private fun loadUserData() {
-        val uid = auth.currentUser?.uid ?: prefs.getString("uid", null) ?: return
-
-        db.collection("users").document(uid)
-            .get()
-            .addOnSuccessListener { doc ->
-                if (!isAdded || _binding == null) return@addOnSuccessListener
-                if (doc.exists()) {
-                    val user = doc.toObject(User::class.java)
-                    if (user != null) {
-                        binding.tvUsername.text = user.username.ifEmpty { "Người dùng" }
-
-                        if (user.avatar.isNotEmpty()) {
-                            Glide.with(this)
-                                .load(user.avatar)
-                                .circleCrop()
-                                .placeholder(R.drawable.user)
-                                .into(binding.imgAvatar)
-                        } else {
-                            binding.imgAvatar.setImageResource(R.drawable.user)
-                        }
 
         binding.userBank.setOnClickListener {
             startActivity(Intent(requireContext(), ManageBanksActivity::class.java))

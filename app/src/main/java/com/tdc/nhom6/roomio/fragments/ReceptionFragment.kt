@@ -8,6 +8,7 @@ import androidx.fragment.app.Fragment
 import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.tdc.nhom6.roomio.utils.RecyclerViewUtils
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
 import android.content.Intent
@@ -24,6 +25,8 @@ import kotlinx.coroutines.tasks.await
 import java.util.Locale
 import java.util.Date
 import com.tdc.nhom6.roomio.adapters.ReservationAdapter
+import com.tdc.nhom6.roomio.fragments.CleanerTask
+import com.tdc.nhom6.roomio.fragments.TaskStatus
 import com.tdc.nhom6.roomio.models.HeaderColor
 import com.tdc.nhom6.roomio.models.ReservationStatus
 import com.tdc.nhom6.roomio.models.ReservationUi
@@ -39,6 +42,7 @@ class ReceptionFragment : Fragment() {
     private val reservationMeta = mutableMapOf<String, ReservationMeta>()
     private val invoiceDocuments = mutableMapOf<String, InvoiceDocInfo>()
     private val reservationDisplayCodes = mutableMapOf<String, String>()
+    private val cleaningStatusByBooking = mutableMapOf<String, TaskStatus>()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -53,12 +57,7 @@ class ReceptionFragment : Fragment() {
         val rv = view.findViewById<RecyclerView>(R.id.rvReservations)
         
         // Configure RecyclerView to prevent swap behavior issues
-        val layoutManager = LinearLayoutManager(requireContext())
-        rv.layoutManager = layoutManager
-        rv.setItemViewCacheSize(20) // Cache more views to prevent recycling issues
-        rv.itemAnimator = null // Disable animations to prevent swap behavior errors
-        rv.setNestedScrollingEnabled(false) // Disable nested scrolling
-        rv.isNestedScrollingEnabled = false
+        RecyclerViewUtils.configureRecyclerView(rv)
         
         // Observe cleaner results and navigate to Service extra fee when a new fee is posted
         CleanerTaskRepository.latestCleaningResult().observe(viewLifecycleOwner) {
@@ -75,6 +74,10 @@ class ReceptionFragment : Fragment() {
                 intent.putExtra("RESERVATION_AMOUNT", 450000.0)
                 startActivity(intent)
             } catch (_: Exception) { }
+        }
+
+        CleanerTaskRepository.tasks().observe(viewLifecycleOwner) { tasks ->
+            handleCleanerTasksSnapshot(tasks)
         }
         
         // Initialize data
@@ -113,7 +116,12 @@ class ReceptionFragment : Fragment() {
         val db = Firebase.firestore
         bookingsListener = db.collection("bookings")
             .addSnapshotListener { snapshots, error ->
-                if (error != null || snapshots == null) {
+                if (error != null) {
+                    android.util.Log.e("ReceptionFragment", "Error listening to bookings", error)
+                    return@addSnapshotListener
+                }
+                if (snapshots == null) {
+                    android.util.Log.w("ReceptionFragment", "Bookings snapshot is null")
                     return@addSnapshotListener
                 }
                 if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
@@ -131,6 +139,14 @@ class ReceptionFragment : Fragment() {
                     for (change in snapshots.documentChanges) {
                         if (change.type == com.google.firebase.firestore.DocumentChange.Type.MODIFIED) {
                             val doc = change.document
+                            // Only filter out bookings that explicitly have a non-approved payment status
+                            val paymentStatus = doc.getString("paymentStatus") ?: ""
+                            val hasPaymentStatus = paymentStatus.isNotEmpty()
+                            val isPaymentApproved = paymentStatus.equals("payment_approved", ignoreCase = true)
+                            // Skip only if paymentStatus exists AND is not approved
+                            if (hasPaymentStatus && !isPaymentApproved) {
+                                continue
+                            }
                             val documentId = doc.id
                             val previousReservation = allReservations.find { it.documentId == documentId }
                             val previousCleaningMillis = previousReservation?.cleaningCompletedAtMillis
@@ -149,8 +165,20 @@ class ReceptionFragment : Fragment() {
                     }
                     
                     val updated = mutableListOf<ReservationUi>()
+                    android.util.Log.d("ReceptionFragment", "Processing ${snapshots.documents.size} bookings from Firestore")
                     for (doc in snapshots.documents) {
                         try {
+                            // Only filter out bookings that explicitly have a non-approved payment status
+                            // Allow bookings with payment_approved OR bookings without paymentStatus (backward compatibility)
+                            val paymentStatusRaw = doc.getString("paymentStatus") ?: ""
+                            val hasPaymentStatus = paymentStatusRaw.isNotEmpty()
+                            val isPaymentApproved = paymentStatusRaw.equals("payment_approved", ignoreCase = true)
+                            // Skip only if paymentStatus exists AND is not approved
+                            if (hasPaymentStatus && !isPaymentApproved) {
+                                android.util.Log.d("ReceptionFragment", "Skipping booking ${doc.id} - paymentStatus: $paymentStatusRaw")
+                                continue
+                            }
+                            android.util.Log.d("ReceptionFragment", "Including booking ${doc.id} - paymentStatus: ${if (hasPaymentStatus) paymentStatusRaw else "none"}")
                             val documentId = doc.id
                             val reservationId = doc.getString("reservationId") ?: documentId
                             // Support multiple potential customer id fields
@@ -253,8 +281,41 @@ class ReceptionFragment : Fragment() {
                                 ?: doc.getString("promotion")
                                 ?: "-"
                             
-                            // Read cleaningCompletedAt timestamp
-                            val cleaningCompletedAtTimestamp = valueToTimestamp(doc.get("cleaningCompletedAt"))
+                            // Read cleaningCompletedAt timestamp from cleaner subcollection (async)
+                            // Query cleaner subcollection for the latest cleaningCompletedAt
+                            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                                try {
+                                    if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
+                                        return@launch
+                                    }
+                                    val cleanerSnapshot = db.collection("bookings")
+                                        .document(documentId)
+                                        .collection("cleaner")
+                                        .orderBy("cleaningCompletedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                                        .limit(1)
+                                        .get()
+                                        .await()
+                                    
+                                    if (!cleanerSnapshot.isEmpty) {
+                                        val cleanerDoc = cleanerSnapshot.documents.first()
+                                        val timestamp = valueToTimestamp(cleanerDoc.get("cleaningCompletedAt"))
+                                        
+                                        // Update the reservation with the cleaning timestamp
+                                        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                                            if (viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
+                                                val existingIndex = allReservations.indexOfFirst { it.documentId == documentId }
+                                                if (existingIndex >= 0) {
+                                                    val existing = allReservations[existingIndex]
+                                                    allReservations[existingIndex] = existing.copy(cleaningCompletedAtMillis = timestamp)
+                                                    reservationAdapter?.notifyItemChanged(existingIndex)
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.e("ReceptionFragment", "Error fetching cleaner data for $documentId", e)
+                                }
+                            }
                             
                             // Resolve room type name
                             val finalRoomTypeName = if (roomTypeInlineName.isNullOrBlank()) {
@@ -293,15 +354,26 @@ class ReceptionFragment : Fragment() {
                                 "Check-in: $checkInText - Check-out: $checkOutText"
                             else
                                 ""
-                            // We will render exactly:
-                            // line1: Check-in/out
-                            // line2: (can be used for other info)
-                            // line3: Guest name
-                            // numberGuest: Number of guests (separate field)
-                            // roomType: Room type (separate field)
-                            var line2 = "" // Can be used for other info if needed
+                            var line2 = ""
                             var line3 = "Guest name: Loading..."
-                            
+
+                            val metaEntry = ReservationMeta(
+                                documentId = documentId,
+                                reservationId = reservationId,
+                                statusStr = statusStr,
+                                baseStatus = status,
+                                isCanceled = isCanceled,
+                                hasCheckedIn = bookingHasCheckedIn,
+                                hasCheckedOut = bookingHasCheckedOut,
+                                totalFinal = totalFinal,
+                                invoiceKeys = invoiceKeys.toSet(),
+                                roomTypeId = roomTypeId,
+                                hotelId = doc.getString("hotelId") ?: doc.getString("hotel_id"),
+                                guestPhone = doc.getString("guestPhone"),
+                                guestEmail = doc.getString("guestEmail")
+                            )
+                            reservationMeta[documentId] = metaEntry
+
                             val ui = ReservationUi(
                                 documentId = documentId,
                                 reservationId = reservationId,
@@ -325,26 +397,11 @@ class ReceptionFragment : Fragment() {
                                 checkInMillis = checkInTimestamp,
                                 checkOutMillis = checkOutTimestamp,
                                 discountLabel = discountText,
-                                cleaningCompletedAtMillis = cleaningCompletedAtTimestamp
+                                cleaningCompletedAtMillis = null // Will be updated asynchronously from cleaner subcollection
                             )
-                            updated.add(ui)
+                            val adjustedUi = applyCleaningStatusToReservation(ui)
+                            updated.add(adjustedUi)
                             val uiIndex = updated.lastIndex
-
-                            reservationMeta[documentId] = ReservationMeta(
-                                documentId = documentId,
-                                reservationId = reservationId,
-                                statusStr = statusStr,
-                                baseStatus = status,
-                                isCanceled = isCanceled,
-                                hasCheckedIn = bookingHasCheckedIn,
-                                hasCheckedOut = bookingHasCheckedOut,
-                                totalFinal = totalFinal,
-                                invoiceKeys = invoiceKeys.toSet(),
-                                roomTypeId = roomTypeId,
-                                hotelId = doc.getString("hotelId") ?: doc.getString("hotel_id"),
-                                guestPhone = doc.getString("guestPhone"),
-                                guestEmail = doc.getString("guestEmail")
-                            )
                             
                             if (customerIdRaw != null) {
                                 // Resolve guest name concurrently; bind by index to avoid wrong item updates
@@ -493,10 +550,12 @@ class ReceptionFragment : Fragment() {
                                 }
                                 activeJobs.add(roomTypeJob)
                             }
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            android.util.Log.e("ReceptionFragment", "Error processing booking document", e)
                             // Skip malformed document
                         }
                     }
+                    android.util.Log.d("ReceptionFragment", "Processed ${updated.size} reservations, updating UI")
                     // Replace list immediately so UI shows quickly
                     if (viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
                         val currentDocIds = updated.map { it.documentId }.toSet()
@@ -592,14 +651,70 @@ class ReceptionFragment : Fragment() {
                 badge = update.badge,
                 action = update.action
             )
-            if (newItem != item) {
-                allReservations[index] = newItem
+            val adjustedItem = applyCleaningStatusToReservation(newItem)
+            if (adjustedItem != item) {
+                allReservations[index] = adjustedItem
                 changed = true
             }
         }
         if (changed || forceFilter) {
             filterReservations()
         }
+    }
+
+    private fun handleCleanerTasksSnapshot(tasks: List<CleanerTask>) {
+        val latestStatuses = mutableMapOf<String, TaskStatus>()
+        tasks.forEach { task ->
+            val bookingId = task.bookingDocId ?: return@forEach
+            latestStatuses[bookingId] = task.status
+        }
+        if (latestStatuses != cleaningStatusByBooking) {
+            cleaningStatusByBooking.clear()
+            cleaningStatusByBooking.putAll(latestStatuses)
+            applyCleaningStatusLocks()
+        }
+    }
+
+    private fun applyCleaningStatusLocks(forceFilter: Boolean = false) {
+        if (!isAdded || !viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
+            return
+        }
+        var changed = false
+        for (index in allReservations.indices) {
+            val updated = applyCleaningStatusToReservation(allReservations[index])
+            if (updated != allReservations[index]) {
+                allReservations[index] = updated
+                changed = true
+            }
+        }
+        if (changed || forceFilter) {
+            filterReservations()
+        }
+    }
+
+    private fun applyCleaningStatusToReservation(reservation: ReservationUi): ReservationUi {
+        val shouldDisable = shouldDisablePaymentAction(reservation)
+        val desiredEnabled = !shouldDisable
+        return if (reservation.actionEnabled == desiredEnabled) reservation else reservation.copy(actionEnabled = desiredEnabled)
+    }
+
+    private fun shouldDisablePaymentAction(reservation: ReservationUi): Boolean {
+        if (!reservation.action.equals("payment", ignoreCase = true)) return false
+        val meta = reservationMeta[reservation.documentId] ?: return false
+        val normalizedStatus = meta.statusStr.lowercase(Locale.getDefault())
+        val requiresCleaner = meta.hasCheckedOut ||
+            normalizedStatus == "pending_payment" ||
+            normalizedStatus == "pending payment" ||
+            normalizedStatus == "checked_out" ||
+            normalizedStatus == "checked out"
+        if (!requiresCleaner) return false
+        val cleaningDone = reservation.cleaningCompletedAtMillis != null ||
+            cleaningStatusByBooking[reservation.documentId] == TaskStatus.CLEAN
+        if (cleaningDone) return false
+        cleaningStatusByBooking[reservation.documentId]?.let { status ->
+            if (status != TaskStatus.CLEAN) return true
+        }
+        return true
     }
 
     private fun computePaymentUiState(meta: ReservationMeta): PaymentUiState {

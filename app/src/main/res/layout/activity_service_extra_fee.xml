@@ -85,6 +85,16 @@
         android:textStyle="bold" />
 
     <TextView
+        android:id="@+id/tvCleaningFee"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Cleaning inspection fee: 0VND"
+        android:textColor="#164B8A"
+        android:textSize="15sp"
+        android:visibility="gone" />
+
+    <TextView
         android:id="@+id/tvExtraHeader"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
