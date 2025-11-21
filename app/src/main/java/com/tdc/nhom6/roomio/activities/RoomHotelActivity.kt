@@ -28,7 +28,9 @@ import com.tdc.nhom6.roomio.dialogs.FacilityPriceSelectorDialog
 import com.tdc.nhom6.roomio.models.DamageLossPrice
 import com.tdc.nhom6.roomio.models.FacilityPrice
 import com.tdc.nhom6.roomio.models.Room
-import com.tdc.nhom6.roomio.models.RoomType
+import com.tdc.nhom6.roomio.models.RoomImageHotel
+import com.tdc.nhom6.roomio.models.RoomTypeHotel
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -58,15 +60,15 @@ class RoomHotelActivity : AppCompatActivity() {
     private var selectedFloor: Int? = null
     private var selectedRoomTypeFilter: String? = null
 
-    private var roomTypes: MutableList<RoomType> = mutableListOf()
-    private var selectedRoomType: RoomType? = null
+    private var roomTypes: MutableList<RoomTypeHotel> = mutableListOf()
+    private var selectedRoomType: RoomTypeHotel? = null
     private val selectedRooms = mutableSetOf<Room>()
 
     private var selectedRoomTypeUris: MutableList<Uri> = mutableListOf()
     private val selectedFacilityPrices = mutableListOf<FacilityPrice>()
     private val selectedDamagePrices  = mutableListOf<DamageLossPrice>()
 
-    // Picker ảnh loại phòng
+    // PICKER ẢNH LOẠI PHÒNG
     private val roomTypeImagePickerLauncher =
         registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
             if (uris.isNotEmpty()) {
@@ -90,7 +92,7 @@ class RoomHotelActivity : AppCompatActivity() {
             return
         }
 
-        // Load prefix đã lưu cho hotel
+        // Load prefix
         val prefs = getSharedPreferences("roomio_prefs", MODE_PRIVATE)
         val savedPrefix = prefs.getString("room_prefix_${hotelId}", "F") ?: "F"
         Room.prefix = savedPrefix
@@ -198,7 +200,10 @@ class RoomHotelActivity : AppCompatActivity() {
                 }
 
                 if (snapshot != null) {
-                    roomTypes = snapshot.documents.mapNotNull { it.toObject(RoomType::class.java) }.toMutableList()
+                    roomTypes = snapshot.documents.mapNotNull {
+                        it.toObject(RoomTypeHotel::class.java)
+                    }.toMutableList()
+
                     createRoomTypeFilterButtons(roomTypes)
                 }
             }
@@ -239,7 +244,7 @@ class RoomHotelActivity : AppCompatActivity() {
         return button
     }
 
-    private fun createRoomTypeFilterButtons(roomTypes: List<RoomType>) = with(binding) {
+    private fun createRoomTypeFilterButtons(roomTypes: List<RoomTypeHotel>) = with(binding) {
         rgRoomTypes.removeAllViews()
 
         val allButton = createRoomTypeButton("Tất cả loại phòng", null)
@@ -296,7 +301,8 @@ class RoomHotelActivity : AppCompatActivity() {
     private fun showStatusUpdateDialog(room: Room) {
         val roomStatuses = listOf("room_available", "room_occupied", "room_pending", "room_fixed")
         val displayNames = listOf("Available", "Occupied", "Pending", "Fixed")
-        val currentIndex = roomStatuses.indexOf(room.status_id).takeIf { it != -1 } ?: 0
+        val currentIndex =
+            roomStatuses.indexOf(room.status_id).takeIf { it != -1 } ?: 0
 
         AlertDialog.Builder(this)
             .setTitle("Cập nhật trạng thái cho ${room.displayCode}")
@@ -329,12 +335,14 @@ class RoomHotelActivity : AppCompatActivity() {
 
         val dialog = AlertDialog.Builder(this)
             .setTitle("Thêm loại phòng mới")
+
             .setView(dialogBinding.root)
             .setPositiveButton("Lưu", null)
             .setNegativeButton("Hủy", null)
             .create()
 
         dialog.setOnShowListener {
+
             dialogBinding.btnSelectRoomImages.setOnClickListener {
                 roomTypeImagePickerLauncher.launch("image/*")
                 dialogBinding.tvSelectedImages.text =
@@ -343,9 +351,10 @@ class RoomHotelActivity : AppCompatActivity() {
 
             dialogBinding.btnSelectFacilities.setOnClickListener {
                 FacilityPriceSelectorDialog(
-                    this@RoomHotelActivity,
-                    lifecycleScope,
-                    selectedFacilityPrices
+                    context = this@RoomHotelActivity,
+                    scope = lifecycleScope,
+                    preselected = selectedFacilityPrices,
+                    hotelId = hotelId!!       // ⬅ GỬI HOTEL ID VÀO DIALOG
                 ) { selectedRates ->
                     selectedFacilityPrices.clear()
                     selectedFacilityPrices.addAll(selectedRates.facilityRates)
@@ -357,6 +366,7 @@ class RoomHotelActivity : AppCompatActivity() {
                         "Đã chọn ${selectedRates.facilityRates.size} tiện ích"
                 }.show()
             }
+
 
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val name = dialogBinding.edtRoomTypeName.text.toString().trim()
@@ -381,7 +391,7 @@ class RoomHotelActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    private suspend fun uploadRoomTypeImages(): List<Map<String, Any>> {
+    private suspend fun uploadRoomTypeImages(): List<RoomImageHotel> {
         if (selectedRoomTypeUris.isEmpty()) return emptyList()
 
         val files = withContext(Dispatchers.IO) {
@@ -396,10 +406,10 @@ class RoomHotelActivity : AppCompatActivity() {
         val now = com.google.firebase.Timestamp.now()
 
         return uploaded.map {
-            mapOf(
-                "imageUrl" to (it.secure_url ?: ""),
-                "thumbnail" to true,
-                "uploadedAt" to now
+            RoomImageHotel(
+                imageUrl = it.secure_url ?: "",
+                thumbnail = true,
+                uploadedAt = now
             )
         }
     }
@@ -410,24 +420,25 @@ class RoomHotelActivity : AppCompatActivity() {
         people: Int,
         price: Long,
         description: String,
-        roomImages: List<Map<String, Any>>
+        roomImages: List<RoomImageHotel>
     ) {
         val newId = db.collection("roomTypes").document().id
         val roomTypeRef = db.collection("roomTypes").document(newId)
 
-        val data = mapOf(
-            "roomTypeId" to newId,
-            "typeName" to name,
-            "area" to area,
-            "description" to description,
-            "hotelId" to hotelId,
-            "maxPeople" to people,
-            "pricePerNight" to price,
-            "roomImages" to roomImages,
-            "viewId" to "0"
+        val newRoomType = RoomTypeHotel(
+            roomTypeId = newId,
+            typeName = name,
+            area = area,
+            description = description,
+            hotelId = hotelId ?: "",
+            maxPeople = people,
+            pricePerNight = price,
+            roomImages = roomImages,
+            facilityPrices = emptyList(),
+            viewId = "0"
         )
 
-        roomTypeRef.set(data)
+        roomTypeRef.set(newRoomType)
             .addOnSuccessListener {
                 lifecycleScope.launch(Dispatchers.IO) {
                     saveFacilityRates(roomTypeRef)
@@ -498,21 +509,26 @@ class RoomHotelActivity : AppCompatActivity() {
     private fun showRoomSelectionDialog() {
         val roomNames = allRooms.map { it.displayCode }.toTypedArray()
         val checked = BooleanArray(allRooms.size)
+        val chosen = mutableListOf<Room>()
 
         AlertDialog.Builder(this)
             .setTitle("Chọn phòng để gán '${selectedRoomType?.typeName}'")
-            .setMultiChoiceItems(roomNames, checked) { _, which, isChecked ->
-                val room = allRooms[which]
-                if (isChecked) selectedRooms.add(room) else selectedRooms.remove(room)
+            .setMultiChoiceItems(roomNames, checked) { _, index, isChecked ->
+                val room = allRooms[index]
+                if (isChecked) chosen.add(room) else chosen.remove(room)
             }
             .setPositiveButton("Gán") { _, _ ->
-                assignRoomTypeToSelectedRooms()
+                if (chosen.isEmpty()) {
+                    Toast.makeText(this, "Bạn chưa chọn phòng nào!", Toast.LENGTH_SHORT).show()
+                } else {
+                    assignRoomTypeToRooms(chosen)
+                }
             }
             .setNegativeButton("Hủy", null)
             .show()
     }
 
-    private fun assignRoomTypeToSelectedRooms() {
+    private fun assignRoomTypeToRooms(chosenRooms: List<Room>) {
         val type = selectedRoomType ?: return
         val hotel = hotelId ?: return
 
@@ -521,7 +537,7 @@ class RoomHotelActivity : AppCompatActivity() {
             "room_type_name" to type.typeName
         )
 
-        selectedRooms.forEach { room ->
+        chosenRooms.forEach { room ->
             db.collection("hotels")
                 .document(hotel)
                 .collection("rooms")
@@ -531,11 +547,9 @@ class RoomHotelActivity : AppCompatActivity() {
 
         Toast.makeText(
             this,
-            "Đã gán loại '${type.typeName}' cho ${selectedRooms.size} phòng",
+            "Đã gán loại '${type.typeName}' cho ${chosenRooms.size} phòng",
             Toast.LENGTH_LONG
         ).show()
-
-        selectedRooms.clear()
     }
 
     // ========== Thêm tầng + phòng ==========
@@ -577,7 +591,6 @@ class RoomHotelActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // build mã phòng theo prefix hiện tại (F, HTL, ...)
     private fun buildRoomDisplayCode(floor: Int, roomNumber: String, prefix: String = Room.prefix): String {
         val p = prefix.ifBlank { "F" }
         val floorStr = floor.toString().padStart(2, '0')
@@ -812,10 +825,7 @@ class RoomHotelActivity : AppCompatActivity() {
                         .apply()
                 }
 
-                // Đổi luôn trên Firestore
                 applyPrefixChangeOnFirestore(input)
-
-                // Refresh UI tức thì
                 roomsAdapter.submitList(allRooms.toList())
 
                 Toast.makeText(this, "Đã đổi tiền tố thành \"$input\"", Toast.LENGTH_SHORT).show()
@@ -824,22 +834,15 @@ class RoomHotelActivity : AppCompatActivity() {
             .show()
     }
 
-    // build code mới từ Room + prefix chỉ định (dùng khi đổi Firestore)
+    // build code mới từ Room + prefix chỉ định
     private fun buildRoomCodeWithPrefix(prefix: String, room: Room): String {
         val p = prefix.ifBlank { "F" }
         val floorStr = room.floor.toString().padStart(2, '0')
-        val patternWithBlock = Regex("^[A-Z]\\d{2}$")
-
-        return if (patternWithBlock.matches(room.room_number)) {
-            "${p}${floorStr}${room.room_number}"
-        } else {
-            val blockChar = ('A'.code + (room.floor - 1)).toChar()
-            val roomStr = room.room_number.padStart(2, '0')
-            "${p}${floorStr}${blockChar}${roomStr}"
-        }
+        val blockChar = ('A'.code + (room.floor - 1)).toChar()
+        val roomStr = room.room_number.padStart(2, '0')
+        return "${p}${floorStr}${blockChar}${roomStr}"
     }
 
-    // Đổi prefix cho toàn bộ rooms trong Firestore
     private fun applyPrefixChangeOnFirestore(newPrefix: String) {
         val hotel = hotelId ?: return
 

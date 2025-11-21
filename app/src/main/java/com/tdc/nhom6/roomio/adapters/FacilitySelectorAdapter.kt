@@ -4,13 +4,13 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.tdc.nhom6.roomio.databinding.ItemFacilitySelectorBinding
-import com.tdc.nhom6.roomio.models.Facility
+import com.tdc.nhom6.roomio.models.FacilityModel
 import com.tdc.nhom6.roomio.models.FacilityPrice
 
 class FacilitySelectorAdapter(
-    private val facilities: List<Facility>,
+    private val facilities: List<FacilityModel>,
     private val preselected: MutableList<FacilityPrice>,
-    private val onEnterPrice: (Facility, () -> Unit) -> Unit // callback thêm onCancel
+    private val onEnterPrice: (FacilityModel, () -> Unit) -> Unit
 ) : RecyclerView.Adapter<FacilitySelectorAdapter.ViewHolder>() {
 
     inner class ViewHolder(val binding: ItemFacilitySelectorBinding) :
@@ -36,17 +36,19 @@ class FacilitySelectorAdapter(
         val binding = holder.binding
 
         binding.cbSelected.setOnCheckedChangeListener(null)
+
         binding.cbSelected.text = facility.facilities_name
         binding.cbSelected.isChecked = selectedMap[facility.id] == true
 
         binding.cbSelected.setOnCheckedChangeListener { _, checked ->
             if (checked) {
                 selectedMap[facility.id] = true
-                // Truyền callback cancel để bỏ chọn nếu người dùng bấm Hủy
+
                 onEnterPrice(facility) {
                     selectedMap[facility.id] = false
                     binding.cbSelected.isChecked = false
                 }
+
             } else {
                 selectedMap[facility.id] = false
                 preselected.removeAll { it.facilityId == facility.id }
@@ -54,6 +56,6 @@ class FacilitySelectorAdapter(
         }
     }
 
-    fun getSelectedFacilities(): List<Facility> =
+    fun getSelectedFacilities(): List<FacilityModel> =
         facilities.filter { selectedMap[it.id] == true }
 }

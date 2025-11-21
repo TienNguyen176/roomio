@@ -11,55 +11,56 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.models.Bank
+import java.util.*
+import kotlin.collections.ArrayList
 
 class BankAdapter(
-    private var banks: List<Bank>,
-    private val onBankSelected: (Bank) -> Unit
+    private val banks: List<Bank>,
+    private val onClick: (Bank) -> Unit
 ) : RecyclerView.Adapter<BankAdapter.BankViewHolder>(), Filterable {
 
-    private var filteredBanks = banks.toMutableList()
-
-    inner class BankViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val logo: ImageView = view.findViewById(R.id.imgBankLogo)
-        val name: TextView = view.findViewById(R.id.tvBankName)
-    }
+    private val banksFiltered = ArrayList(banks)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BankViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_bank, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_bank, parent, false)
         return BankViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: BankViewHolder, position: Int) {
-        val bank = filteredBanks[position]
-        holder.name.text = bank.name
-        Glide.with(holder.itemView.context)
-            .load(bank.logoUrl)
-            .into(holder.logo)
-
-        holder.itemView.setOnClickListener { onBankSelected(bank) }
+        val bank = banksFiltered[position]
+        holder.bind(bank)
     }
 
-    override fun getItemCount() = filteredBanks.size
+    override fun getItemCount(): Int = banksFiltered.size
+
+    inner class BankViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val tvName: TextView = itemView.findViewById(R.id.tvBankName)
+        private val imgLogo: ImageView = itemView.findViewById(R.id.imgBankLogo)
+
+        fun bind(bank: Bank) {
+            tvName.text = bank.name
+            Glide.with(itemView.context).load(bank.logoUrl).into(imgLogo)
+
+            itemView.setOnClickListener { onClick(bank) }
+        }
+    }
 
     override fun getFilter(): Filter {
         return object : Filter() {
             override fun performFiltering(constraint: CharSequence?): FilterResults {
-                val keyword = constraint?.toString()?.lowercase() ?: ""
-                filteredBanks = if (keyword.isEmpty()) {
-                    banks.toMutableList()
+                val filterString = constraint?.toString()?.lowercase(Locale.getDefault()) ?: ""
+                val results = FilterResults()
+                results.values = if (filterString.isEmpty()) {
+                    banks
                 } else {
-                    banks.filter {
-                        it.name.lowercase().contains(keyword) ||
-                                it.id.lowercase().contains(keyword)
-                    }.toMutableList()
+                    banks.filter { it.name.lowercase(Locale.getDefault()).contains(filterString) }
                 }
-                return FilterResults().apply { values = filteredBanks }
+                return results
             }
 
-            @Suppress("UNCHECKED_CAST")
             override fun publishResults(constraint: CharSequence?, results: FilterResults?) {
-                filteredBanks = results?.values as MutableList<Bank>
+                banksFiltered.clear()
+                banksFiltered.addAll(results?.values as List<Bank>)
                 notifyDataSetChanged()
             }
         }

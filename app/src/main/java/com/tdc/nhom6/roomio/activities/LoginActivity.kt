@@ -2,11 +2,13 @@ package com.tdc.nhom6.roomio.activities
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.util.Patterns
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -16,8 +18,11 @@ import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.apis.FCMRepository
 import com.tdc.nhom6.roomio.databinding.LoginLayoutBinding
+import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
 
@@ -29,10 +34,14 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var googleSignInClient: GoogleSignInClient
     private val RC_GOOGLE_SIGN_IN = 1001
 
+    private lateinit var fcmRepo: FCMRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = LoginLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        fcmRepo = FCMRepository(this)
 
         setupPasswordEye()
         setupGoogleSignIn()
@@ -135,6 +144,9 @@ class LoginActivity : AppCompatActivity() {
                                     val username = userDoc.getString("username") ?: "Người dùng"
                                     toast("Đăng nhập thành công ✅")
                                     goToHome(email, username)
+
+                                    // Gửi FCM token lên server
+                                    sendFCMTokenToServer(uid)
                                 } else {
                                     toast("Không tìm thấy hồ sơ người dùng")
                                 }
@@ -145,6 +157,25 @@ class LoginActivity : AppCompatActivity() {
                 showLoading(false)
                 toast("Sai email hoặc mật khẩu ❌")
             }
+    }
+
+    private fun sendFCMTokenToServer(userId: String) {
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                toast("Lấy token FCM thất bại")
+                return@addOnCompleteListener
+            }
+
+            val token = task.result
+            lifecycleScope.launch {
+                val success = fcmRepo.registerToken(token, userId)
+                if (success) {
+                    Log.d("FCM", "Token gửi lên server thành công")
+                } else {
+                    Log.e("FCM", "Gửi token lên server thất bại")
+                }
+            }
+        }
     }
 
     // ==============================================================
@@ -171,7 +202,7 @@ class LoginActivity : AppCompatActivity() {
                             val user = result.user ?: return@addOnSuccessListener
                             val uid = user.uid
 
-                            // ✅ Lưu lại nếu có tick “Lưu tài khoản”
+                            // Lưu lại nếu có tick “Lưu tài khoản”
                             if (binding.saveAccount.isChecked) {
                                 prefs.edit()
                                     .putString("uid", uid)
@@ -184,6 +215,8 @@ class LoginActivity : AppCompatActivity() {
                                 .addOnSuccessListener { doc ->
                                     if (doc.exists()) {
                                         goToHome(user.email ?: "")
+
+                                        sendFCMTokenToServer(uid)
                                     } else {
                                         val intent = Intent(this, EditProfileActivity::class.java)
                                         intent.putExtra("fromGoogle", true)
