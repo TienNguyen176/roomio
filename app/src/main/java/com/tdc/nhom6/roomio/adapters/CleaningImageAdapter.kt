@@ -33,20 +33,35 @@ class CleaningImageAdapter(
     }
 
     override fun onBindViewHolder(holder: ImageViewHolder, position: Int) {
-        val item = images[position]
+        if (position !in images.indices) {
+            android.util.Log.e("CleaningImageAdapter", "Position $position out of bounds (size: ${images.size})")
+            return
+        }
         
-        // Load image
+        val item = images[position]
+        android.util.Log.d("CleaningImageAdapter", "Binding position $position: uri=${item.uri}, url=${item.url}")
+        
+        // Load image - use Glide for both URI and URL for better compatibility
         when {
             item.url != null -> {
+                android.util.Log.d("CleaningImageAdapter", "Loading image from URL: ${item.url}")
                 Glide.with(holder.imageView.context)
                     .load(item.url)
                     .placeholder(R.drawable.ic_service_roomsvc)
+                    .error(R.drawable.ic_service_roomsvc)
                     .into(holder.imageView)
             }
             item.uri != null -> {
-                holder.imageView.setImageURI(item.uri)
+                android.util.Log.d("CleaningImageAdapter", "Loading image from URI: ${item.uri}")
+                // Use Glide for URI loading instead of setImageURI for better compatibility
+                Glide.with(holder.imageView.context)
+                    .load(item.uri)
+                    .placeholder(R.drawable.ic_service_roomsvc)
+                    .error(R.drawable.ic_service_roomsvc)
+                    .into(holder.imageView)
             }
             else -> {
+                android.util.Log.w("CleaningImageAdapter", "No URI or URL for position $position")
                 holder.imageView.setImageResource(R.drawable.ic_service_roomsvc)
             }
         }
@@ -63,8 +78,12 @@ class CleaningImageAdapter(
     override fun getItemCount() = images.size
 
     fun addImage(item: ImageItem) {
+        val position = images.size
         images.add(item)
-        notifyItemInserted(images.size - 1)
+        android.util.Log.d("CleaningImageAdapter", "Added image at position $position, total: ${images.size}")
+        notifyItemInserted(position)
+        // Also notify data set changed to ensure RecyclerView refreshes
+        notifyDataSetChanged()
     }
 
     fun updateImage(position: Int, item: ImageItem) {

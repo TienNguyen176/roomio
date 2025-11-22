@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:230796417369:android:2bce707b31f21c62725448",
         "android_client_info": {
-          "package_name": "com.example.roomio"
+          "package_name": "com.tdc.nhom6.roomio"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "230796417369-oqs9h6gpiqsie9ba8h1c9380ekbi3bjg.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.roomio",
+            "package_name": "com.tdc.nhom6.roomio",
             "certificate_hash": "b7ea13a1cba2007f6ca10d724bfb1393925fb201"
           }
         },

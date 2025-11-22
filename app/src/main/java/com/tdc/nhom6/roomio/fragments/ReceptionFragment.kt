@@ -114,16 +114,27 @@ class ReceptionFragment : Fragment() {
     private fun startListeningBookings() {
         stopListeningBookings()
         val db = Firebase.firestore
+        android.util.Log.d("ReceptionFragment", "Starting to listen to bookings collection...")
         bookingsListener = db.collection("bookings")
             .addSnapshotListener { snapshots, error ->
                 if (error != null) {
-                    android.util.Log.e("ReceptionFragment", "Error listening to bookings", error)
+                    android.util.Log.e("ReceptionFragment", "Error listening to bookings: ${error.message}", error)
+                    android.util.Log.e("ReceptionFragment", "Error code: ${error.code}, details: ${error.localizedMessage}")
+                    // Show error to user
+                    view?.let {
+                        android.widget.Toast.makeText(
+                            it.context,
+                            "Database error: ${error.message}",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
                     return@addSnapshotListener
                 }
                 if (snapshots == null) {
-                    android.util.Log.w("ReceptionFragment", "Bookings snapshot is null")
+                    android.util.Log.w("ReceptionFragment", "Bookings snapshot is null - no data received")
                     return@addSnapshotListener
                 }
+                android.util.Log.d("ReceptionFragment", "Received ${snapshots.size()} booking documents")
                 if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
                     return@addSnapshotListener
                 }

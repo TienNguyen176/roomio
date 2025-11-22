@@ -18,7 +18,8 @@ class BrokenFurnitureAdapter(
         val name: String,
         val pricePerItem: Double,
         var checked: Boolean = false,
-        var description: String = ""
+        var description: String = "",
+        val facilityId: String = "" // Store facilityId for saving to facilitiesUsed
     )
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {

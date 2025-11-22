@@ -94,13 +94,36 @@ object CleanerTaskRepository {
             "updatedAt" to FieldValue.serverTimestamp()
         )
         try {
-            // Save to cleaner subcollection instead of cleanerStatus
+            // Try to find and update existing cleaner document, or create new one
             firestore.collection("bookings")
                 .document(bookingId)
                 .collection("cleaner")
-                .document() // Auto-generate document ID for each status update
-                .set(statusData, SetOptions.merge())
+                .orderBy("updatedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(1)
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    val docRef = if (!snapshot.isEmpty) {
+                        // Update existing document
+                        snapshot.documents.first().reference
+                    } else {
+                        // Create new document only if none exists
+                        firestore.collection("bookings")
+                            .document(bookingId)
+                            .collection("cleaner")
+                            .document()
+                    }
+                    docRef.set(statusData, SetOptions.merge())
+                }
+                .addOnFailureListener {
+                    // Fallback: create new document if query fails
+                    firestore.collection("bookings")
+                        .document(bookingId)
+                        .collection("cleaner")
+                        .document()
+                        .set(statusData, SetOptions.merge())
+                }
         } catch (_: Exception) {
+            android.util.Log.e("CleanerTaskRepository", "Error persisting cleaner status",)
         }
     }
 }

@@ -29,10 +29,49 @@ class MainActivity : AppCompatActivity() {
 
         // Initialize Firebase
         try {
-            FirebaseApp.initializeApp(this)
+            val app = FirebaseApp.initializeApp(this)
+            val packageName = packageName
             Log.d("Firebase", "Firebase initialized successfully")
+            Log.d("Firebase", "App package name: $packageName")
+            app?.let {
+                Log.d("Firebase", "Firebase app name: ${it.name}")
+            } ?: Log.w("Firebase", "Firebase app is null")
+            
+            // Check if google-services.json matches and test Firestore connection
+            try {
+                val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                Log.d("Firebase", "Firestore instance created successfully")
+                
+                // Test Firestore connection with a simple read
+                firestore.collection("hotels").limit(1).get()
+                    .addOnSuccessListener { snapshot ->
+                        Log.d("Firebase", "Firestore connection test: SUCCESS - Read ${snapshot.size()} documents")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("Firebase", "Firestore connection test: FAILED - ${e.message}", e)
+                        runOnUiThread {
+                            android.widget.Toast.makeText(
+                                this,
+                                "Database connection failed: ${e.message}",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+            } catch (e: Exception) {
+                Log.e("Firebase", "Failed to create Firestore instance: ${e.message}", e)
+                android.widget.Toast.makeText(
+                    this,
+                    "Firebase configuration error: ${e.message}",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
         } catch (e: Exception) {
-            Log.e("Firebase", "Failed to initialize Firebase:${e.message}")
+            Log.e("Firebase", "Failed to initialize Firebase: ${e.message}", e)
+            android.widget.Toast.makeText(
+                this,
+                "Firebase initialization failed: ${e.message}",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         }
 
         // Enable StrictMode in debug builds only

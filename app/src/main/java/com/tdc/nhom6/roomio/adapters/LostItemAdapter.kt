@@ -18,7 +18,8 @@ class LostItemAdapter(
         val name: String,
         val pricePerItem: Double,
         var checked: Boolean = false,
-        var quantity: Int = 0
+        var quantity: Int = 0,
+        val facilityId: String = "" // Store facilityId for saving to facilitiesUsed
     )
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {

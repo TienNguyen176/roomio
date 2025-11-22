@@ -63,7 +63,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
 
         lostAdapter = LostItemAdapter(mutableListOf()) { updateTotal() }
         brokenAdapter = BrokenFurnitureAdapter(mutableListOf()) { updateTotal() }
-        miniBarAdapter = MiniBarAdapter(defaultMiniBarItems().toMutableList()) { updateTotal() }
+        miniBarAdapter = MiniBarAdapter(mutableListOf()) { updateTotal() }
 
         rvLost.adapter = lostAdapter
         rvBroken.adapter = brokenAdapter
@@ -81,51 +81,102 @@ class CleaningInspectionActivity : AppCompatActivity() {
                 CleanerTaskRepository.postCleaningResult(id, fee)
 
                 if (bookingId != null) {
-                    val lostItems = lostAdapter.getCheckedItems().map {
-                        mapOf("name" to it.name, "pricePerItem" to it.pricePerItem, "quantity" to it.quantity)
-                    }
-                    val brokenItems = brokenAdapter.getCheckedItems().map {
-                        mapOf("name" to it.name, "pricePerItem" to it.pricePerItem, "description" to it.description)
-                    }
-                    val miniBarItems = miniBarAdapter.getCheckedItems().map {
-                        mapOf("name" to it.name, "pricePerItem" to it.pricePerItem, "quantity" to it.quantity)
-                    }
-
                     val cleaningTimestamp = com.google.firebase.firestore.FieldValue.serverTimestamp()
                     lifecycleScope.launch {
+                        // Save cleaning fee to invoice (only cleaning fee, not room fees)
                         val invoiceRef = resolveInvoiceDocument(bookingId)
                         invoiceRef
                             .set(
                                 mapOf(
                                     "cleaningCompletedAt" to cleaningTimestamp,
-                                    "cleaningFee" to fee,
-                                    "roomFees" to mapOf(
-                                        "lostItems" to lostItems,
-                                        "brokenItems" to brokenItems,
-                                        "miniBarItems" to miniBarItems
-                                    )
+                                    "cleaningFee" to fee
                                 ),
                                 SetOptions.merge()
                             )
                             .addOnFailureListener { e ->
-                                android.util.Log.e("CleaningInspection", "Failed to update invoice cleaning info", e)
+                                android.util.Log.e("CleaningInspection", "Failed to update invoice cleaning fee", e)
                             }
 
-                        // Save all cleaner data to the cleaner subcollection
+                        // Save room fees to subcollections (NOT to invoices)
+                        // 1. Save lost items and broken furniture to facilitiesUsed
+                        val checkedLostItems = lostAdapter.getCheckedItems()
+                        val checkedBrokenItems = brokenAdapter.getCheckedItems()
+                        
+                        checkedLostItems.forEach { item ->
+                            if (item.checked && item.quantity > 0 && item.facilityId.isNotEmpty()) {
+                                val facilityData = mapOf(
+                                    "bookingId" to bookingId,
+                                    "facilityId" to item.facilityId,
+                                    "facilityStatus" to "1", // 1 = lost item
+                                    "quantity" to item.quantity,
+                                    "createdAt" to cleaningTimestamp
+                                )
+                                firestore.collection("bookings")
+                                    .document(bookingId)
+                                    .collection("facilitiesUsed")
+                                    .add(facilityData)
+                                    .addOnSuccessListener {
+                                        android.util.Log.d("CleaningInspection", "Saved lost item to facilitiesUsed: ${it.id}")
+                                    }
+                                    .addOnFailureListener { e ->
+                                        android.util.Log.e("CleaningInspection", "Failed to save lost item: ${e.message}", e)
+                                    }
+                            }
+                        }
+                        
+                        checkedBrokenItems.forEach { item ->
+                            if (item.checked && item.facilityId.isNotEmpty()) {
+                                val facilityData = mapOf(
+                                    "bookingId" to bookingId,
+                                    "facilityId" to item.facilityId,
+                                    "facilityStatus" to "0", // 0 = broken item
+                                    "quantity" to 1, // Broken items are typically quantity 1
+                                    "createdAt" to cleaningTimestamp
+                                )
+                                firestore.collection("bookings")
+                                    .document(bookingId)
+                                    .collection("facilitiesUsed")
+                                    .add(facilityData)
+                                    .addOnSuccessListener {
+                                        android.util.Log.d("CleaningInspection", "Saved broken item to facilitiesUsed: ${it.id}")
+                                    }
+                                    .addOnFailureListener { e ->
+                                        android.util.Log.e("CleaningInspection", "Failed to save broken item: ${e.message}", e)
+                                    }
+                            }
+                        }
+                        
+                        // 2. Save minibar items to miniBarUsed
+                        val checkedMiniBarItems = miniBarAdapter.getCheckedItems()
+                        checkedMiniBarItems.forEach { item ->
+                            if (item.checked && item.quantity > 0 && item.minibarId.isNotEmpty()) {
+                                val minibarData = mapOf(
+                                    "bookingId" to bookingId,
+                                    "minibarId" to item.minibarId,
+                                    "quantity" to item.quantity,
+                                    "createdAt" to cleaningTimestamp
+                                )
+                                firestore.collection("bookings")
+                                    .document(bookingId)
+                                    .collection("miniBarUsed")
+                                    .add(minibarData)
+                                    .addOnSuccessListener {
+                                        android.util.Log.d("CleaningInspection", "Saved minibar item to miniBarUsed: ${it.id}")
+                                    }
+                                    .addOnFailureListener { e ->
+                                        android.util.Log.e("CleaningInspection", "Failed to save minibar item: ${e.message}", e)
+                                    }
+                            }
+                        }
+                        
+                        // 3. Save cleaner data to cleaner subcollection (status and cleaning fee only)
                         val cleanerData = mapOf(
-                            "cleaningCompletedAt" to cleaningTimestamp,
                             "cleaningFee" to fee,
-                            "roomFees" to mapOf(
-                                "lostItems" to lostItems,
-                                "brokenItems" to brokenItems,
-                                "miniBarItems" to miniBarItems
-                            ),
-                            "status" to "completed",
-                            "image" to emptyList<String>(),
+                            "status" to "in_progress", // Status is in_progress after inspection, will be completed after photos
+                            "images" to emptyList<String>(),
                             "updatedAt" to cleaningTimestamp
                         )
                         
-                        // Use a consistent document ID or create a new one
                         val cleanerDocRef = firestore.collection("bookings")
                             .document(bookingId)
                             .collection("cleaner")
@@ -172,6 +223,31 @@ class CleaningInspectionActivity : AppCompatActivity() {
             loadDamageRates(roomTypeId)
         } else if (bookingId != null) {
             resolveRoomTypeFromBooking(bookingId)
+        }
+
+        // Load minibar items - try multiple approaches
+        if (bookingId != null) {
+            loadMinibarFromFirebase(bookingId)
+        }
+        
+        // Also try getting hotelId from roomType if available
+        if (roomTypeId != null) {
+            lifecycleScope.launch {
+                val hotelIdFromRoomType = withContext(Dispatchers.IO) {
+                    runCatching { fetchHotelIdFromRoomType(roomTypeId) }.getOrNull()
+                }
+                if (!hotelIdFromRoomType.isNullOrBlank()) {
+                    android.util.Log.d("CleaningInspection", "Got hotelId from roomType: $hotelIdFromRoomType")
+                    loadMinibarFromHotel(hotelIdFromRoomType)
+                }
+            }
+        }
+        
+        // Fallback: try direct hotelId from intent
+        val hotelId = intent.getStringExtra("HOTEL_ID")?.takeIf { it.isNotBlank() }
+        if (hotelId != null) {
+            android.util.Log.d("CleaningInspection", "Using hotelId from intent: $hotelId")
+            loadMinibarFromHotel(hotelId)
         }
     }
 
@@ -236,14 +312,165 @@ class CleaningInspectionActivity : AppCompatActivity() {
     private fun currentTotal(): Double =
         lostAdapter.totalCharges() + brokenAdapter.totalCharges() + miniBarAdapter.totalCharges()
 
+    private fun loadMinibarFromFirebase(bookingId: String) {
+        lifecycleScope.launch {
+            android.util.Log.d("CleaningInspection", "Loading minibar for bookingId: $bookingId")
+            val hotelId = withContext(Dispatchers.IO) {
+                runCatching { fetchHotelIdFromBooking(bookingId) }.getOrElse { e ->
+                    android.util.Log.e("CleaningInspection", "Error fetching hotelId from booking: ${e.message}", e)
+                    null
+                }
+            }
+            if (!hotelId.isNullOrBlank()) {
+                android.util.Log.d("CleaningInspection", "Resolved hotelId: $hotelId, loading minibar items...")
+                loadMinibarFromHotel(hotelId)
+            } else {
+                android.util.Log.w("CleaningInspection", "Could not resolve hotelId from booking $bookingId")
+                // Try alternative: check if hotelId is passed directly
+                val directHotelId = intent.getStringExtra("HOTEL_ID")?.takeIf { it.isNotBlank() }
+                if (directHotelId != null) {
+                    android.util.Log.d("CleaningInspection", "Using direct hotelId from intent: $directHotelId")
+                    loadMinibarFromHotel(directHotelId)
+                }
+            }
+        }
+    }
 
-    private fun defaultMiniBarItems(): List<MiniBarAdapter.MiniItem> = listOf(
-        MiniBarAdapter.MiniItem("Snacks", 15000.0),
-        MiniBarAdapter.MiniItem("Water", 10000.0),
-        MiniBarAdapter.MiniItem("Coffee", 20000.0),
-        MiniBarAdapter.MiniItem("Tea", 15000.0),
-        MiniBarAdapter.MiniItem("Fruits", 30000.0)
-    )
+    private suspend fun fetchHotelIdFromRoomType(roomTypeId: String): String? {
+        try {
+            val roomTypeDoc = firestore.collection("roomTypes").document(roomTypeId).get().await()
+            if (roomTypeDoc.exists()) {
+                val hotelId = roomTypeDoc.getString("hotelId")
+                    ?: roomTypeDoc.getString("hotel_id")
+                    ?: (roomTypeDoc.get("hotelRef") as? com.google.firebase.firestore.DocumentReference)?.id
+                if (hotelId != null) {
+                    android.util.Log.d("CleaningInspection", "Found hotelId from roomType: $hotelId")
+                    return hotelId
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CleaningInspection", "Error fetching hotelId from roomType: ${e.message}", e)
+        }
+        return null
+    }
+
+    private suspend fun fetchHotelIdFromBooking(bookingId: String): String? {
+        try {
+            val bookingDoc = firestore.collection("bookings").document(bookingId).get().await()
+            if (bookingDoc.exists()) {
+                android.util.Log.d("CleaningInspection", "Booking document exists, checking for hotelId fields...")
+                // Try multiple field name variations
+                val hotelId = bookingDoc.getString("hotel_id")
+                    ?: bookingDoc.getString("hotelId")
+                    ?: bookingDoc.getString("hotel")
+                    ?: (bookingDoc.get("hotelRef") as? com.google.firebase.firestore.DocumentReference)?.id
+                    ?: (bookingDoc.get("hotel") as? Map<*, *>)?.get("id")?.toString()
+                    ?: (bookingDoc.get("hotel") as? Map<*, *>)?.get("hotelId")?.toString()
+                
+                if (hotelId != null) {
+                    android.util.Log.d("CleaningInspection", "Found hotelId: $hotelId")
+                    return hotelId
+                } else {
+                    android.util.Log.w("CleaningInspection", "No hotelId field found in booking document. Available fields: ${bookingDoc.data?.keys}")
+                }
+            } else {
+                android.util.Log.w("CleaningInspection", "Booking document $bookingId does not exist")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CleaningInspection", "Error fetching booking document: ${e.message}", e)
+        }
+        return null
+    }
+
+    private fun loadMinibarFromHotel(hotelId: String) {
+        lifecycleScope.launch {
+            android.util.Log.d("CleaningInspection", "loadMinibarFromHotel called with hotelId: $hotelId")
+            val minibarItems = withContext(Dispatchers.IO) {
+                runCatching { 
+                    fetchMinibarItems(hotelId) 
+                }.getOrElse { e ->
+                    android.util.Log.e("CleaningInspection", "Error in fetchMinibarItems: ${e.message}", e)
+                    emptyList()
+                }
+            }
+            android.util.Log.d("CleaningInspection", "Fetched ${minibarItems.size} minibar items from Firebase for hotelId: $hotelId")
+            if (minibarItems.isNotEmpty()) {
+                miniBarAdapter.replaceItems(minibarItems)
+                updateTotal()
+            } else {
+                android.util.Log.w("CleaningInspection", "No minibar items to display for hotelId: $hotelId")
+            }
+        }
+    }
+
+    private suspend fun fetchMinibarItems(hotelId: String): List<MiniBarAdapter.MiniItem> {
+        try {
+            android.util.Log.d("CleaningInspection", "Fetching minibar items for hotelId: $hotelId")
+            val snapshot = firestore.collection("hotels")
+                .document(hotelId)
+                .collection("minibar")
+                .whereEqualTo("status", true)
+                .get()
+                .await()
+            
+            android.util.Log.d("CleaningInspection", "Minibar query returned ${snapshot.size()} documents")
+            
+            if (snapshot.isEmpty) {
+                android.util.Log.w("CleaningInspection", "No minibar items found for hotelId: $hotelId (status=true)")
+                // Try without status filter as fallback
+                val allSnapshot = firestore.collection("hotels")
+                    .document(hotelId)
+                    .collection("minibar")
+                    .get()
+                    .await()
+                android.util.Log.d("CleaningInspection", "Trying without status filter: found ${allSnapshot.size()} documents")
+                if (allSnapshot.isEmpty) {
+                    return emptyList()
+                }
+                // Process all items regardless of status
+                return allSnapshot.documents.mapNotNull { doc ->
+                    val name = doc.getString("name") ?: return@mapNotNull null
+                    val price = when (val raw = doc.get("price")) {
+                        is Number -> raw.toDouble()
+                        is String -> raw.toDoubleOrNull()
+                        is java.math.BigDecimal -> raw.toDouble()
+                        else -> null
+                    } ?: 0.0
+                    val minibarId = doc.id // Use document ID as minibarId
+                    
+                    if (price > 0) {
+                        android.util.Log.d("CleaningInspection", "Found minibar item: id=$minibarId, name=$name, price=$price")
+                        MiniBarAdapter.MiniItem(name, price, checked = false, quantity = 0, minibarId = minibarId)
+                    } else {
+                        android.util.Log.w("CleaningInspection", "Skipping minibar item with invalid price: name=$name")
+                        null
+                    }
+                }
+            }
+
+            return snapshot.documents.mapNotNull { doc ->
+                val name = doc.getString("name") ?: return@mapNotNull null
+                val price = when (val raw = doc.get("price")) {
+                    is Number -> raw.toDouble()
+                    is String -> raw.toDoubleOrNull()
+                    is java.math.BigDecimal -> raw.toDouble()
+                    else -> null
+                } ?: 0.0
+                val minibarId = doc.id // Use document ID as minibarId
+                
+                if (price > 0) {
+                    android.util.Log.d("CleaningInspection", "Found minibar item: id=$minibarId, name=$name, price=$price")
+                    MiniBarAdapter.MiniItem(name, price, checked = false, quantity = 0, minibarId = minibarId)
+                } else {
+                    android.util.Log.w("CleaningInspection", "Skipping minibar item with invalid price: name=$name")
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CleaningInspection", "Error fetching minibar items: ${e.message}", e)
+            return emptyList()
+        }
+    }
 
     private fun loadDamageRates(roomTypeId: String) {
         lifecycleScope.launch {
@@ -347,9 +574,9 @@ class CleaningInspectionActivity : AppCompatActivity() {
         val broken = mutableListOf<BrokenFurnitureAdapter.BrokenItem>()
         entries.forEach { entry ->
             if (entry.statusId == "1") {
-                lost += LostItemAdapter.LostItem(entry.facilityName, entry.price, checked = false, quantity = 0)
+                lost += LostItemAdapter.LostItem(entry.facilityName, entry.price, checked = false, quantity = 0, facilityId = entry.facilityId)
             } else {
-                broken += BrokenFurnitureAdapter.BrokenItem(entry.facilityName, entry.price)
+                broken += BrokenFurnitureAdapter.BrokenItem(entry.facilityName, entry.price, facilityId = entry.facilityId)
             }
         }
         

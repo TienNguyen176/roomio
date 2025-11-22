@@ -36,6 +36,12 @@ class MiniBarAdapter(
 
     fun getCheckedItems(): List<MiniItem> = items.filter { it.checked }
 
+    fun replaceItems(newItems: List<MiniItem>) {
+        items.clear()
+        items.addAll(newItems)
+        notifyDataSetChanged()
+    }
+
     class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val cb: CheckBox = itemView.findViewById(R.id.cbItem)
         private val btnMinus: Button = itemView.findViewById(R.id.btnMinus)

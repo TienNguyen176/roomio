@@ -214,9 +214,10 @@ class CleanerFragment : Fragment() {
     private fun handleTaskAction(position: Int, task: CleanerTask) {
         when (task.status) {
             TaskStatus.DIRTY -> {
-                // Change to In Progress
+                // Change to In Progress - this will be saved to Firebase by CleanerTaskRepository
                 val updated = task.copy(status = TaskStatus.IN_PROGRESS)
                 CleanerTaskRepository.updateTask(updated)
+                android.util.Log.d("CleanerFragment", "Status changed to IN_PROGRESS for room: ${task.roomId}")
                 // Navigate to inspection screen
                 try {
                     val intent = Intent(requireContext(), CleaningInspectionActivity::class.java)
@@ -225,12 +226,15 @@ class CleanerFragment : Fragment() {
                     intent.putExtra("ROOM_TYPE_ID", task.roomTypeId ?: "")
                     intent.putExtra("HOTEL_ID", task.hotelId ?: "")
                     startActivity(intent)
-                } catch (_: Exception) { }
+                } catch (e: Exception) {
+                    android.util.Log.e("CleanerFragment", "Error navigating to inspection: ${e.message}", e)
+                }
             }
             TaskStatus.IN_PROGRESS -> {
-                // Change to Clean
+                // Change to Clean - this will be saved to Firebase by CleanerTaskRepository
                 val updated = task.copy(status = TaskStatus.CLEAN)
                 CleanerTaskRepository.updateTask(updated)
+                android.util.Log.d("CleanerFragment", "Status changed to CLEAN for room: ${task.roomId}")
             }
             else -> { /* No action for completed tasks */ }
         }

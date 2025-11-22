@@ -144,6 +144,26 @@ class PaymentDetailsActivity : AppCompatActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        // Pause listeners to reduce load when activity is not visible
+        paymentMethodsListener?.remove()
+        bookingListener?.remove()
+        invoiceListener?.remove()
+        walletListener?.remove()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Re-attach listeners when activity resumes
+        val currentBookingId = bookingDocId
+        if (currentBookingId != null) {
+            observeBookingCustomer(currentBookingId)
+            observeInvoiceTotals(currentBookingId, intent.getStringExtra("RESERVATION_ID") ?: "")
+        }
+        observePaymentMethods(hotelId)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         paymentMethodsListener?.remove()
@@ -366,8 +386,17 @@ class PaymentDetailsActivity : AppCompatActivity() {
     }
 
     private fun updateEmptyState() {
-        val isEmpty = paymentMethods.isEmpty()
-        tvPaymentEmpty.visibility = if (isEmpty) View.VISIBLE else View.GONE
+        runOnUiThread {
+            try {
+                if (isFinishing || isDestroyed) {
+                    return@runOnUiThread
+                }
+                val isEmpty = paymentMethods.isEmpty()
+                tvPaymentEmpty.visibility = if (isEmpty) View.VISIBLE else View.GONE
+            } catch (e: Exception) {
+                android.util.Log.e("PaymentDetails", "Error updating empty state: ${e.message}", e)
+            }
+        }
     }
 
     private fun updatePaymentSummary() {
