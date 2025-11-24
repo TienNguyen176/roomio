@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -118,7 +119,7 @@ class EditHotelActivity : AppCompatActivity() {
 
                 // Load giá dịch vụ
                 val rateSnapshot = db.collection("serviceRates")
-                    .whereEqualTo("hotel_id", hotelId)
+                    .whereEqualTo("hotelId", hotelId)
                     .get().await()
                 rateSnapshot.documents.forEach {
                     val serviceId = it.getString("service_id") ?: return@forEach
@@ -191,25 +192,50 @@ class EditHotelActivity : AppCompatActivity() {
     // ADD NEW SERVICE
     // ----------------------------------------------------
     private fun showAddServiceDialog() {
-        val input = EditText(this).apply {
-            hint = "Nhập tên dịch vụ mới"
-            setPadding(50, 50, 50, 50)
+        val dialogView = layoutInflater.inflate(android.R.layout.simple_list_item_2, null)
+
+        val edtName = EditText(this).apply {
+            hint = "Tên dịch vụ"
+            setPadding(40, 40, 40, 40)
+        }
+
+        val edtPrice = EditText(this).apply {
+            hint = "Giá dịch vụ"
+            setPadding(40, 40, 40, 40)
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        }
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(edtName)
+            addView(edtPrice)
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Thêm dịch vụ")
-            .setView(input)
+            .setTitle("Thêm dịch vụ mới")
+            .setView(container)
             .setPositiveButton("Thêm") { _, _ ->
-                val name = input.text.toString().trim()
-                if (name.isNotEmpty()) addNewService(name)
-                else Toast.makeText(this, "Tên không được trống", Toast.LENGTH_SHORT).show()
+                val name = edtName.text.toString().trim()
+                val priceText = edtPrice.text.toString().trim()
+
+                if (name.isEmpty()) {
+                    Toast.makeText(this, "Tên dịch vụ không được trống", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                val price = priceText.toDoubleOrNull()
+                if (price == null) {
+                    Toast.makeText(this, "Giá dịch vụ không hợp lệ", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                addNewService(name, price)
             }
             .setNegativeButton("Hủy", null)
             .show()
     }
-
-    private fun addNewService(name: String) {
-        val newData = hashMapOf(
+    private fun addNewService(name: String, price: Double) {
+        val newService = hashMapOf(
             "service_name" to name,
             "description" to "Dịch vụ riêng của khách sạn"
         )
@@ -217,21 +243,38 @@ class EditHotelActivity : AppCompatActivity() {
         db.collection("hotels")
             .document(hotelId!!)
             .collection("services")
-            .add(newData)
+            .add(newService)
             .addOnSuccessListener { ref ->
-                // Ghi ID dịch vụ mới vào danh sách serviceIds của khách sạn
-                db.collection("hotels").document(hotelId!!)
+
+                // Ghi ID của service vào hotel
+                db.collection("hotels")
+                    .document(hotelId!!)
                     .update("serviceIds", com.google.firebase.firestore.FieldValue.arrayUnion(ref.id))
 
-                selectedServiceRates[ref.id] = 0.0
+                // ❌ BỎ ĐOẠN NÀY để không tạo serviceRates ngay lập tức
+                // db.collection("serviceRates")
+                //     .add(
+                //         mapOf(
+                //             "hotelId" to hotelId,
+                //             "service_id" to ref.id,
+                //             "price" to price
+                //         )
+                //     )
+
+                // Cập nhật ngay vào selectedServiceRates
+                selectedServiceRates[ref.id] = price
+
                 loadAllServices()
 
-                Toast.makeText(this, "Đã thêm dịch vụ riêng '$name' cho khách sạn này", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Đã thêm dịch vụ '$name' với giá $price", Toast.LENGTH_SHORT).show()
             }
-            .addOnFailureListener {
-                Toast.makeText(this, "Lỗi khi thêm dịch vụ!", Toast.LENGTH_SHORT).show()
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Lỗi thêm dịch vụ: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
+
+
+
 
 
     // ----------------------------------------------------
@@ -285,29 +328,78 @@ class EditHotelActivity : AppCompatActivity() {
     }
 
     private fun saveServiceRates() = lifecycleScope.launch(Dispatchers.IO) {
-        val batch = db.batch()
         val collection = db.collection("serviceRates")
 
-        selectedServiceRates.forEach { (serviceId, price) ->
-            val newDoc = collection.document()
-            batch.set(newDoc, mapOf(
-                "hotel_id" to hotelId,
-                "service_id" to serviceId,
-                "price" to price
-            ))
-        }
-
         try {
+            // Lấy các doc serviceRates hiện có của khách sạn này
+            val snap = collection
+                .whereEqualTo("hotelId", hotelId)
+                .get()
+                .await()
+
+            // Map: service_id -> docId
+            val existingByServiceId = mutableMapOf<String, String>()
+            for (doc in snap.documents) {
+                val serviceId = doc.getString("service_id") ?: continue
+                existingByServiceId[serviceId] = doc.id
+            }
+
+            val batch = db.batch()
+
+            // 1. Update hoặc tạo mới các service đang có trong selectedServiceRates
+            selectedServiceRates.forEach { (serviceId, price) ->
+                val existingDocId = existingByServiceId[serviceId]
+                if (existingDocId != null) {
+                    // Đã có doc -> update price
+                    val ref = collection.document(existingDocId)
+                    batch.update(ref, mapOf("price" to price))
+                } else {
+                    // Chưa có -> tạo doc mới
+                    val newRef = collection.document()
+                    batch.set(
+                        newRef,
+                        mapOf(
+                            "hotelId" to hotelId,
+                            "service_id" to serviceId,
+                            "price" to price
+                        )
+                    )
+                }
+            }
+
+            // 2. (Optional) Xoá các doc cũ không còn trong selectedServiceRates
+            val servicesToDelete = existingByServiceId.keys - selectedServiceRates.keys
+            servicesToDelete.forEach { serviceId ->
+                val docId = existingByServiceId[serviceId] ?: return@forEach
+                val ref = collection.document(docId)
+                batch.delete(ref)
+            }
+
+            // Commit batch
             batch.commit().await()
-            launch(Dispatchers.Main) {
-                Toast.makeText(this@EditHotelActivity, "Lưu thay đổi thành công!", Toast.LENGTH_SHORT).show()
+
+            withContext(Dispatchers.Main) {
+                Toast.makeText(
+                    this@EditHotelActivity,
+                    "Lưu thay đổi thành công!",
+                    Toast.LENGTH_SHORT
+                ).show()
                 setResult(Activity.RESULT_OK)
                 finish()
             }
+
         } catch (e: Exception) {
             Log.e("EditHotel", "Lỗi lưu serviceRates: ${e.message}")
+            withContext(Dispatchers.Main) {
+                Toast.makeText(
+                    this@EditHotelActivity,
+                    "Lỗi lưu giá dịch vụ: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
+
 
 
     // ----------------------------------------------------

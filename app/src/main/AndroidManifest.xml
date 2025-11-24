@@ -45,6 +45,12 @@
             android:name=".activities.DiscountActivity"
             android:exported="true" />
         <activity
+            android:name=".activities.HotelReviewActivity"
+            android:exported="true" />
+        <activity
+            android:name=".activities.MinibarActivity"
+            android:exported="true" />
+        <activity
             android:name=".activities.EditHotelActivity"
             android:exported="true" /><activity
         android:name=".activities.RoleManagerActivity"

@@ -15,15 +15,16 @@ class ServiceAdapter(
     private val selectedRates: MutableMap<String, Double>
 ) : RecyclerView.Adapter<ServiceAdapter.ViewHolder>() {
 
-    inner class ViewHolder(val binding: ItemServiceLayoutBinding) :
-        RecyclerView.ViewHolder(binding.root)
+    override fun getItemCount() = services.size
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val binding = ItemServiceLayoutBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = ItemServiceLayoutBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
         return ViewHolder(binding)
     }
-
-    override fun getItemCount() = services.size
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val service = services[position]
@@ -79,6 +80,8 @@ class ServiceAdapter(
                 selectedRates.remove(service.id)
             }
         }
-
     }
+
+    inner class ViewHolder(val binding: ItemServiceLayoutBinding) :
+        RecyclerView.ViewHolder(binding.root)
 }

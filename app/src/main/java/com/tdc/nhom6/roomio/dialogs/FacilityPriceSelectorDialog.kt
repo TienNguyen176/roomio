@@ -22,16 +22,17 @@ class FacilityPriceSelectorDialog(
     private val hotelId: String,
     private val onConfirm: (SelectedRates) -> Unit
 ) {
+
     private val db = FirebaseFirestore.getInstance()
     private lateinit var binding: DialogFacilitySelectorLayoutBinding
     private lateinit var adapter: FacilitySelectorAdapter
-    private var allFacilities: MutableList<Facility> = mutableListOf()
+    private var allFacilities: MutableList<FacilityModel> = mutableListOf()
 
-    // Map giá hư hỏng
-    val damagePriceMap = mutableMapOf<String, Long>()
+    private val damagePriceMap = mutableMapOf<String, Long>()
 
     fun show() {
         binding = DialogFacilitySelectorLayoutBinding.inflate(LayoutInflater.from(context))
+
         val dialog = AlertDialog.Builder(context)
             .setView(binding.root)
             .create()
@@ -40,11 +41,11 @@ class FacilityPriceSelectorDialog(
             val selectedFacilities = adapter.getSelectedFacilities()
 
             val facilityRates = selectedFacilities.map { f ->
-                val priceUse = preselected.find { it.facilityId == f.id }?.price ?: 0L
+                val usePrice = preselected.find { it.facilityId == f.id }?.price ?: 0L
                 FacilityPrice(
                     facilityId = f.id,
                     facilityName = f.facilities_name,
-                    price = priceUse
+                    price = usePrice
                 )
             }
 
@@ -76,23 +77,23 @@ class FacilityPriceSelectorDialog(
         dialog.show()
     }
 
-    // ========================== LOAD FACILITY ==========================
+    // ========================== LOAD FACILITIES ==========================
 
-    private fun loadFacilities(onLoaded: (List<Facility>) -> Unit) {
+    private fun loadFacilities(onLoaded: (List<FacilityModel>) -> Unit) {
         scope.launch(Dispatchers.IO) {
             try {
-                val snapshot = db.collection("facilities").get().await()
+                val snap = db.collection("facilities").get().await()
 
-                val all = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(Facility::class.java)?.apply { id = doc.id }
-                }.filter { facility ->
-                    // Facility global hoặc Facility thuộc hotel
-                    facility.hotelId.isEmpty() || facility.hotelId == hotelId
+                val all = snap.documents.mapNotNull { doc ->
+                    doc.toObject(FacilityModel::class.java)?.apply { id = doc.id }
+                }.filter { f ->
+                    f.hotelId.isEmpty() || f.hotelId == hotelId
                 }.toMutableList()
 
                 allFacilities = all
 
                 withContext(Dispatchers.Main) { onLoaded(all) }
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Lỗi tải tiện ích!", Toast.LENGTH_SHORT).show()
@@ -101,10 +102,9 @@ class FacilityPriceSelectorDialog(
         }
     }
 
-
     // ========================== RECYCLER ==========================
 
-    private fun setupRecycler(facilities: List<Facility>) {
+    private fun setupRecycler(facilities: List<FacilityModel>) {
         adapter = FacilitySelectorAdapter(facilities, preselected) { facility, onCancel ->
             showEnterPriceDialog(facility, onCancel)
         }
@@ -114,7 +114,8 @@ class FacilityPriceSelectorDialog(
 
     // ========================== NHẬP GIÁ ==========================
 
-    private fun showEnterPriceDialog(facility: Facility, onCancel: () -> Unit) {
+    private fun showEnterPriceDialog(facility: FacilityModel, onCancel: () -> Unit) {
+
         val layout = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(50, 40, 50, 20)
@@ -139,6 +140,7 @@ class FacilityPriceSelectorDialog(
             .setTitle("Giá cho ${facility.facilities_name}")
             .setView(layout)
             .setPositiveButton("Lưu") { _, _ ->
+
                 val usePrice = edtUse.text.toString().toLongOrNull() ?: 0L
                 val damagePrice = edtDamage.text.toString().toLongOrNull() ?: 0L
 
@@ -153,13 +155,13 @@ class FacilityPriceSelectorDialog(
 
                 damagePriceMap[facility.id] = damagePrice
 
-                Toast.makeText(context, "Đã lưu: dùng $usePrice • hư hỏng $damagePrice", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Đã lưu: dùng $usePrice – hư hỏng $damagePrice", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Hủy") { _, _ -> onCancel() }
             .show()
     }
 
-    // ========================== THÊM FACILITY MỚI ==========================
+    // ========================== THÊM FACILITY ==========================
 
     private fun showAddNewFacilityDialog() {
         val layout = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
@@ -174,6 +176,7 @@ class FacilityPriceSelectorDialog(
             .setTitle("Thêm tiện ích mới")
             .setView(layout)
             .setPositiveButton("Thêm") { _, _ ->
+
                 val name = edtName.text.toString().trim()
                 if (name.isEmpty()) {
                     Toast.makeText(context, "Tên không được trống", Toast.LENGTH_SHORT).show()
@@ -189,7 +192,7 @@ class FacilityPriceSelectorDialog(
                 db.collection("facilities").add(data)
                     .addOnSuccessListener {
                         Toast.makeText(context, "Đã thêm '$name'", Toast.LENGTH_SHORT).show()
-                        show() // reload dialog
+                        show() // Reload dialog
                     }
                     .addOnFailureListener {
                         Toast.makeText(context, "Lỗi thêm tiện ích!", Toast.LENGTH_SHORT).show()
@@ -198,4 +201,5 @@ class FacilityPriceSelectorDialog(
             .setNegativeButton("Hủy", null)
             .show()
     }
+
 }
