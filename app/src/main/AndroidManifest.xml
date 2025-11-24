@@ -29,6 +29,21 @@
         android:theme="@style/Theme.Roomio"
         tools:targetApi="31">
         <activity
+            android:name=".activities.admin.AdminHomeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.admin.HotelApprovalActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.admin.AdminAccountManagerActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.admin.AdminListHotelRequestActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.admin.AdminHotelManagerActivity"
+            android:exported="false" />
+        <activity
             android:name=".activities.auth.LoginActivity"
             android:exported="false" />
         <activity

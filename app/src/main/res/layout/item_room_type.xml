@@ -4,16 +4,10 @@
     android:layout_height="wrap_content"
     android:layout_marginBottom="10dp"
     android:orientation="vertical">
-
-    <include
-        android:id="@+id/layout_basic"
-        layout="@layout/layout_room_type_basic" />
-
     <include
         android:id="@+id/layout_detail"
         layout="@layout/layout_room_type_detail"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-      />
-
+        />
 </LinearLayout>

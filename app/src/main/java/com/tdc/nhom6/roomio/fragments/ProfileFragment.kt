@@ -17,6 +17,7 @@ import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.activities.admin.AdminHomeActivity
 import com.tdc.nhom6.roomio.activities.auth.LoginActivity
 import com.tdc.nhom6.roomio.activities.profile.EditProfileActivity
 import com.tdc.nhom6.roomio.databinding.ProfileLayoutBinding
@@ -111,11 +112,11 @@ class ProfileFragment : Fragment() {
 
         binding.topAppBar.setOnMenuItemClickListener { item ->
             when(item.itemId) {
-                /*
                 R.id.navAdmin -> {
                     startActivity(Intent(requireContext(), AdminHomeActivity::class.java))
                     true
                 }
+                /*
                 R.id.navChuKS -> {
                     startActivity(Intent(requireContext(), AdminHotelActivity::class.java))
                     true

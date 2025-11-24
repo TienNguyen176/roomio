@@ -1,6 +1,7 @@
 package com.tdc.nhom6.roomio.activities.booking
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
@@ -11,6 +12,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.bumptech.glide.Glide
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ListenerRegistration
+import com.tdc.nhom6.roomio.activities.home.HomeActivity
 import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity.Companion.db
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter
 import com.tdc.nhom6.roomio.databinding.ActivityPaymentBinding
@@ -39,7 +41,6 @@ class PaymentActivity : AppCompatActivity() {
     private var currentOwnerBankInfo: BankInfo? = null
     private val DURATION_24_HOURS_MS = 86400000L
     private val INTERVAL_MS = 1000L
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding=ActivityPaymentBinding.inflate(layoutInflater)
@@ -59,6 +60,15 @@ class PaymentActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = "Payment"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        binding.toolbar.setNavigationOnClickListener {
+            val intent = Intent(this, HomeActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+
+                putExtra("NAVIGATE_TO_BOOKING", true)
+            }
+            startActivity(intent)
+            finish()
+        }
 
         bookingId = intent.getStringExtra("BOOKING_ID").toString()
 
@@ -76,6 +86,7 @@ class PaymentActivity : AppCompatActivity() {
 
                 binding.tvHotelName.text = currentHotel?.hotelName ?: ""
                 binding.ratingBar.rating = (currentHotel?.averageRating ?: 0).toFloat()
+                binding.tvReviews.text = "${currentHotel?.totalReviews} reviews"
 
                 val roomTypeName = currentRoomType?.typeName
                 val guestCount = loadedBooking.numberGuest
@@ -85,8 +96,8 @@ class PaymentActivity : AppCompatActivity() {
 
                 if (invoices.isNotEmpty()) {
                     val invoice:Invoice = invoices.first()
-                    binding.tvInvoiceId.text = "#ID: ${invoice.invoiceId}"
-                    binding.tvCreateAt.text = convertTimestampToString(invoice.createdAt)
+                    binding.tvInvoiceId.text = "#ID: ${bookingId}"
+                    binding.tvCreateAt.text = currentBooking?.let { convertTimestampToString(it.createdAt) }
 
                     val bookingTotal = loadedBooking.totalFinal
                     val invoiceAmount = invoice.totalAmount
@@ -95,10 +106,9 @@ class PaymentActivity : AppCompatActivity() {
                         (invoiceAmount?.div(bookingTotal))!! * 100.0
                     } else 0.0
 
-                    val formattedPercent = String.format("%.2f", percentagePaid)
                     binding.tvAmountPayment.text = "Payment: ${RoomTypeAdapter.Format.formatCurrency(
                         invoice.totalAmount!!
-                    )} (${formattedPercent}%)"
+                    )} (${percentagePaid.toInt()}%)"
 
                     setupTimer(invoice.createdAt)
                     generateQRPayment(invoice)
@@ -106,6 +116,13 @@ class PaymentActivity : AppCompatActivity() {
                     Log.w("PaymentActivity", "No invoices found for Booking ID: $bookingId.")
                     binding.tvInvoiceId.text = "N/A"
                     binding.tvAmountPayment.text = "Payment required"
+                }
+                binding.btnDone.setOnClickListener{
+                    val intent=Intent(this,BookingDetailActivity::class.java).apply {
+                        flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    }
+                    intent.putExtra("BOOKING_ID",bookingId)
+                    startActivity(intent)
                 }
             }
         }
@@ -132,7 +149,7 @@ class PaymentActivity : AppCompatActivity() {
                             currentOwnerBankInfo = documentSnapshot?.toObject(BankInfo::class.java)
 
                             currentOwnerBankInfo?.let { info ->
-                                 val QR_URL =
+                                val QR_URL =
                                     "https://img.vietqr.io/image/${info.bank_code}-${info.account_number}-compact.png" +
                                             "?amount=${invoice.totalAmount}" +
                                             "&addInfo=Roomio_${invoice.invoiceId}" +
@@ -170,7 +187,6 @@ class PaymentActivity : AppCompatActivity() {
                 val formattedTime = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, remainingSeconds)
 
                 binding.tvTimer.text = formattedTime
-                Log.d("Timer", formattedTime)
             }
 
             override fun onFinish() {
@@ -285,13 +301,11 @@ class PaymentActivity : AppCompatActivity() {
     }
 
     fun convertTimestampToString(timestamp: Timestamp): String {
-        // 1. Chuyển Timestamp thành đối tượng Date
         val date: Date = timestamp.toDate()
 
-        // 2. Tạo đối tượng SimpleDateFormat với định dạng và Locale (ngôn ngữ) mong muốn
-        val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        val dateFormatter = SimpleDateFormat("dd MMM", Locale.getDefault())
 
-        // 3. Định dạng Date thành String
-        return dateFormat.format(date)
+        return dateFormatter.format(date)
     }
+
 }

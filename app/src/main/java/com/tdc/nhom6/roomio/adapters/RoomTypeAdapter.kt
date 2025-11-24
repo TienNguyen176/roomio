@@ -3,11 +3,13 @@ package com.tdc.nhom6.roomio.adapters
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -30,6 +32,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.tdc.nhom6.roomio.models.RoomType
 import java.util.concurrent.TimeUnit
 import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
 import java.util.Date
 
 class RoomTypeAdapter(
@@ -40,7 +43,8 @@ class RoomTypeAdapter(
 
     private val expandedPositions = mutableSetOf<Int>()
     private lateinit var booking: Booking
-    private val customerId = "5mDP6WZb1JWcuSDOgPtDycty7H53"
+    private val auth = FirebaseAuth.getInstance()
+    private val customerId = auth.currentUser?.uid?:""
 
     class RoomTypeViewHolder(
         val binding: ItemRoomTypeBinding,
@@ -48,16 +52,13 @@ class RoomTypeAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         val facilitiesList: MutableList<Facility> = mutableListOf()
-        val facilityAdapter = FacilityAdapter(context, facilitiesList)
+        val facilityAdapter = FacilityHotelAdapter(context, facilitiesList)
 
         var facilityRatesListener: ListenerRegistration? = null
         var viewListener: ListenerRegistration? = null
         var facilityDetailsListener: ListenerRegistration? = null
 
         init {
-            binding.layoutBasic.gridFacilitiesBasic.layoutManager = GridLayoutManager(context, 2)
-            binding.layoutBasic.gridFacilitiesBasic.adapter = facilityAdapter
-
             binding.layoutDetail.gridFacilitiesDetail.layoutManager = GridLayoutManager(context, 2)
             binding.layoutDetail.gridFacilitiesDetail.adapter = facilityAdapter
         }
@@ -93,24 +94,18 @@ class RoomTypeAdapter(
 
         val formattedPrice = Format.formatCurrency(roomType.pricePerNight)
 
-        binding.layoutBasic.tvNameTypeBasic.text = roomType.typeName
-        binding.layoutBasic.tvPriceBasic.text = formattedPrice
 
         binding.layoutDetail.tvNameType.text = roomType.typeName
         binding.layoutDetail.tvTotalPrice.text = formattedPrice
         binding.layoutDetail.tvNumberGuest.text = "${roomType.maxPeople} people"
 
-        binding.layoutBasic.areaBasic.tvFacilityName.text = "${roomType.area} m2"
         binding.layoutDetail.areaDetail.tvFacilityName.text = "${roomType.area} m2"
 
         loadViewRealtime(holder, roomType.viewId!!) { result ->
-            binding.layoutBasic.viewBasic.tvFacilityName.text = result.name
             binding.layoutDetail.viewDetail.tvFacilityName.text = result.name
         }
 
-        binding.layoutBasic.areaBasic.iconFacility.setImageResource(R.drawable.ic_bed)
         binding.layoutDetail.areaDetail.iconFacility.setImageResource(R.drawable.ic_bed)
-        binding.layoutBasic.viewBasic.iconFacility.setImageResource(R.drawable.ic_view)
         binding.layoutDetail.viewDetail.iconFacility.setImageResource(R.drawable.ic_view)
 
         val thumbnailImage = roomType.roomImages?.firstOrNull()
@@ -124,18 +119,6 @@ class RoomTypeAdapter(
         loadFacilityRatesRealtime(roomType.roomTypeId, holder.facilitiesList, holder.facilityAdapter, holder)
 
 
-        if (expandedPositions.contains(position)) {
-            binding.layoutDetail.root.visibility = View.VISIBLE
-            binding.layoutBasic.root.visibility = View.GONE
-        } else {
-            binding.layoutDetail.root.visibility = View.GONE
-            binding.layoutBasic.root.visibility = View.VISIBLE
-        }
-
-        holder.itemView.setOnClickListener {
-            toggleExpansion(position)
-        }
-
         binding.layoutDetail.cardImgRoom.setOnClickListener {
             roomType.roomImages?.let { images ->
                 openDialogListImage(images)
@@ -145,14 +128,56 @@ class RoomTypeAdapter(
         binding.layoutDetail.btnReverve.setOnClickListener {
             showDateRangePickerDialog(roomType)
         }
-        binding.layoutBasic.btnReverveBasic.setOnClickListener {
-            showDateRangePickerDialog(roomType)
+
+        getAvailableRoomCount(roomType.roomTypeId) { count ->
+
+            binding.layoutDetail.tvAvailableRoomCount.text =
+                if (count > 0) {
+                    context.getString(R.string.available_rooms_format, count)
+                } else {
+                    ""
+                }
+
+            if (count > 0) {
+                binding.layoutDetail.btnReverve.isEnabled = true
+                binding.layoutDetail.btnReverve.alpha = 1.0f
+            } else {
+                binding.layoutDetail.btnReverve.isEnabled = false
+                binding.layoutDetail.btnReverve.alpha = 0.5f
+                binding.layoutDetail.btnReverve.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(context,R.color.red))
+                binding.layoutDetail.btnReverve.setTextColor(ContextCompat.getColor(context, R.color.red))
+                binding.layoutDetail.btnReverve.text = "Room is out"
+            }
         }
+    }
+
+    private fun getAvailableRoomCount(roomTypeId: String, onCountResult: (Int) -> Unit) {
+        val hotelId = (context as? HotelDetailActivity)?.currentHotel?.hotelId
+        if (hotelId == null) {
+            onCountResult(0)
+            return
+        }
+
+        HotelDetailActivity.db.collection("hotels").document(hotelId)
+            .collection("rooms")
+            .whereEqualTo("room_type_id", roomTypeId)
+            .whereEqualTo("status_id", "room_available")
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                onCountResult(querySnapshot.size())
+            }
+            .addOnFailureListener { e ->
+                Log.e("Firestore", "Lỗi đếm phòng trống: ${e.message}")
+                onCountResult(0)
+            }
     }
 
     private fun openDialogListImage(images: List<RoomImage>) {
         val view = LayoutInflater.from(context).inflate(R.layout.dialog_image_list, null)
         val recyclerImage = view.findViewById<RecyclerView>(R.id.recycleListImage)
+
+
+
 
         val nextItemClickListener: (Int) -> Unit = { currentPosition ->
             val nextPosition = currentPosition + 1
@@ -162,7 +187,7 @@ class RoomTypeAdapter(
         }
 
         recyclerImage.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-         recyclerImage.adapter = RoomImageListAdapter(images, nextItemClickListener)
+        recyclerImage.adapter = RoomImageListAdapter(images, nextItemClickListener)
 
         val dialog = AlertDialog.Builder(context)
             .setView(view)
@@ -174,7 +199,7 @@ class RoomTypeAdapter(
         dialog.show()
     }
 
-    private fun loadFacilityRatesRealtime(roomTypeId: String, list: MutableList<Facility>, adapter: FacilityAdapter, holder: RoomTypeViewHolder) {
+    private fun loadFacilityRatesRealtime(roomTypeId: String, list: MutableList<Facility>, adapter: FacilityHotelAdapter, holder: RoomTypeViewHolder) {
         val ratesCollectionPath = "roomTypes/${roomTypeId}/facilityRates"
 
         holder.facilityRatesListener?.remove()
@@ -228,7 +253,7 @@ class RoomTypeAdapter(
     }
 
 
-    private fun loadFacilityDetailsOneTime(ids: Set<String>, list: MutableList<Facility>, adapter: FacilityAdapter) {
+    private fun loadFacilityDetailsOneTime(ids: Set<String>, list: MutableList<Facility>, adapter: FacilityHotelAdapter) {
         list.clear()
 
         if (ids.isEmpty()) {
@@ -304,17 +329,6 @@ class RoomTypeAdapter(
 
         dateRangePicker.show(fragmentManager, "DATE_RANGE_PICKER")
 
-    }
-
-    private fun toggleExpansion(position: Int) {
-        val previouslyExpanded = expandedPositions.contains(position)
-
-        expandedPositions.clear()
-
-        if (!previouslyExpanded) {
-            expandedPositions.add(position)
-        }
-        notifyDataSetChanged()
     }
 
     object Format {

@@ -4,22 +4,20 @@ import android.content.Context
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.databinding.ItemFacilityLayoutBinding
+import com.bumptech.glide.Glide
+import com.tdc.nhom6.roomio.databinding.ItemFacilityBinding
 import com.tdc.nhom6.roomio.models.Facility
 
-class FacilityAdapter(
+class FacilityHotelAdapter(
     private val context: Context,
-    private val facilities: List<Facility>
-) : RecyclerView.Adapter<FacilityAdapter.FacilityViewHolder>() {
+    private val listFacility: List<Facility>
+) : RecyclerView.Adapter<FacilityHotelAdapter.FacilityViewHolder>() {
 
-    private val selectedFacilityIds: MutableSet<String> = mutableSetOf()
-
-    class FacilityViewHolder(val binding: ItemFacilityLayoutBinding) :
+    class FacilityViewHolder(val binding: ItemFacilityBinding) :
         RecyclerView.ViewHolder(binding.root)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FacilityViewHolder {
-        val binding = ItemFacilityLayoutBinding.inflate(
+        val binding = ItemFacilityBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
@@ -28,28 +26,14 @@ class FacilityAdapter(
     }
 
     override fun onBindViewHolder(holder: FacilityViewHolder, position: Int) {
-        val facility = facilities[position]
-        val isSelected = selectedFacilityIds.contains(facility.id)
+        val facility = listFacility[position]
 
         holder.binding.tvFacilityName.text = facility.facilities_name
-        holder.binding.cbSelected.isChecked = isSelected
 
-        // Set CardView background color based on selection
-        val colorRes = if (isSelected) R.color.light_blue else R.color.white
-        holder.binding.cardFacility.setCardBackgroundColor(context.getColor(colorRes))
-
-        holder.binding.root.setOnClickListener {
-            // Toggle selection
-            if (selectedFacilityIds.contains(facility.id)) {
-                selectedFacilityIds.remove(facility.id)
-            } else {
-                selectedFacilityIds.add(facility.id)
-            }
-            notifyItemChanged(position) // Update UI for this item
-        }
+        Glide.with(context)
+            .load(facility.iconUrl)
+            .into(holder.binding.iconFacility)
     }
 
-    override fun getItemCount() = facilities.size
-
-    fun getSelectedFacilityIds(): Set<String> = selectedFacilityIds.toSet()
+    override fun getItemCount(): Int = listFacility.size
 }
