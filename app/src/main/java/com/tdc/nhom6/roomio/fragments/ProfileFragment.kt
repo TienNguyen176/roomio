@@ -19,6 +19,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.activities.admin.AdminHomeActivity
 import com.tdc.nhom6.roomio.activities.auth.LoginActivity
+import com.tdc.nhom6.roomio.activities.owner.BusinessRegistrationActivity
 import com.tdc.nhom6.roomio.activities.profile.EditProfileActivity
 import com.tdc.nhom6.roomio.databinding.ProfileLayoutBinding
 import com.tdc.nhom6.roomio.models.User
@@ -95,6 +96,10 @@ class ProfileFragment : Fragment() {
     }
 
     private fun setupActions() {
+        binding.showDangKyKD.setOnClickListener {
+            startActivity(Intent(requireContext(), BusinessRegistrationActivity::class.java))
+        }
+
         binding.showProfile.setOnClickListener {
             startActivity(Intent(requireContext(), EditProfileActivity::class.java))
         }
