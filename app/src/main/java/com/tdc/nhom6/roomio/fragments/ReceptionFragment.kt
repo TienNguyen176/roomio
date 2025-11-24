@@ -30,6 +30,7 @@ import com.tdc.nhom6.roomio.fragments.TaskStatus
 import com.tdc.nhom6.roomio.models.HeaderColor
 import com.tdc.nhom6.roomio.models.ReservationStatus
 import com.tdc.nhom6.roomio.models.ReservationUi
+import java.text.SimpleDateFormat
 
 class ReceptionFragment : Fragment() {
     private lateinit var reservationAdapter: ReservationAdapter
@@ -86,17 +87,12 @@ class ReceptionFragment : Fragment() {
         
         reservationAdapter = ReservationAdapter(allReservations.toMutableList())
         rv.adapter = reservationAdapter
-        
-        // Setup tabs
+
         setupTabs(view)
-        
-        // Setup search
+
         setupSearch(view)
-        
-        // Listen for invoice updates in real-time
+
         startInvoiceListener()
-        
-        // Start real-time updates from Firestore
         startListeningBookings()
     }
 
@@ -629,15 +625,15 @@ class ReceptionFragment : Fragment() {
             val keys = mutableSetOf<String>()
             keys += collectInvoiceKeyVariants(doc.id)
             keys += collectInvoiceKeyVariants(doc.get("bookingId"))
-            keys += collectInvoiceKeyVariants(doc.get("booking_id"))
+
             keys += collectInvoiceKeyVariants(doc.get("bookingDocId"))
-            keys += collectInvoiceKeyVariants(doc.get("booking_doc_id"))
+
             keys += collectInvoiceKeyVariants(doc.get("bookingRef"))
-            keys += collectInvoiceKeyVariants(doc.get("booking_ref"))
+
             keys += collectInvoiceKeyVariants(doc.get("reservationId"))
-            keys += collectInvoiceKeyVariants(doc.get("reservation_id"))
+
             keys += collectInvoiceKeyVariants(doc.get("reservationCode"))
-            keys += collectInvoiceKeyVariants(doc.get("reservation_code"))
+
             if (keys.isEmpty()) continue
             newDocuments[doc.id] = InvoiceDocInfo(amount = amount, matcherKeys = keys.filter { it.isNotEmpty() }.toSet())
         }
@@ -834,15 +830,13 @@ class ReceptionFragment : Fragment() {
     private fun valueToDateTimeString(value: Any?): String {
         return when (value) {
             null -> ""
-            is String -> {
-                val trimmed = value.trim()
-                trimmed.toLongOrNull()?.let { formatDateTime(it) }
-                    ?: parseDateString(trimmed)?.let { formatDateTime(it) }
-                    ?: trimmed
-            }
-            is Timestamp -> formatDateTime(value.toDate().time)
-            is java.util.Date -> formatDateTime(value.time)
-            is Number -> formatDateTime(value.toLong())
+//            is String -> {
+//                val trimmed = value.trim()
+//                trimmed.toLongOrNull()?.let { convertTimestampToString(it) }
+//                    ?: parseDateString(trimmed)?.let { formatDateTime(it) }
+//                    ?: trimmed
+//            }
+            is Timestamp -> convertTimestampToString(value)
             else -> value.toString()
         }
     }
@@ -850,9 +844,7 @@ class ReceptionFragment : Fragment() {
     private fun valueToTimestamp(value: Any?): Timestamp? {
         return when (value) {
             null -> null
-            is Timestamp -> value
-            is java.util.Date -> Timestamp(value)
-            is Number -> Timestamp(Date(value.toLong()))
+
             is String -> {
                 val trimmed = value.trim()
                 trimmed.toLongOrNull()?.let { Timestamp(Date(it)) }
@@ -873,7 +865,7 @@ class ReceptionFragment : Fragment() {
         )
         for (pattern in patterns) {
             try {
-                val sdf = java.text.SimpleDateFormat(pattern, java.util.Locale.getDefault())
+                val sdf = SimpleDateFormat(pattern, Locale.getDefault())
                 sdf.isLenient = false
                 val date = sdf.parse(value)
                 if (date != null) return date.time
@@ -883,13 +875,13 @@ class ReceptionFragment : Fragment() {
         return null
     }
 
-    private fun formatDateTime(millis: Long): String {
-        return try {
-            val sdf = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
-            sdf.format(java.util.Date(millis))
-        } catch (_: Exception) {
-            java.util.Date(millis).toString()
-        }
+
+    fun convertTimestampToString(timestamp: Timestamp): String {
+        val date: Date = timestamp.toDate()
+
+        val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+
+        return dateFormatter.format(date)
     }
 
     private fun getOrCreateDisplayCode(documentId: String): String {
