@@ -65,7 +65,6 @@ class ReviewActivity : AppCompatActivity() {
                     .document().id
 
                 val review = Review(
-                    reviewId = newReviewId,
                     userId = userId,
                     userName = userName,
                     rating = rating,

@@ -126,26 +126,29 @@
         <activity
             android:name=".activities.CleaningInspectionActivity"
             android:exported="false"
-            android:label="Inspection" />
+             />
         <activity
             android:name=".activities.CleanerTaskDetailActivity"
             android:exported="false"
-            android:label="Task Detail" />
+            />
         <activity
             android:name=".activities.CleanerActivity"
             android:exported="false"
-            android:label="Reception" />
+             />
         <activity
             android:name=".activities.GuestDetailActivity"
             android:exported="false" />
         <activity
             android:name=".activities.ServiceExtraFeeActivity"
             android:exported="false"
-            android:label="Cleaner Tasks" />
+            android:label="Service Extra Fee" />
         <activity
-            android:name=".activities.MainActivity"
+            android:name=".activities.ReceptionActivity"
             android:exported="false"/>
 
+        <activity
+            android:name=".activities.MainActivity"
+            android:exported="true" />
     </application>
 
 </manifest>

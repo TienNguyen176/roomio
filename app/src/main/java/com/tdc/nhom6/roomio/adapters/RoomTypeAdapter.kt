@@ -58,6 +58,7 @@ class RoomTypeAdapter(
         var facilityRatesListener: ListenerRegistration? = null
         var viewListener: ListenerRegistration? = null
         var facilityDetailsListener: ListenerRegistration? = null
+        var roomCountListener: ListenerRegistration? = null
 
         init {
             binding.layoutDetail.gridFacilitiesDetail.layoutManager = GridLayoutManager(context, 2)
@@ -68,6 +69,7 @@ class RoomTypeAdapter(
             facilityRatesListener?.remove()
             viewListener?.remove()
             facilityDetailsListener?.remove()
+            roomCountListener?.remove()
         }
     }
 
@@ -130,8 +132,7 @@ class RoomTypeAdapter(
             showDateRangePickerDialog(roomType)
         }
 
-        getAvailableRoomCount(roomType.roomTypeId) { count ->
-
+        holder.roomCountListener = startAvailableRoomCountListener(roomType.roomTypeId) { count ->
             binding.layoutDetail.tvAvailableRoomCount.text =
                 if (count > 0) {
                     context.getString(R.string.available_rooms_format, count)
@@ -147,29 +148,34 @@ class RoomTypeAdapter(
                 binding.layoutDetail.btnReverve.alpha = 0.5f
                 binding.layoutDetail.btnReverve.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(context,R.color.red))
                 binding.layoutDetail.btnReverve.setTextColor(ContextCompat.getColor(context, R.color.red))
-                binding.layoutDetail.btnReverve.text = "Room is out"
+                binding.layoutDetail.btnReverve.text = "Fully booked"
             }
         }
     }
 
-    private fun getAvailableRoomCount(roomTypeId: String, onCountResult: (Int) -> Unit) {
+    private fun startAvailableRoomCountListener(roomTypeId: String, onCountResult: (Int) -> Unit): ListenerRegistration? {
         val hotelId = (context as? HotelDetailActivity)?.currentHotel?.hotelId
         if (hotelId == null) {
             onCountResult(0)
-            return
+            return null
         }
 
-        HotelDetailActivity.db.collection("hotels").document(hotelId)
+        return HotelDetailActivity.db.collection("hotels").document(hotelId)
             .collection("rooms")
             .whereEqualTo("room_type_id", roomTypeId)
             .whereEqualTo("status_id", "room_available")
-            .get()
-            .addOnSuccessListener { querySnapshot ->
-                onCountResult(querySnapshot.size())
-            }
-            .addOnFailureListener { e ->
-                Log.e("Firestore", "Lỗi đếm phòng trống: ${e.message}")
-                onCountResult(0)
+            .addSnapshotListener { querySnapshot, e ->
+                if (e != null) {
+                    Log.e("Firestore", "Lỗi lắng nghe phòng trống: ${e.message}")
+                    onCountResult(0)
+                    return@addSnapshotListener
+                }
+
+                if (querySnapshot != null) {
+                    onCountResult(querySnapshot.size())
+                } else {
+                    onCountResult(0)
+                }
             }
     }
 

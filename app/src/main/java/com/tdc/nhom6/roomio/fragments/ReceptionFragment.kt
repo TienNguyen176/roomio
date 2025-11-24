@@ -22,6 +22,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Locale
+import java.util.Date
 import com.tdc.nhom6.roomio.adapters.ReservationAdapter
 import com.tdc.nhom6.roomio.models.HeaderColor
 import com.tdc.nhom6.roomio.models.ReservationStatus
@@ -78,7 +79,7 @@ class ReceptionFragment : Fragment() {
         
         // Initialize data
         allReservations.clear()
-        allReservations.addAll(placeholderItems())
+
         
         reservationAdapter = ReservationAdapter(allReservations.toMutableList())
         rv.adapter = reservationAdapter
@@ -133,10 +134,10 @@ class ReceptionFragment : Fragment() {
                             val documentId = doc.id
                             val previousReservation = allReservations.find { it.documentId == documentId }
                             val previousCleaningMillis = previousReservation?.cleaningCompletedAtMillis
-                            val newCleaningMillis = valueToMillis(doc.get("cleaningCompletedAt"))
+                            val newCleaningTimestamp = valueToTimestamp(doc.get("cleaningCompletedAt"))
                             
                             // Only notify if cleaning was just completed (null -> not null)
-                            if (previousCleaningMillis == null && newCleaningMillis != null) {
+                            if (previousCleaningMillis == null && newCleaningTimestamp != null) {
                                 val reservationId = doc.getString("reservationId") ?: documentId
                                 val roomTypeName = doc.getString("roomTypeName")
                                     ?: doc.getString("room_type_name")
@@ -245,15 +246,15 @@ class ReceptionFragment : Fragment() {
 
                             val checkInText = valueToDateTimeString(checkInValue)
                             val checkOutText = valueToDateTimeString(checkOutValue)
-                            val checkInMillis = valueToMillis(checkInValue)
-                            val checkOutMillis = valueToMillis(checkOutValue)
+            val checkInTimestamp = valueToTimestamp(checkInValue)
+            val checkOutTimestamp = valueToTimestamp(checkOutValue)
                             val discountText = doc.getString("discountText")
                                 ?: doc.getString("discountDescription")
                                 ?: doc.getString("promotion")
                                 ?: "-"
                             
                             // Read cleaningCompletedAt timestamp
-                            val cleaningCompletedAtMillis = valueToMillis(doc.get("cleaningCompletedAt"))
+                            val cleaningCompletedAtTimestamp = valueToTimestamp(doc.get("cleaningCompletedAt"))
                             
                             // Resolve room type name
                             val finalRoomTypeName = if (roomTypeInlineName.isNullOrBlank()) {
@@ -315,16 +316,16 @@ class ReceptionFragment : Fragment() {
                                 numberGuest = numberGuest,
                                 roomType = finalRoomTypeName,
                                 roomTypeId = roomTypeId,
-                                hotelId = doc.getString("hotelId"),
+                                hotelId = doc.getString("hotel_id"),
                                 guestPhone = doc.getString("guestPhone"),
                                 guestEmail = doc.getString("guestEmail"),
                                 totalFinalAmount = totalFinal,
                                 checkInText = checkInText,
                                 checkOutText = checkOutText,
-                                checkInMillis = checkInMillis,
-                                checkOutMillis = checkOutMillis,
+                                checkInMillis = checkInTimestamp,
+                                checkOutMillis = checkOutTimestamp,
                                 discountLabel = discountText,
-                                cleaningCompletedAtMillis = cleaningCompletedAtMillis
+                                cleaningCompletedAtMillis = cleaningCompletedAtTimestamp
                             )
                             updated.add(ui)
                             val uiIndex = updated.lastIndex
@@ -340,7 +341,7 @@ class ReceptionFragment : Fragment() {
                                 totalFinal = totalFinal,
                                 invoiceKeys = invoiceKeys.toSet(),
                                 roomTypeId = roomTypeId,
-                                hotelId = doc.getString("hotelId"),
+                                hotelId = doc.getString("hotelId") ?: doc.getString("hotel_id"),
                                 guestPhone = doc.getString("guestPhone"),
                                 guestEmail = doc.getString("guestEmail")
                             )
@@ -720,15 +721,16 @@ class ReceptionFragment : Fragment() {
         }
     }
 
-    private fun valueToMillis(value: Any?): Long? {
+    private fun valueToTimestamp(value: Any?): Timestamp? {
         return when (value) {
             null -> null
-            is Timestamp -> value.toDate().time
-            is java.util.Date -> value.time
-            is Number -> value.toLong()
+            is Timestamp -> value
+            is java.util.Date -> Timestamp(value)
+            is Number -> Timestamp(Date(value.toLong()))
             is String -> {
                 val trimmed = value.trim()
-                trimmed.toLongOrNull() ?: parseDateString(trimmed)
+                trimmed.toLongOrNull()?.let { Timestamp(Date(it)) }
+                    ?: parseDateString(trimmed)?.let { Timestamp(Date(it)) }
             }
             else -> null
         }
@@ -898,7 +900,7 @@ class ReceptionFragment : Fragment() {
         
         // Sort: reservations with recent cleaningCompletedAt go to the top
         val sorted = filtered.sortedByDescending { reservation ->
-            reservation.cleaningCompletedAtMillis ?: Long.MIN_VALUE
+            reservation.cleaningCompletedAtMillis?.toDate()?.time ?: Long.MIN_VALUE
         }
         
         reservationAdapter.updateData(sorted.toMutableList())
@@ -913,83 +915,8 @@ class ReceptionFragment : Fragment() {
             .show()
     }
 
-    private fun placeholderItems(): List<ReservationUi> = listOf(
-        ReservationUi(
-            documentId = "doc-R8ZZPQR7",
-            reservationId = "R8ZZPQR7",
-            displayReservationCode = formatReservationCode(1),
-            badge = "Deposit paid",
-            line1 = "Check-in: 20/09/1025 - Check-out: 22/09/2025",
-            line2 = "",
-            line3 = "Guest name: Harper",
-            action = "Check-in",
-            headerColor = HeaderColor.BLUE,
-            status = ReservationStatus.UNCOMPLETED,
-            numberGuest = 2,
-            roomType = "Deluxe",
-            cleaningCompletedAtMillis = null
-        ),
-        ReservationUi(
-            documentId = "doc-R8ZZPQR8",
-            reservationId = "R8ZZPQR8",
-            displayReservationCode = formatReservationCode(2),
-            badge = "Paid",
-            line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025",
-            line2 = "",
-            line3 = "Guest name: Lily",
-            action = "Check-out",
-            headerColor = HeaderColor.GREEN,
-            status = ReservationStatus.UNCOMPLETED,
-            numberGuest = 3,
-            roomType = "Suite",
-            cleaningCompletedAtMillis = null
-        ),
-        ReservationUi(
-            documentId = "doc-R8ZZPQR9",
-            reservationId = "R9ZZPQR9",
-            displayReservationCode = formatReservationCode(3),
-            badge = "",
-            line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025",
-            line2 = "",
-            line3 = "Guest name: Cap",
-            action = "Payment",
-            headerColor = HeaderColor.YELLOW,
-            status = ReservationStatus.PENDING,
-            numberGuest = 1,
-            roomType = "Standard",
-            cleaningCompletedAtMillis = null
-        ),
-        ReservationUi(
-            documentId = "doc-R8ZZPQR0",
-            reservationId = "R8ZZPQR0",
-            displayReservationCode = formatReservationCode(4),
-            badge = "Paid",
-            line1 = "Check-in: 20/09/1025 - check-out: 22/09/2025",
-            line2 = "",
-            line3 = "Guest name: Ahri",
-            action = "Check-in",
-            headerColor = HeaderColor.GREEN,
-            status = ReservationStatus.COMPLETED,
-            numberGuest = 4,
-            roomType = "Deluxe",
-            cleaningCompletedAtMillis = null
-        ),
-        ReservationUi(
-            documentId = "doc-R9ABC123",
-            reservationId = "R9ABC123",
-            displayReservationCode = formatReservationCode(5),
-            badge = "Cancelled",
-            line1 = "Check-in: 15/09/1025 - check-out: 17/09/2025",
-            line2 = "",
-            line3 = "Guest name: Bob",
-            action = "Payment",
-            headerColor = HeaderColor.RED,
-            status = ReservationStatus.CANCELED,
-            numberGuest = 2,
-            roomType = "Standard",
-            cleaningCompletedAtMillis = null
-        )
-    )
+
+
 }
 
 private data class ReservationMeta(
