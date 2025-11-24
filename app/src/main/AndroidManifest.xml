@@ -86,10 +86,8 @@
         <activity
             android:name=".activities.HotelDetailActivity"
             android:exported="false" />
-        <activity
-            android:name=".activities.ReceptionActivity"
-            android:exported="false">
-        </activity>
+
+
         <activity
             android:name=".activities.EditProfileActivity"
             android:exported="false" />
@@ -140,18 +138,8 @@
             android:theme="@style/Theme.Roomio.M3"
             android:exported="true" />
         <activity
-            android:name=".activities.AdminHotelActivity"
-            android:exported="false" />
-        <activity
-            android:name=".activities.RoomHotelActivity"
-            android:exported="false" />
-        <activity
-            android:name=".activities.EditHotelActivity"
-            android:exported="false" />
-        <activity
-            android:name=".activities.RoleManagerActivity"
-            android:exported="false" />
-
+            android:name=".activities.ReceptionActivity"
+            android:exported="false"/>
         <activity
             android:name=".activities.CleanerActivity"
             android:exported="true">
