@@ -1,17 +1,20 @@
 package com.tdc.nhom6.roomio.models
 
+import com.google.gson.annotations.SerializedName
+
 data class BankInfo(
-    val account_holder: String? = null,
+    var account_holder: String? = null,
 
-    val account_number: String? = null,
+    @field:SerializedName("account_number")
+    var account_number: String? = null,
 
-    val bank_code: String? = null,
+    var bank_code: String? = null,
+    var bank_name: String? = null,
+    var chi_nhanh: String? = null,
+    @field:SerializedName("default")
+    var default: Boolean = false,
 
-    val bank_name: String? = null,
+    var linked_at: String? = null,
 
-    val default: Boolean = false,
-
-    val linked_at: String? = null,
-
-    val logo_url: String? = null
+    var logo_url: String? = null
 )

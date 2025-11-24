@@ -91,6 +91,12 @@
             android:name=".activities.profile.EditProfileActivity"
             android:exported="false" />
         <activity
+            android:name=".activities.profile.ManageBanksActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.profile.LinkBankActivity"
+            android:exported="false" />
+        <activity
             android:name=".activities.MainActivity"
             android:exported="true">
             <intent-filter>
