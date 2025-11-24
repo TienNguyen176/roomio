@@ -64,12 +64,6 @@
             android:name=".activities.PaymentActivity"
             android:exported="false" />
         <activity
-            android:name=".activities.BookingDetailActivity"
-            android:exported="false" />
-        <activity
-            android:name=".activities.PaymentActivity"
-            android:exported="false" />
-        <activity
             android:name=".activities.HotelDetailActivity"
             android:exported="false" />
         <activity
@@ -112,6 +106,9 @@
         <activity
             android:name=".activities.RoleManagerActivity"
             android:exported="false" />
+        <activity
+            android:name=".activities.ReviewActivity"
+            android:exported="true" />
 
         <activity
             android:name=".activities.LoginActivity"

@@ -141,6 +141,13 @@ class BookingDetailActivity : AppCompatActivity() {
                         binding.btnAction.setTextColor(getColor(R.color.yellow))
                         binding.btnAction.background=getDrawable(R.drawable.shape_foreground_radius)
                         binding.btnAction.backgroundTintList = ColorStateList.valueOf(getColor(R.color.yellow))
+                        binding.btnAction.setOnClickListener {
+                            val intent = Intent(this, ReviewActivity::class.java)
+                            intent.putExtra("HOTEL_ID", currentRoomType?.hotelId)
+                            intent.putExtra("BOOKING_ID", bookingId)
+                            startActivity(intent)
+                        }
+
                     }
                     "expired"-> {
                         binding.tvBookingStatus.text = "Since you have paid 100% deposit for the booking value, you will be refunded 50% of the amount paid."
