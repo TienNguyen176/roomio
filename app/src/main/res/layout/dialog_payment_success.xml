@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@color/gray"
+    android:paddingHorizontal="15dp"
+    android:paddingVertical="20dp">
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/success"/>
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/green"
+        android:textStyle="bold"
+        android:textSize="24dp"
+        android:text="Succsess Payment"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="16dp"
+        android:text="You have paid for the reservation with a deposit:"
+        android:layout_marginTop="8dp"/>
+    <TextView
+        android:id="@+id/tvAmountPayment"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/green"
+        android:text="67,900 VND"
+        android:textSize="20dp"
+        android:textStyle="bold"
+        android:layout_marginTop="8dp"/>
+    <Button
+        android:id="@+id/btnOK"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="OK"
+        android:backgroundTint="@color/blue"
+        android:layout_marginTop="8dp"/>`
+
+</LinearLayout>

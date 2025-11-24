@@ -23,6 +23,11 @@ data class Deal(
     val createdAt: Any = System.currentTimeMillis() // Flexible type for Firebase
 )
 
+data class DealItem(
+    val imageRes: Int,
+    val title: String,
+    val subtitle: String
+)
 
 data class HotReview(
     @DocumentId

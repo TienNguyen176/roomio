@@ -17,8 +17,8 @@ import com.google.android.material.datepicker.DateValidatorPointForward
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.GuestDetailActivity
-import com.tdc.nhom6.roomio.activities.HotelDetailActivity
+import com.tdc.nhom6.roomio.activities.booking.GuestDetailActivity
+import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity
 import com.tdc.nhom6.roomio.databinding.ItemRoomTypeBinding
 import com.tdc.nhom6.roomio.models.Booking
 import com.tdc.nhom6.roomio.models.Facility
@@ -30,9 +30,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.tdc.nhom6.roomio.models.RoomType
 import java.util.concurrent.TimeUnit
 import com.google.firebase.Timestamp
-import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity
-import com.tdc.nhom6.roomio.databinding.DialogPaymentBinding
-import com.tdc.nhom6.roomio.databinding.DialogPaymentConfirmBinding
 import java.util.Date
 
 class RoomTypeAdapter(

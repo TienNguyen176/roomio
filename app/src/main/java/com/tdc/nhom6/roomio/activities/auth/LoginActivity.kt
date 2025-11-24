@@ -21,6 +21,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.activities.MainActivity
+import com.tdc.nhom6.roomio.activities.home.HomeActivity
 import com.tdc.nhom6.roomio.activities.profile.EditProfileActivity
 import com.tdc.nhom6.roomio.repositories.FCMRepository
 import com.tdc.nhom6.roomio.databinding.LoginLayoutBinding
@@ -244,7 +245,7 @@ class LoginActivity : AppCompatActivity() {
     // CHUNG
     // ==============================================================
     private fun goToHome(email: String? = null, username: String? = null) {
-        val intent = Intent(this, MainActivity::class.java).apply {
+        val intent = Intent(this, HomeActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             email?.let { putExtra("email", it) }
             username?.let { putExtra("username", it) }

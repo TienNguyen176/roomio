@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    tools:context=".activities.booking.PaymentActivity">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/white">
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"/>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <View
+        android:id="@+id/divider_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#EEEEEE"
+        app:layout_constraintTop_toBottomOf="@id/appBarLayout" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/divider_toolbar"
+        app:layout_constraintBottom_toTopOf="@id/btn_done">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="8dp">
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="10dp"
+                app:cardElevation="4dp"
+                app:contentPadding="16dp"
+                android:backgroundTint="@color/gray">
+
+                <GridLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:columnCount="2"
+                    android:rowCount="5">
+
+                    <TextView
+                        android:id="@+id/tvInvoiceId"
+                        android:text="ID #250803001"
+                        android:textSize="14sp"
+                        android:textColor="@color/black"
+                        android:textStyle="italic|bold"/>
+                    <TextView
+                        android:id="@+id/tvCreateAt"
+                        android:text="3 Oct 2025"
+                        android:textSize="14sp"
+                        android:layout_gravity="end"
+                        android:textColor="@color/dark" />
+
+                    <TextView
+                        android:id="@+id/tvHotelName"
+                        android:layout_columnSpan="2"
+                        android:text="Ares Home"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/black"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="4dp" />
+
+                    <RatingBar
+                        android:id="@+id/ratingBar"
+                        android:layout_columnSpan="2"
+                        android:layout_marginBottom="8dp"
+                        style="?android:attr/ratingBarStyleSmall"
+                        android:rating="4.5"
+                        android:theme="@style/RatingBarColor"/>
+
+                    <TextView
+                        android:id="@+id/tvBookingDetail"
+                        android:layout_columnSpan="2"
+                        android:text="Standard room (1 night, 2 people)"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/black"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/tvTotalAfter"
+                        android:layout_columnSpan="2"
+
+                        android:text="Total: VND 700.000"
+                        android:textSize="16sp"
+                        android:textColor="@color/black" />
+                    <TextView
+                        android:id="@+id/tvAmountPayment"
+                        android:layout_columnSpan="2"
+                        android:text="Payment: 10% (VND 70.000)"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/black" />
+                </GridLayout>
+            </androidx.cardview.widget.CardView>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/shape_line_3"/>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Transfer Transaction"
+                android:gravity="center"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/black"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp" />
+
+            <androidx.cardview.widget.CardView
+                xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:app="http://schemas.android.com/apk/res-auto"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="6dp">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:id="@+id/tv_timer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="00:00:00"
+                        android:textColor="@android:color/holo_red_dark"
+                        android:textSize="28sp"
+                        android:textStyle="bold"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        android:layout_marginBottom="24dp" />
+
+                    <ImageView
+                        android:id="@+id/iv_qr_code"
+                        android:layout_width="300dp"
+                        android:layout_height="300dp"
+                        android:background="#E0E0E0"
+                        android:contentDescription="QR Code for payment"
+                        app:layout_constraintTop_toBottomOf="@id/tv_timer"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="24dp" />
+
+                    <View
+                        android:id="@+id/separator_line"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#EEEEEE"
+                        app:layout_constraintTop_toBottomOf="@id/iv_qr_code"
+                        android:layout_marginVertical="12dp"
+                        android:layout_marginBottom="16dp" />
+
+                    <TextView
+                        android:id="@+id/label_amount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Số tiền:"
+                        android:textColor="@color/black"
+                        app:layout_constraintTop_toBottomOf="@id/separator_line"
+                        app:layout_constraintStart_toStartOf="parent"
+                        android:layout_marginTop="8dp" />
+
+                    <TextView
+                        android:id="@+id/label_content"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Nội dung:"
+                        android:textColor="@color/black"
+                        app:layout_constraintTop_toBottomOf="@id/label_amount"
+                        app:layout_constraintStart_toStartOf="@id/label_amount"
+                        android:layout_marginTop="8dp" />
+
+                    <TextView
+                        android:id="@+id/label_account_number"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Số tài khoản:"
+                        android:textColor="@color/black"
+                        app:layout_constraintTop_toBottomOf="@id/label_content"
+                        app:layout_constraintStart_toStartOf="@id/label_amount"
+                        android:layout_marginTop="16dp" />
+
+                    <TextView
+                        android:id="@+id/label_account_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Tên tài khoản:"
+                        android:textColor="@color/black"
+                        app:layout_constraintTop_toBottomOf="@id/label_account_number"
+                        app:layout_constraintStart_toStartOf="@id/label_amount"
+                        android:layout_marginTop="8dp" />
+
+                    <TextView
+                        android:id="@+id/label_bank_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Ngân hàng:"
+                        android:textColor="@color/black"
+                        app:layout_constraintTop_toBottomOf="@id/label_account_name"
+                        app:layout_constraintStart_toStartOf="@id/label_amount"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/tv_Amount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="1,000,000 VND"
+                        android:textColor="@color/black"
+                        android:textStyle="bold"
+                        app:layout_constraintTop_toTopOf="@id/label_amount"
+                        app:layout_constraintBottom_toBottomOf="@id/label_amount"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tv_Content"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Roomio_#INV123"
+                        android:textColor="@color/black"
+                        android:textStyle="bold"
+                        app:layout_constraintTop_toTopOf="@id/label_content"
+                        app:layout_constraintBottom_toBottomOf="@id/label_content"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tv_AccountNumber"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="123456789"
+                        android:textColor="@color/black"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        app:layout_constraintTop_toTopOf="@id/label_account_number"
+                        app:layout_constraintBottom_toBottomOf="@id/label_account_number"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tv_AccountName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Nhom 6"
+                        android:textColor="@color/black"
+                        app:layout_constraintTop_toTopOf="@id/label_account_name"
+                        app:layout_constraintBottom_toBottomOf="@id/label_account_name"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tv_BankName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Vietcombank"
+                        android:textColor="@color/black"
+                        app:layout_constraintTop_toTopOf="@id/label_bank_name"
+                        app:layout_constraintBottom_toBottomOf="@id/label_bank_name"
+                        app:layout_constraintEnd_toEndOf="parent" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </androidx.cardview.widget.CardView>            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Please pay within 24 hours or the order will be automatically canceled."
+                android:gravity="center"
+                android:textSize="14sp"
+                android:textColor="@android:color/holo_red_dark"
+                android:layout_marginBottom="16dp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+    <Button
+        android:id="@+id/btn_done"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Done"
+        android:textAllCaps="false"
+        android:backgroundTint="@color/blue"
+        android:layout_margin="16dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
