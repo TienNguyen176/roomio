@@ -112,12 +112,16 @@ class RoomHotelActivity : AppCompatActivity() {
     // ===================== UI =====================
 
     private fun setupRecyclerView() {
-        roomsAdapter = RoomsAdapter { room -> showStatusUpdateDialog(room) }
+        roomsAdapter = RoomsAdapter { room ->
+            showStatusUpdateDialog(room)
+        }
+
         binding.rvRooms.apply {
-            layoutManager = GridLayoutManager(this@RoomHotelActivity, 4)
+            layoutManager = GridLayoutManager(this@RoomHotelActivity, 3)
             adapter = roomsAdapter
         }
     }
+
 
     private fun setupListeners() = with(binding) {
         btnBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
@@ -148,6 +152,10 @@ class RoomHotelActivity : AppCompatActivity() {
                         showUpdateRoomNameDialog()
                         true
                     }
+                    R.id.btnDeleteRoomType -> {
+                        showDeleteRoomTypeDialog()
+                        true
+                    }
                     else -> false
                 }
             }
@@ -161,6 +169,97 @@ class RoomHotelActivity : AppCompatActivity() {
             filterRoomsCombined()
         }
     }
+    private fun showDeleteRoomTypeDialog() {
+        if (roomTypes.isEmpty()) {
+            Toast.makeText(this, "Chưa có loại phòng nào!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val names = roomTypes.map { it.typeName }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Xóa loại phòng")
+            .setItems(names) { _, which ->
+                val selected = roomTypes[which]
+                confirmDeleteRoomType(selected)
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
+    }
+    private fun confirmDeleteRoomType(type: RoomTypeHotel) {
+        AlertDialog.Builder(this)
+            .setTitle("Xóa loại phòng?")
+            .setMessage("Bạn có chắc muốn xóa loại phòng '${type.typeName}'?\n\n" +
+                    "• Loại phòng sẽ bị xóa khỏi Firestore\n" +
+                    "• Các phòng đang gán loại này sẽ bị xoá room_type_id")
+            .setPositiveButton("Xóa") { _, _ ->
+                deleteRoomType(type)
+            }
+            .setNegativeButton("Hủy", null)
+            .show()
+    }
+    private fun deleteRoomType(type: RoomTypeHotel) {
+        val typeId = type.roomTypeId
+        val hotel = hotelId ?: return
+
+        val typeRef = db.collection("roomTypes").document(typeId)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 1. Xóa facilityRates
+                val facilityRates = typeRef.collection("facilityRates").get().await()
+                for (doc in facilityRates.documents) {
+                    doc.reference.delete().await()
+                }
+
+                // 2. Xóa damageLossRates
+                val damageRates = typeRef.collection("damageLossRates").get().await()
+                for (doc in damageRates.documents) {
+                    doc.reference.delete().await()
+                }
+
+                // 3. Xóa roomTypes document
+                typeRef.delete().await()
+
+                // 4. Clear room_type_id từ tất cả phòng đang gán loại này
+                val roomsSnap = db.collection("hotels")
+                    .document(hotel)
+                    .collection("rooms")
+                    .whereEqualTo("room_type_id", typeId)
+                    .get()
+                    .await()
+
+                val batch = db.batch()
+                for (doc in roomsSnap.documents) {
+                    batch.update(doc.reference, mapOf(
+                        "room_type_id" to "",
+                        "room_type_name" to ""
+                    ))
+                }
+                batch.commit().await()
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@RoomHotelActivity,
+                        "Đã xóa loại phòng '${type.typeName}'",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@RoomHotelActivity,
+                        "Lỗi khi xóa loại phòng: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
+
+
 
     // ================== REALTIME ==================
 
@@ -299,34 +398,59 @@ class RoomHotelActivity : AppCompatActivity() {
     // ========== Cập nhật trạng thái phòng ==========
 
     private fun showStatusUpdateDialog(room: Room) {
-        val roomStatuses = listOf("room_available", "room_occupied", "room_pending", "room_fixed")
-        val displayNames = listOf("Available", "Occupied", "Pending", "Fixed")
-        val currentIndex =
-            roomStatuses.indexOf(room.status_id).takeIf { it != -1 } ?: 0
 
-        AlertDialog.Builder(this)
-            .setTitle("Cập nhật trạng thái cho ${room.displayCode}")
-            .setSingleChoiceItems(displayNames.toTypedArray(), currentIndex) { dialog, which ->
-                val newStatus = roomStatuses[which]
-                updateRoomStatus(room.room_id, newStatus)
-                dialog.dismiss()
-            }
-            .setNegativeButton("Hủy", null)
-            .show()
+        val currentStatus = room.status_id
+
+        if (currentStatus == "room_occupied" || currentStatus == "room_pending") {
+            AlertDialog.Builder(this)
+                .setTitle("Không thể cập nhật trạng thái")
+                .setMessage("Phòng này đang ở trạng thái không cho phép chỉnh sửa.")
+                .setPositiveButton("OK", null)
+                .show()
+            return
+        }
+
+        if (currentStatus == "room_available") {
+            AlertDialog.Builder(this)
+                .setTitle("Cập nhật trạng thái phòng")
+                .setMessage("Bạn có muốn chuyển phòng ${room.displayCode} sang FIXED không?")
+                .setPositiveButton("Đồng ý") { _, _ ->
+                    updateRoomStatus(room.room_id, "room_fixed")
+                }
+                .setNegativeButton("Hủy", null)
+                .show()
+            return
+        }
+
+        if (currentStatus == "room_fixed") {
+            AlertDialog.Builder(this)
+                .setTitle("Cập nhật trạng thái phòng")
+                .setMessage("Bạn có muốn chuyển phòng ${room.displayCode} về AVAILABLE không?")
+                .setPositiveButton("Đồng ý") { _, _ ->
+                    updateRoomStatus(room.room_id, "room_available")
+                }
+                .setNegativeButton("Hủy", null)
+                .show()
+            return
+        }
     }
 
-    private fun updateRoomStatus(roomId: String, newStatus: String) {
+
+
+    private fun updateRoomStatus(roomId: String, newStatus: String = "room_fixed") {
         if (hotelId.isNullOrEmpty()) return
 
         db.collection("hotels")
             .document(hotelId!!)
             .collection("rooms")
             .document(roomId)
-            .update("status_id", newStatus)
+            .update("status_id", "room_fixed")
             .addOnFailureListener { e ->
                 Toast.makeText(this, "Lỗi cập nhật: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
+
+
 
     // ========== Thêm loại phòng mới ==========
 
