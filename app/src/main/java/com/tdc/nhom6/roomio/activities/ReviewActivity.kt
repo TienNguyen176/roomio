@@ -44,37 +44,48 @@ class ReviewActivity : AppCompatActivity() {
             return
         }
 
-        val user = FirebaseAuth.getInstance().currentUser
-        if (user == null) {
+        val authUser = FirebaseAuth.getInstance().currentUser
+        if (authUser == null) {
             Toast.makeText(this, "You must login", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val newReviewId = db.collection("hotels")
-            .document(hotelId)
-            .collection("reviews")
-            .document().id
+        val userId = authUser.uid
 
-        val review = Review(
-            reviewId = newReviewId,
-            userId = user.uid,
-            userName = user.displayName ?: "User",
-            rating = rating,
-            comment = comment,
-            createdAt = Timestamp.now()
-        )
+        db.collection("users")
+            .document(userId)
+            .get()
+            .addOnSuccessListener { doc ->
 
-        db.collection("hotels")
-            .document(hotelId)
-            .collection("reviews")
-            .document(newReviewId)
-            .set(review)
-            .addOnSuccessListener {
-                Toast.makeText(this, "Thank you for your review!", Toast.LENGTH_LONG).show()
-                finish()
+                val userName = doc.getString("username") ?: "Unknown"
+
+                val newReviewId = db.collection("hotels")
+                    .document(hotelId)
+                    .collection("reviews")
+                    .document().id
+
+                val review = Review(
+                    reviewId = newReviewId,
+                    userId = userId,
+                    userName = userName,
+                    rating = rating,
+                    comment = comment,
+                    createdAt = Timestamp.now()
+                )
+
+                db.collection("hotels")
+                    .document(hotelId)
+                    .collection("reviews")
+                    .document(newReviewId)
+                    .set(review)
+                    .addOnSuccessListener {
+                        Toast.makeText(this, "Thank you for your review!", Toast.LENGTH_LONG).show()
+                        finish()
+                    }
             }
             .addOnFailureListener {
                 Toast.makeText(this, "Error: ${it.message}", Toast.LENGTH_SHORT).show()
             }
     }
+
 }
