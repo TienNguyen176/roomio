@@ -257,7 +257,7 @@ class GuestDetailActivity : AppCompatActivity() {
                     .document(hotel.hotelId)
                     .collection("rooms")
                     .document(id)
-                    .update("status_id", "room_occupied")
+                    .update("status_id", "room_pending")
                     .addOnSuccessListener {
                         Log.d("Firestore", "Cập nhật trạng thái phòng $id thành công: room_occupied")
                     }
