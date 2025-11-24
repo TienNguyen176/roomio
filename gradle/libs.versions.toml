@@ -10,8 +10,9 @@ material = "1.13.0"
 activity = "1.10.1"
 constraintlayout = "2.2.1"
 googleGmsGoogleServices = "4.4.3"
-bcrypt = "0.9.0"
 
+bcrypt = "0.9.0"
+rangeseekbar = "1.0.6"
 googlePlayAuth = "20.7.0"
 
 # Retrofit & OkHttp
@@ -39,6 +40,7 @@ androidx-activity = { group = "androidx.activity", name = "activity", version.re
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 
 bcrypt = { module = "at.favre.lib:bcrypt", version.ref = "bcrypt" }
+rangeseekbar = { module = "com.github.MohammedAlaaMorsi:RangeSeekBar", version.ref = "rangeseekbar" }
 google-play-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "googlePlayAuth" }
 
 # Retrofit + OkHttp

@@ -13,6 +13,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.DealsAdapter
 import com.tdc.nhom6.roomio.adapters.HotReviewAdapter
+import com.tdc.nhom6.roomio.databinding.FragmentHomeLayoutBinding
 import com.tdc.nhom6.roomio.models.Deal
 import com.tdc.nhom6.roomio.models.DealItem
 import com.tdc.nhom6.roomio.models.HotReviewItem
@@ -21,6 +22,9 @@ import com.tdc.nhom6.roomio.repositories.FirebaseRepository
 
 
 class HomeFragment : Fragment() {
+    // ViewBinding instance
+    private var _binding: FragmentHomeLayoutBinding? = null
+    private val binding get() = _binding!!
 
     // Adapters for our RecyclerViews
     private lateinit var hotReviewAdapter: HotReviewAdapter
@@ -37,11 +41,19 @@ class HomeFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_home_layout, container, false)
+        _binding = FragmentHomeLayoutBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        binding.searchEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                binding.searchEditText.clearFocus()  // ngăn EditText chặn click
+                openSearchResults()
+            }
+        }
 
         // Initialize Firebase repository
         firebaseRepository = FirebaseRepository()
@@ -208,6 +220,23 @@ class HomeFragment : Fragment() {
             println("Search navigation error: ${e.message}")
         }
     }
+
+    private fun openSearchResults() {
+        val fragment = SearchResultsFragment.newInstance("", "") // query rỗng để load ALL
+
+        parentFragmentManager.beginTransaction()
+            .replace(R.id.nav_host_container, fragment)
+            .addToBackStack(null)
+            .commit()
+
+        // Đợi fragment tạo view xong rồi mới focus
+        fragment.viewLifecycleOwnerLiveData.observe(viewLifecycleOwner) { owner ->
+            if (owner != null) {
+                fragment.focusSearchBox()
+            }
+        }
+    }
+
 
     override fun onDestroyView() {
         super.onDestroyView()

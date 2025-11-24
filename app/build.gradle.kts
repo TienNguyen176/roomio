@@ -56,6 +56,9 @@ dependencies {
     // BCrypt
     implementation(libs.bcrypt)
 
+    // SeekBar
+    implementation(libs.rangeseekbar)
+
     // Retrofit
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)

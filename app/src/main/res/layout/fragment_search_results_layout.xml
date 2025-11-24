@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -21,81 +20,75 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/btn_back_left"
-            android:background="?attr/selectableItemBackgroundBorderless"
             android:padding="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/back" />
 
-        <!-- Search Input -->
+        <!-- Search Bar -->
         <LinearLayout
-            android:id="@+id/searchField"
+            android:id="@+id/searchBar"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:layout_weight="1"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/radius_search"
             android:orientation="horizontal"
-            android:background="@drawable/search_background"
-            android:padding="12dp"
-            android:gravity="center_vertical"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground">
+            android:paddingHorizontal="12dp"
+            android:gravity="center_vertical">
 
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_search"
-                android:layout_marginEnd="8dp"
-                android:contentDescription="@string/search_hint" />
+                android:contentDescription="@string/search" />
 
-            <TextView
-                android:id="@+id/tvSearchQuery"
+            <EditText
+                android:id="@+id/edtSearchQuery"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Vũng Tàu"
-                android:textColor="@android:color/black"
-                android:textSize="16sp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                tools:ignore="HardcodedText,NestedWeights" />
+                android:background="@null"
+                android:paddingStart="10dp"
+                android:hint="Search..."
+                android:textSize="14sp"
+                android:inputType="text"
+                tools:ignore="NestedWeights" />
 
         </LinearLayout>
 
     </LinearLayout>
 
-    <!-- Sort and Filter Options -->
+    <!-- Sort + Filter Row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="16dp"
-        android:paddingTop="0dp">
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="8dp">
 
-        <!-- Sort Button -->
+        <!-- Sort -->
         <LinearLayout
             android:id="@+id/btnSort"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="horizontal"
             android:gravity="center"
-            android:background="?attr/selectableItemBackground"
-            android:padding="12dp">
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:background="?attr/selectableItemBackground">
 
             <ImageView
-                android:layout_width="wrap_content"
+                android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:layout_marginEnd="8dp"
-                android:contentDescription="@string/sort"
-                android:src="@drawable/ic_sort" />
+                android:src="@drawable/ic_sort"
+                android:layout_marginEnd="8dp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/sort"
-                android:textColor="@android:color/black"
-                android:textSize="16sp" />
+                android:textSize="15sp"
+                android:textColor="@android:color/black" />
 
         </LinearLayout>
 
@@ -106,30 +99,29 @@
             android:background="@android:color/darker_gray"
             android:layout_marginHorizontal="16dp" />
 
-        <!-- Filter Button -->
+        <!-- Filter -->
         <LinearLayout
             android:id="@+id/btnFilter"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:orientation="horizontal"
             android:gravity="center"
-            android:background="?attr/selectableItemBackground"
-            android:padding="12dp">
+            android:orientation="horizontal"
+            android:padding="12dp"
+            android:background="?attr/selectableItemBackground">
 
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_filter"
-                android:layout_marginEnd="8dp"
-                android:contentDescription="@string/filter" />
+                android:layout_marginEnd="8dp" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/filter"
-                android:textColor="@android:color/black"
-                android:textSize="16sp" />
+                android:textSize="15sp"
+                android:textColor="@android:color/black" />
 
         </LinearLayout>
 
@@ -141,20 +133,19 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/sort_by_price_increasing"
+        android:gravity="center"
+        android:paddingBottom="8dp"
         android:textColor="@android:color/darker_gray"
-        android:textSize="14sp"
-        android:paddingHorizontal="16dp"
-        android:paddingBottom="8dp" />
+        android:textSize="14sp" />
 
-    <!-- Hotel Results List -->
+    <!-- RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvSearchResults"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:padding="16dp"
+        android:paddingHorizontal="16dp"
         android:clipToPadding="false"
-        android:scrollbars="vertical"
-        android:background="@android:color/white" />
+        android:scrollbars="vertical" />
 
 </LinearLayout>

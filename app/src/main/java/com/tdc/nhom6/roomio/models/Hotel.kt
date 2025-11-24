@@ -19,8 +19,11 @@ data class Hotel(
     val totalReviews: Int = 0,
     val pricePerNight: Double = 0.0,
     val lowestPricePerNight: Double? = null, // Lowest price from room types
-    val highestPricePerNight: Double? = null  // Highest price from room types
+    val highestPricePerNight: Double? = null,  // Highest price from room types
+    val serviceIds: List<String> = emptyList(),
+    val facilityIds: List<String> = emptyList()
 )
+
 //
 //data class HotelType(
 //    @DocumentId

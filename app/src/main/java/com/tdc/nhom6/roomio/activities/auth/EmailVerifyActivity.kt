@@ -23,7 +23,6 @@ class EmailVerifyActivity : AppCompatActivity() {
     private var checkVerifyHandler: Handler? = null
 
     // Dữ liệu đăng ký
-    private lateinit var currentId: String
     private lateinit var username: String
     private lateinit var email: String
     private lateinit var phone: String
@@ -45,7 +44,6 @@ class EmailVerifyActivity : AppCompatActivity() {
 
     /** ------------------ NHẬN DỮ LIỆU ------------------ **/
     private fun receiveDataFromSignUp() = with(intent) {
-        currentId = getStringExtra("current_id") ?: ""
         username = getStringExtra("username") ?: ""
         email = getStringExtra("email") ?: ""
         phone = getStringExtra("phone") ?: ""
@@ -125,7 +123,6 @@ class EmailVerifyActivity : AppCompatActivity() {
         )
 
         val userData = mapOf(
-            "current_id" to currentId,
             "avatar" to "",
             "username" to username,
             "email" to email,

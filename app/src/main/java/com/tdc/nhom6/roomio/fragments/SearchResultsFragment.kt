@@ -1,34 +1,51 @@
 package com.tdc.nhom6.roomio.fragments
 
-import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.tdc.nhom6.roomio.R
+import androidx.lifecycle.lifecycleScope
+import com.tdc.nhom6.roomio.databinding.FragmentSearchResultsLayoutBinding
 import com.tdc.nhom6.roomio.models.Hotel
 import com.tdc.nhom6.roomio.models.SearchResultItem
 import com.tdc.nhom6.roomio.models.SearchResultType
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.toObject
+import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.adapters.SearchResultsAdapter
-import com.tdc.nhom6.roomio.models.RoomType
-import com.tdc.nhom6.roomio.repositories.FirebaseRepository
+import com.tdc.nhom6.roomio.models.Facility
+import com.tdc.nhom6.roomio.models.Service
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class SearchResultsFragment : Fragment() {
-    private lateinit var firebaseRepository: FirebaseRepository
+
+    private var _binding: FragmentSearchResultsLayoutBinding? = null
+    private val binding get() = _binding!!
+
     private lateinit var searchResultsAdapter: SearchResultsAdapter
     private var searchQuery: String = ""
+
+    private val db = FirebaseFirestore.getInstance()
     private var hotelsListener: ListenerRegistration? = null
-    private var roomTypesListener: ListenerRegistration? = null
-    private var dealsListener: ListenerRegistration? = null
-    private val roomTypesCache = mutableMapOf<String, MutableList<RoomType>>()
+
+    private var minPrice = 1_000_000 // Giá mặc định Min
+    private var maxPrice = 10_000_000 // Giá mặc định Max
+
     private val hotelsCache = mutableListOf<Hotel>()
+    private var currentComparator: Comparator<Hotel>? = null
+
+    private var allTienIch: List<Facility> = emptyList()
+    private var allServices: List<Service> = emptyList()
 
     companion object {
         fun newInstance(query: String, location: String): SearchResultsFragment {
@@ -39,412 +56,277 @@ class SearchResultsFragment : Fragment() {
             fragment.arguments = args
             return fragment
         }
+        private const val TAG = "SearchResultsFragment"
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
+        inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_search_results_layout, container, false)
+    ): View {
+        _binding = FragmentSearchResultsLayoutBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        firebaseRepository = FirebaseRepository()
-
-        // Get search query from arguments
         searchQuery = arguments?.getString("query") ?: ""
 
-        // Set up UI elements
-        setupUI(view)
+        setupUI()
+        setupRecyclerView()
+        setupSearchRealtime()
 
-        // Set up RecyclerView with improved configuration
-        val recyclerView = view.findViewById<RecyclerView>(R.id.rvSearchResults)
+        loadAllServices()
+        loadAllTienIch()
 
-        // Configure RecyclerView to prevent swap behavior issues
-        val layoutManager = LinearLayoutManager(requireContext())
-        recyclerView.layoutManager = layoutManager
-        recyclerView.setItemViewCacheSize(20) // Cache more views to prevent recycling issues
-        recyclerView.itemAnimator = null // Disable animations to prevent swap behavior errors
-        recyclerView.setNestedScrollingEnabled(false) // Disable nested scrolling
-        recyclerView.isNestedScrollingEnabled = false
+        loadHotelsFromFirebase()
 
-        searchResultsAdapter = SearchResultsAdapter(emptyList())
-        recyclerView.adapter = searchResultsAdapter
 
-        // Perform search
-        performSearch()
+        // Tự động focus vào thanh tìm kiếm sau khi màn hình được tạo
+        binding.edtSearchQuery.requestFocus()
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        try {
-            hotelsListener?.remove()
-            roomTypesListener?.remove()
-            dealsListener?.remove()
-        } catch (_: Exception) { }
-        hotelsListener = null
-        roomTypesListener = null
-        dealsListener = null
+        hotelsListener?.remove()
+        _binding = null
     }
 
-    private fun setupUI(view: View) {
-        // Set search query in the search field
-        val tvSearchQuery = view.findViewById<android.widget.TextView>(R.id.tvSearchQuery)
-        tvSearchQuery.text = searchQuery
+    // ====================================
+    // UI
+    // ====================================
+    private fun setupUI() {
+        // NOTE: ensure your layout's EditText id is edtSearchQuery (not tvSearchQuery)
+        binding.edtSearchQuery.setText(searchQuery)
 
-        // Set up back button
-        val btnBack = view.findViewById<android.widget.ImageView>(R.id.btnBack)
-        btnBack.setOnClickListener {
+        binding.btnBack.setOnClickListener {
             parentFragmentManager.popBackStack()
         }
 
-        // Set up sort button
-        val btnSort = view.findViewById<android.widget.LinearLayout>(R.id.btnSort)
-        btnSort.setOnClickListener {
-            showSortOptions()
+        binding.btnSort.setOnClickListener { showSortOptions() }
+
+        binding.btnFilter.setOnClickListener {
+            val filterFragment = FilterBottomSheetFragment()
+            filterFragment.setAmenities(allServices)
+            filterFragment.setTienIch(allTienIch)
+
+            // ⭐ NHẬN KẾT QUẢ LỌC TỪ FILTER BOTTOM SHEET
+            filterFragment.setOnApplyFilterListener { min, max, selectedServices, selectedFacilities ->
+                Log.d(TAG, "Filter applied: min=$min max=$max services=${selectedServices.size} facilities=${selectedFacilities.size}")
+                applyFilter(min, max, selectedServices, selectedFacilities)
+            }
+
+            filterFragment.show(parentFragmentManager, FilterBottomSheetFragment::class.java.simpleName)
         }
 
-        // Set up filter button
-        val btnFilter = view.findViewById<android.widget.LinearLayout>(R.id.btnFilter)
-        btnFilter.setOnClickListener {
-            showFilterOptions()
-        }
+        // Cho phép focus và show keyboard khi cần
+        binding.searchBar.isFocusableInTouchMode = true
 
-        // Set up search field click to edit
-        val searchField = view.findViewById<android.widget.LinearLayout>(R.id.searchField)
-        searchField.setOnClickListener {
-            // Navigate back to home to search again
-            parentFragmentManager.popBackStack()
+        binding.edtSearchQuery.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
+
+                // Chạy filter
+                filterHotels(binding.edtSearchQuery.text.toString().trim())
+
+                // Ẩn bàn phím
+                val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(binding.edtSearchQuery.windowToken, 0)
+
+                true
+            } else {
+                false
+            }
         }
     }
 
-    @SuppressLint("SetTextI18n")
+    private fun setupRecyclerView() {
+        binding.rvSearchResults.layoutManager = LinearLayoutManager(requireContext())
+        searchResultsAdapter = SearchResultsAdapter(emptyList())
+        binding.rvSearchResults.adapter = searchResultsAdapter
+    }
+
+    fun focusSearchBox() {
+        view?.post {
+            binding.edtSearchQuery.requestFocus()
+        }
+    }
+
+    // Áp filter nhận từ bottom sheet
+    private fun applyFilter(
+        min: Int,
+        max: Int,
+        selectedServiceIds: Set<String>,
+        selectedFacilityIds: Set<String>
+    ) {
+        minPrice = min
+        maxPrice = max
+
+        var filtered = hotelsCache.filter { hotel ->
+
+            // Convert pricePerNight Double → Int
+            val price = hotel.pricePerNight.toInt()
+            val priceMatch = price in minPrice..maxPrice
+
+            val nameMatch = hotel.hotelName.lowercase().contains(searchQuery.lowercase())
+            // Lọc dịch vụ bằng service_name
+            val serviceMatch =
+                if (selectedServiceIds.isEmpty()) true
+                else hotel.serviceIds.containsAll(selectedServiceIds)
+
+            // Lọc tiện ích bằng facility_name (nếu bạn dùng tên)
+            val facilityMatch =
+                if (selectedFacilityIds.isEmpty()) true
+                else hotel.facilityIds.containsAll(selectedFacilityIds)
+
+            priceMatch && nameMatch && serviceMatch && facilityMatch
+        }
+
+
+
+        currentComparator?.let { comparator ->
+            filtered = filtered.sortedWith(comparator)
+        }
+
+        updateHotelResults(filtered)
+    }
+
+    // ====================================
+    // SEARCH REALTIME
+    // ====================================
+    private fun setupSearchRealtime() {
+        // use EditText's change listener
+        binding.edtSearchQuery.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val text = s?.toString()?.trim() ?: ""
+                searchQuery = text
+
+                if (text.isEmpty()) {
+                    // nếu đang có filter giá => vẫn áp filter giá
+                    val listToShow = hotelsCache.filter {
+                        it.pricePerNight.toInt() in minPrice..maxPrice
+                    }
+                    updateHotelResults(listToShow)
+                } else {
+                    filterHotels(text)
+                }
+            }
+        })
+    }
+
+    // ====================================
+    // FIREBASE
+    // ====================================
+    private fun loadHotelsFromFirebase() {
+        hotelsListener?.remove()
+        hotelsListener = db.collection("hotels").addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.e(TAG, "Error loading hotels: ${error.message}")
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null) {
+                hotelsCache.clear()
+                hotelsCache.addAll(snapshot.toObjects(Hotel::class.java))
+
+                if (searchQuery.isBlank()) {
+                    // show with current price filter applied
+                    val listToShow = hotelsCache.filter { it.pricePerNight.toInt() in minPrice..maxPrice }
+                    updateHotelResults(listToShow)
+                } else {
+                    filterHotels(searchQuery)
+                }
+            }
+        }
+    }
+
+    // ====================================
+    // FILTER / SEARCH / UPDATE UI
+    // ====================================
+    private fun filterHotels(query: String) {
+        val lower = query.lowercase()
+        var filtered = hotelsCache.filter { hotel ->
+            val nameOk = hotel.hotelName.lowercase().contains(lower)
+            val priceOk = hotel.pricePerNight.toInt() in minPrice..maxPrice
+            nameOk && priceOk
+        }
+
+        currentComparator?.let { comparator ->
+            filtered = filtered.sortedWith(comparator)
+        }
+
+        updateHotelResults(filtered)
+    }
+
+    private fun updateHotelResults(list: List<Hotel>) {
+        searchResultsAdapter.updateData(
+            list.map {
+                SearchResultItem(
+                    type = SearchResultType.HOTEL,
+                    hotel = it,
+                    deal = null,
+                    review = null
+                )
+            }
+        )
+    }
+
+    // ====================================
+    // SORT
+    // ====================================
     private fun showSortOptions() {
-        val sortOptions = arrayOf("Price: Low to High", "Price: High to Low", "Rating: High to Low", "Name: A to Z")
+        val sortOptions = arrayOf(
+            "Giá: Thấp đến Cao",
+            "Giá: Cao xuống thấp",
+            "Tên: A - Z"
+        )
 
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Sort by")
             .setItems(sortOptions) { _, which ->
-                val selectedSort = sortOptions[which]
-                val tvSortStatus = view?.findViewById<android.widget.TextView>(R.id.tvSortStatus)
-                tvSortStatus?.text = "Sorted by: $selectedSort"
 
-                // Apply sorting to results
-                applySorting(selectedSort)
+                currentComparator = when (which) {
+                    0 -> compareBy { it.pricePerNight }
+                    1 -> compareByDescending { it.pricePerNight }
+                    2 -> compareBy { it.hotelName }
+                    else -> null
+                }
+
+                // Áp lại filter/search
+                if (searchQuery.isBlank()) filterHotels("") else filterHotels(searchQuery)
             }
             .show()
     }
 
-    private fun showFilterOptions() {
-        val filterOptions = arrayOf("All", "Hotels Only", "Deals Only", "Reviews Only", "Price Range", "Rating")
-
-        androidx.appcompat.app.AlertDialog.Builder(requireContext())
-            .setTitle("Filter by")
-            .setItems(filterOptions) { _, which ->
-                val selectedFilter = filterOptions[which]
-
-                // Apply filtering to results
-                applyFiltering(selectedFilter)
-            }
-            .show()
-    }
-
-    private fun applySorting(sortType: String) {
-        // Sort the current results based on the selected option
-        val currentItems = searchResultsAdapter.items.toMutableList()
-
-        when (sortType) {
-            "Price: Low to High" -> {
-                currentItems.sortBy { item ->
-                    when (item.type) {
-                        SearchResultType.HOTEL -> item.hotel?.pricePerNight ?: 0.0
-                        SearchResultType.DEAL -> item.deal?.discountPricePerNight ?: 0.0
-                        SearchResultType.REVIEW -> item.review?.pricePerNight ?: 0.0
-                    }
-                }
-            }
-            "Price: High to Low" -> {
-                currentItems.sortByDescending { item ->
-                    when (item.type) {
-                        SearchResultType.HOTEL -> item.hotel?.pricePerNight ?: 0.0
-                        SearchResultType.DEAL -> item.deal?.discountPricePerNight ?: 0.0
-                        SearchResultType.REVIEW -> item.review?.pricePerNight ?: 0.0
-                    }
-                }
-            }
-            "Rating: High to Low" -> {
-                currentItems.sortByDescending { item ->
-                    when (item.type) {
-                        SearchResultType.HOTEL -> item.hotel?.averageRating ?: 0.0
-                        SearchResultType.DEAL -> item.deal?.rating ?: 0.0
-                        SearchResultType.REVIEW -> item.review?.rating ?: 0.0
-                    }
-                }
-            }
-            "Name: A to Z" -> {
-                currentItems.sortBy { item ->
-                    when (item.type) {
-                        SearchResultType.HOTEL -> item.hotel?.hotelName ?: ""
-                        SearchResultType.DEAL -> item.deal?.hotelName ?: ""
-                        SearchResultType.REVIEW -> item.review?.hotelName ?: ""
-                    }
-                }
-            }
-        }
-
-        searchResultsAdapter.updateData(currentItems)
-    }
-
-    private fun applyFiltering(filterType: String) {
-        // Filter the current results based on the selected option
-        val allItems = searchResultsAdapter.items.toMutableList()
-
-        val filteredItems = when (filterType) {
-            "All" -> allItems
-            "Hotels Only" -> allItems.filter { it.type == SearchResultType.HOTEL }
-            "Deals Only" -> allItems.filter { it.type == SearchResultType.DEAL }
-            "Reviews Only" -> allItems.filter { it.type == SearchResultType.REVIEW }
-            else -> allItems
-        }
-
-        searchResultsAdapter.updateData(filteredItems)
-
-        val message = if (filteredItems.isEmpty()) {
-            "No results found for '$searchQuery' with filter: $filterType"
-        } else {
-            "Showing ${filteredItems.size} results for '$searchQuery'"
-        }
-
-        android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun performSearch() {
-        val message = if (searchQuery.isBlank()) "Showing all results" else "Searching for: $searchQuery"
-        android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-
-        // Query Firebase directly without any sample seeding
-        performFirebaseSearch()
-    }
-
-    private fun performFirebaseSearch() {
-        // Simple search using Firebase directly with real-time updates
-        val results = mutableListOf<SearchResultItem>()
-        var dealsSearchInitialized = false
-
-        try {
-            // Helper function to filter and update hotel results
-            fun updateHotelResults(hotels: List<Hotel>) {
-                val filteredHotels = hotels.filter { hotel ->
-                    searchQuery.isBlank() || 
-                    hotel.hotelName.lowercase().contains(searchQuery.lowercase()) ||
-                    hotel.hotelAddress.lowercase().contains(searchQuery.lowercase())
-                }
-
-                // Update prices using cached room types
-                val hotelsWithPrices = filteredHotels.map { hotel ->
-                    val roomTypes = roomTypesCache[hotel.hotelId] ?: emptyList()
-                    val lowestPrice = roomTypes.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
-                    val highestPrice = roomTypes.maxOfOrNull { it.pricePerNight }
-
-                    hotel.copy(
-                        pricePerNight = lowestPrice,
-                        lowestPricePerNight = if (roomTypes.isNotEmpty()) lowestPrice else null,
-                        highestPricePerNight = highestPrice
-                    )
-                }
-
-                // Remove old hotel results
-                results.removeAll { it.type == SearchResultType.HOTEL }
-                
-                // Add new hotel results
-                hotelsWithPrices.forEach { hotel ->
-                    results.add(
-                        SearchResultItem(
-                        type = SearchResultType.HOTEL,
-                        hotel = hotel,
-                        deal = null,
-                        review = null
-                    )
-                    )
-                }
-
-                // Update the adapter
-                searchResultsAdapter.updateData(results.toList())
-
-                // Continue with deals search (only once)
-                if (!dealsSearchInitialized) {
-                    dealsSearchInitialized = true
-                    performDealsSearch(results)
-                }
-            }
-
-            // Observe hotels in real-time
-            hotelsListener?.remove()
-            hotelsListener = firebaseRepository.db.collection("hotels")
-                .addSnapshotListener { hotelResult, error ->
-                    if (error != null) {
-                        android.widget.Toast.makeText(requireContext(), "Error searching hotels: ${error.message}", Toast.LENGTH_LONG).show()
-                        Log.e("Search", "Error observing hotels: ${error.message}")
-                        return@addSnapshotListener
-                    }
-
-                    hotelsCache.clear()
-                    if (hotelResult != null) {
-                        for (document in hotelResult) {
-                            try {
-                                val hotel: Hotel = document.toObject<Hotel>()
-                                hotelsCache.add(hotel)
-                            } catch (e: Exception) {
-                                Log.e("Search", "Error converting hotel document ${document.id}: ${e.message}")
-                            }
-                        }
-                    }
-
-                    updateHotelResults(hotelsCache)
-                }
-
-            // Observe room types in real-time
-            roomTypesListener?.remove()
-            roomTypesListener = firebaseRepository.db.collection("roomTypes")
-                .addSnapshotListener { roomTypesResult, error ->
-                    if (error != null) {
-                        Log.e("Search", "Error observing room types: ${error.message}")
-                        return@addSnapshotListener
-                    }
-
-                    roomTypesCache.clear()
-                    if (roomTypesResult != null) {
-                        for (document in roomTypesResult) {
-                            try {
-                                val roomType: RoomType = document.toObject<RoomType>()
-                                val hotelId = roomType.hotelId
-                                if (!roomTypesCache.containsKey(hotelId)) {
-                                    roomTypesCache[hotelId] = mutableListOf()
-                                }
-                                roomTypesCache[hotelId]?.add(roomType)
-                            } catch (e: Exception) {
-                                Log.e("Search", "Error converting room type ${document.id}: ${e.message}")
-                            }
-                        }
-                    }
-
-                    // Re-update hotel results with new room types using cached hotels
-                    if (hotelsCache.isNotEmpty()) {
-                        updateHotelResults(hotelsCache)
-                    }
-                }
-        } catch (e: Exception) {
-            android.widget.Toast.makeText(requireContext(), "Search error: ${e.message}", Toast.LENGTH_LONG).show()
-            Log.e("Search", "Exception in search: ${e.message}")
-        }
-    }
-
-    /**
-     * Loads room types from Firebase and updates hotel prices with the lowest room price
-     */
-    private fun loadRoomTypesAndUpdatePrices(hotels: List<Hotel>, callback: (List<Hotel>) -> Unit) {
-        firebaseRepository.db.collection("roomTypes")
-            .get()
-            .addOnSuccessListener { roomTypesResult ->
-                val roomTypesMap = mutableMapOf<String, MutableList<RoomType>>()
-
-                // Group room types by hotel ID
-                for (document in roomTypesResult) {
-                    try {
-                        val roomType: RoomType = document.toObject<RoomType>()
-                        val hotelId = roomType.hotelId
-
-                        if (!roomTypesMap.containsKey(hotelId)) {
-                            roomTypesMap[hotelId] = mutableListOf()
-                        }
-                        roomTypesMap[hotelId]?.add(roomType)
-                    } catch (e: Exception) {
-                        Log.e("Search", "Error converting room type ${document.id}: ${e.message}")
-                    }
-                }
-
-                // Update hotel prices with lowest and highest room prices
-                val hotelsWithPrices = hotels.map { hotel ->
-                    val roomTypes = roomTypesMap[hotel.hotelId] ?: emptyList()
-                    val lowestPrice = roomTypes.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
-                    val highestPrice = roomTypes.maxOfOrNull { it.pricePerNight }
-
-                    hotel.copy(
-                        pricePerNight = lowestPrice,
-                        lowestPricePerNight = if (roomTypes.isNotEmpty()) lowestPrice else null,
-                        highestPricePerNight = highestPrice
-                    )
-                }
-
-                callback(hotelsWithPrices)
-            }
-            .addOnFailureListener { exception ->
-                Log.w("Search", "Error loading room types: ${exception.message}")
-                // Return hotels without price updates
-                callback(hotels)
-            }
-    }
-
-    private fun performDealsSearch(results: MutableList<SearchResultItem>) {
-        // Realtime deals based on discounts
-        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
-        if (hasPlay) {
-            dealsListener?.remove()
-            dealsListener = firebaseRepository.observeDeals { deals ->
-                try {
-                    deals.filter {
-                        it.hotelName.lowercase().contains(searchQuery.lowercase()) ||
-                        it.hotelLocation.lowercase().contains(searchQuery.lowercase())
-                    }.forEach { deal ->
-                        results.add(
-                            SearchResultItem(
-                                type = SearchResultType.DEAL,
-                                hotel = null,
-                                deal = deal,
-                                review = null
-                            )
-                        )
-                    }
-
-                    searchResultsAdapter.updateData(results)
-
-                    val message = if (results.isEmpty()) {
-                        "No results found for '$searchQuery'. Try: Ares, Vung Tau, Saigon, Sapa, or Nha Trang"
-                    } else {
-                        "Found ${results.size} results for '$searchQuery'"
-                    }
-                    android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
-                } catch (e: Exception) {
-                    android.widget.Toast.makeText(requireContext(), "Error searching deals: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            }
-        } else {
-            // One-shot fallback
-            firebaseRepository.getDeals { deals ->
-                try {
-                    deals.filter {
-                        it.hotelName.lowercase().contains(searchQuery.lowercase()) ||
-                        it.hotelLocation.lowercase().contains(searchQuery.lowercase())
-                    }.forEach { deal ->
-                        results.add(
-                            SearchResultItem(
-                                type = SearchResultType.DEAL,
-                                hotel = null,
-                                deal = deal,
-                                review = null
-                            )
-                        )
-                    }
-                    searchResultsAdapter.updateData(results)
-                } catch (e: Exception) {
-                    android.widget.Toast.makeText(requireContext(), "Error searching deals: ${e.message}", Toast.LENGTH_LONG).show()
+    // ====================================
+    // LOAD FACILITIES & SERVICES
+    // ====================================
+    private fun loadAllServices() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val snap = db.collection("services").get().await()
+                allServices = snap.toObjects(Service::class.java)
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(requireContext(), "Failed service load!", Toast.LENGTH_SHORT).show()
+                    Log.e(TAG, "loadAllServices error: ${e.message}")
                 }
             }
         }
     }
 
-    // All offline/sample search code removed
+    private fun loadAllTienIch() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val snap = db.collection("facilities").get().await()
+                allTienIch = snap.toObjects(Facility::class.java)
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(requireContext(), "Failed facilities load!", Toast.LENGTH_SHORT).show()
+                    Log.e(TAG, "loadAllTienIch error: ${e.message}")
+                }
+            }
+        }
+    }
 }
