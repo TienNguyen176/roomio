@@ -1,5 +1,7 @@
 package com.tdc.nhom6.roomio.models
 
+import com.google.firebase.Timestamp
+
 data class ReservationUi(
     val documentId: String,
     val reservationId: String,
@@ -20,9 +22,9 @@ data class ReservationUi(
     val totalFinalAmount: Double = 0.0,
     val checkInText: String = "",
     val checkOutText: String = "",
-    val checkInMillis: Long? = null,
-    val checkOutMillis: Long? = null,
+    val checkInMillis: Timestamp? = null,
+    val checkOutMillis: Timestamp? = null,
     val discountLabel: String = "-",
-    val cleaningCompletedAtMillis: Long? = null
+    val cleaningCompletedAtMillis: Timestamp? = null
 )
 

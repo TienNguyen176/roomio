@@ -34,6 +34,8 @@ class MiniBarAdapter(
 
     fun totalCharges(): Double = items.sumOf { (if (it.checked) it.quantity else 0) * it.pricePerItem }
 
+    fun getCheckedItems(): List<MiniItem> = items.filter { it.checked }
+
     class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val cb: CheckBox = itemView.findViewById(R.id.cbItem)
         private val btnMinus: Button = itemView.findViewById(R.id.btnMinus)

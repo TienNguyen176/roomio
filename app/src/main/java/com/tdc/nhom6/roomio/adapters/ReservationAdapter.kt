@@ -29,10 +29,6 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) :
             if (current.status == ReservationStatus.CANCELED || current.status == ReservationStatus.COMPLETED) {
                 return@ReservationViewHolder
             }
-            if (current.action.lowercase() == "payment" && current.cleaningCompletedAtMillis == null) {
-                Toast.makeText(view.context, "Please wait for cleaning to be completed", Toast.LENGTH_SHORT).show()
-                return@ReservationViewHolder
-            }
             when (current.action.lowercase()) {
                 "check-in" -> showCheckInDialog(view, position)
                 "check-out" -> showCheckOutDialog(view, position)
@@ -227,8 +223,10 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) :
                     putExtra("CHECK_OUT_TEXT", current.checkOutText)
                     putExtra("CHECK_IN", current.checkInText)
                     putExtra("CHECK_OUT", current.checkOutText)
-                    putExtra("CHECK_IN_MILLIS", current.checkInMillis ?: -1L)
-                    putExtra("CHECK_OUT_MILLIS", current.checkOutMillis ?: -1L)
+                    val checkInMillis = current.checkInMillis?.toDate()?.time ?: -1L
+                    val checkOutMillis = current.checkOutMillis?.toDate()?.time ?: -1L
+                    putExtra("CHECK_IN_MILLIS", checkInMillis)
+                    putExtra("CHECK_OUT_MILLIS", checkOutMillis)
                     putExtra("RESERVATION_AMOUNT", current.totalFinalAmount)
                     putExtra("BOOKING_ID", current.documentId)
                     putExtra("ROOM_TYPE_ID", current.roomTypeId ?: "")
@@ -275,15 +273,13 @@ class ReservationViewHolder(view: View, private val onActionClick: (Int) -> Unit
 
         val isCanceled = item.status == ReservationStatus.CANCELED
         val isCompleted = item.status == ReservationStatus.COMPLETED
-        val isPaymentDisabled = item.action.lowercase() == "payment" && item.cleaningCompletedAtMillis == null
-
         btnAction.text = when {
             isCanceled -> "Cancelled"
             isCompleted -> "Completed"
             else -> item.action
         }
 
-        if (isCanceled || isCompleted || isPaymentDisabled) {
+        if (isCanceled || isCompleted) {
             btnAction.isEnabled = false
             btnAction.isClickable = false
             btnAction.alpha = 0.5f

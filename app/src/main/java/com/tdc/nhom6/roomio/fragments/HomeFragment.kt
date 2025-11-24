@@ -146,8 +146,10 @@ class HomeFragment : Fragment() {
      * This replaces sample data with real Firebase data
      */
     private fun loadDataFromFirebase() {
-        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
 
+
+        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
+        Log.d("Firebase", "HomeFragment: hasPlay=$hasPlay")
         if (hasPlay) {
             // Observe hot reviews (realtime)
             hotReviewsListener?.remove()

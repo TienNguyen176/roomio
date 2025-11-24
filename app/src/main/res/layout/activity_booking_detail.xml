@@ -288,8 +288,7 @@
                 <TextView
                     android:id="@+id/tvDiscountName"
                     android:layout_weight="3"
-                    android:layout_width="0sp"
-                    android:layout_height="wrap_content"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
                     android:text="3% discount for first time booking with e-wallet"
                     android:textSize="11sp"
                     android:textColor="@color/green"
@@ -297,8 +296,7 @@
                     android:textStyle="bold"/>
 
                 <LinearLayout
-                    android:layout_width="0sp"
-                    android:layout_weight="2"
+                    android:layout_width="0dp" android:layout_weight="2"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     >
@@ -310,17 +308,15 @@
                         android:textSize="13sp"
                         android:textColor="@color/red"
                         android:textStyle="bold"
-                        android:gravity="right"/>
-                    <TextView
-                        android:id="@+id/tvTotalAfter"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="VND 700.000"
-                        android:textSize="16sp"
-                        android:textColor="@color/green"
-                        android:textStyle="bold"
-                        android:gravity="right"/>
-                </LinearLayout>
+                        android:gravity="end"/> <TextView
+                    android:id="@+id/tvTotalAfter"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="VND 700.000"
+                    android:textSize="16sp"
+                    android:textColor="@color/green"
+                    android:textStyle="bold"
+                    android:gravity="end"/> </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
@@ -334,7 +330,6 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Fund amount"
-                    android:textStyle="bold"
                     android:textColor="@android:color/black"
                     android:textSize="16sp" />
 
@@ -343,6 +338,57 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="VND 70.000 (10%)"
+                    android:layout_marginStart="8dp"
+                    android:textColor="@android:color/black"
+                    android:textSize="16sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/layoutExtraFeeContainer" android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Extra fee"
+                    android:textColor="@android:color/black"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/tvExtraFee"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="VND 0"
+                    android:layout_marginStart="8dp"
+                    android:textColor="@android:color/black"
+                    android:textSize="16sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutTotalPaidContainer" android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Total Payment"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/black"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/tvTotalPaidAmount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="VND 70.000"
+                    android:textStyle="bold"
                     android:layout_marginStart="8dp"
                     android:textColor="@android:color/black"
                     android:textSize="16sp" />
@@ -360,8 +406,7 @@
                     android:layout_weight="1"
                     android:text="Payment method"
                     android:textColor="@android:color/black"
-                    android:textSize="14sp"
-                    android:textStyle="bold"/>
+                    android:textSize="14sp"/>
 
                 <TextView
                     android:id="@+id/tvPaymentMethod"
@@ -423,7 +468,70 @@
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:layout_marginVertical="16dp"/>
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"
+                android:layout_marginBottom="16dp"/>
 
+            <LinearLayout
+                android:id="@+id/layoutOwnerContact"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Owner Contact"
+                    android:textColor="@color/text_dark_gray"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Representative:"
+                        android:textSize="14sp"
+                        android:textColor="@android:color/black"/>
+                    <TextView
+                        android:id="@+id/tvOwnerName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="Mr. Nguyen Van A"
+                        android:textSize="14sp"
+                        android:textColor="@android:color/black"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="2dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Direct Phone:"
+                        android:textSize="14sp"
+                        android:textColor="@android:color/black"/>
+                    <TextView
+                        android:id="@+id/tvOwnerPhone"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="0901 XXX XXX"
+                        android:textSize="14sp"
+                        android:textColor="?attr/colorPrimary"
+                        android:autoLink="phone"/>
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
 

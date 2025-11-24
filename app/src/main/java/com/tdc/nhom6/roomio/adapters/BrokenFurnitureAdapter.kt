@@ -44,6 +44,8 @@ class BrokenFurnitureAdapter(
         return items.filter { it.checked }.sumOf { it.pricePerItem }
     }
 
+    fun getCheckedItems(): List<BrokenItem> = items.filter { it.checked }
+
     class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val cb: CheckBox = itemView.findViewById(R.id.cbItem)
         private val til: TextInputLayout = itemView.findViewById(R.id.tilDesc)

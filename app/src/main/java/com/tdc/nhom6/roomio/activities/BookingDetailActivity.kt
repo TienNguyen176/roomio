@@ -9,6 +9,7 @@ import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.text.HtmlCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
@@ -91,12 +92,51 @@ class BookingDetailActivity : AppCompatActivity() {
                 binding.tvAddress.text=currentHotel?.hotelAddress
                 binding.ratingBar.rating = (currentHotel?.averageRating ?: 0).toFloat()
                 binding.tvReviews.text = "${currentHotel?.totalReviews} reviews"
+                binding.tvSpecialRequest.text=loadedBooking.note
 
                 binding.tvBookingDetail.text =  currentRoomType?.typeName
                 binding.tvNumberGuest.text= "Guest: ${loadedBooking.numberGuest} people"
 
                 binding.tvCheckInDate.text= currentBooking?.checkInDate?.let { convertTimestampToString(it) }
                 binding.tvCheckOutDate.text= currentBooking?.checkOutDate?.let { convertTimestampToString(it) }
+
+                val ownerId = currentHotel?.ownerId
+
+                if (ownerId != null) {
+                    db.collection("users").document(ownerId).get()
+                        .addOnSuccessListener { document ->
+                            if (document.exists()) {
+                                val ownerName = document.getString("username")
+                                val ownerPhone = document.getString("phone")
+
+                                binding.tvOwnerName.text = ownerName ?: "N/A"
+
+                                binding.tvOwnerPhone.text = ownerPhone ?: "Contact not available"
+                            } else {
+                                binding.tvOwnerName.text = "Owner not found"
+                                binding.tvOwnerPhone.text = "N/A"
+                            }
+                        }
+                        .addOnFailureListener { exception ->
+                            Log.e("BookingDetail", "Error fetching owner details", exception)
+                            binding.tvOwnerName.text = "Error loading data"
+                            binding.tvOwnerPhone.text = "N/A"
+                        }
+                }
+
+                binding.tvCancelPolicy.setOnClickListener {
+                    val hotelId = currentHotel?.hotelId
+
+                    if (hotelId != null) {
+                        showCancellationPolicyDialog(hotelId)
+                    } else {
+                        AlertDialog.Builder(this)
+                            .setTitle("Notice")
+                            .setMessage("Unable to load cancellation policy information at this time.")
+                            .setPositiveButton("OK", null)
+                            .show()
+                    }
+                }
 
                 updateTotalAmount(loadedBooking)
 
@@ -273,8 +313,14 @@ class BookingDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun cancelTransaction(customerId: String, ownerId: String) {
-        val amount = invoices.first().totalAmount
+    private fun cancelTransaction(customerId: String, ownerId: String, amountToRefund: Double) {
+        if (amountToRefund <= 0) {
+            Log.w("Payment", "Transaction skipped: Refund amount is zero or less.")
+            updateBookingStatusToCancelled()
+            return
+        }
+
+        val amount = amountToRefund
 
         db.runTransaction { transaction ->
             val userRef = db.collection("users").document(customerId)
@@ -300,27 +346,74 @@ class BookingDetailActivity : AppCompatActivity() {
 
             transaction.update(userRef, "walletBalance", newCustomerBalance)
             transaction.update(ownerRef, "walletBalance", newOwnerBalance)
-            transaction.update(bookingRef, "status", "cancelled")
-
             null
         }
             .addOnSuccessListener {
-                binding.progressBar.visibility = View.GONE
-                Log.d("Payment", "Transaction success: Refund processed and booking cancelled.")
+                updateBookingStatusToCancelled()
             }.addOnFailureListener { e ->
                 Log.w("Payment", "Transaction failure.", e)
             }
     }
 
-    private fun openDialogCancelConfirm(customerId: String, ownerId: String) {
+    private fun updateBookingStatusToCancelled() {
+        val roomId = currentBooking?.roomId
+        val hotelId = currentHotel?.hotelId
 
+        if (roomId.isNullOrEmpty() || hotelId.isNullOrEmpty()) {
+            Log.e("Payment", "Cannot cancel: Missing Room ID or Hotel ID.")
+            binding.progressBar.visibility = View.GONE
+            return
+        }
+
+        val batch = db.batch()
+
+        val bookingRef = db.collection("bookings").document(bookingId)
+        val roomRef = db.collection("hotels").document(hotelId).collection("rooms").document(roomId)
+
+        batch.update(bookingRef, "status", "cancelled")
+
+        batch.update(roomRef, "status_id", "room_available")
+
+        batch.commit()
+            .addOnSuccessListener {
+                Log.d("Payment", "Booking cancelled and Room is available.")
+            }
+            .addOnFailureListener { e ->
+                Log.w("Payment", "Data is consistent", e)
+            }
+            .addOnCompleteListener {
+                binding.progressBar.visibility = View.GONE
+            }
+    }
+
+    private fun calculateRefundAmount(): Double {
+        val booking = currentBooking ?: return 0.0
+        val totalPaid = invoices.firstOrNull()?.totalAmount ?: 0.0
+        val checkInTime = booking.checkInDate?.toDate()?.time
+        val currentTime = System.currentTimeMillis()
+
+        val timeDifference = checkInTime?.minus(currentTime)
+        val twentyFourHoursInMillis = 24 * 60 * 60 * 1000L
+
+        if (timeDifference != null) {
+            return if (timeDifference > twentyFourHoursInMillis) {
+                totalPaid
+            } else {
+                0.0
+            }
+        }
+        return 0.0
+    }
+
+    private fun openDialogCancelConfirm(customerId: String, ownerId: String) {
+        val refundAmount = calculateRefundAmount()
         AlertDialog.Builder(this)
             .setTitle(title)
             .setMessage("Are you sure you want to cancel your reservation?")
 
             .setPositiveButton("sure") { dialog, which ->
                 dialog.dismiss()
-                cancelTransaction(customerId,ownerId)
+                cancelTransaction(customerId,ownerId,refundAmount)
             }
 
             .setNegativeButton("cancel") { dialog, which ->
@@ -396,9 +489,38 @@ class BookingDetailActivity : AppCompatActivity() {
                             Log.e("Firebase", "Lỗi chuyển đổi dữ liệu cho Invoice: ${document.id}", ex)
                         }
                     }
+                    val shouldShowExtraFields = invoices.size > 1
+
+                    binding.layoutExtraFeeContainer.isVisible = shouldShowExtraFields
+                    binding.layoutTotalPaidContainer.isVisible = shouldShowExtraFields
+
+                    if (shouldShowExtraFields) {
+                        updateExtraFeeAndTotalPaid()
+                    }
                     onComplete()
                 }
             }
+
+    }
+
+    private fun updateExtraFeeAndTotalPaid() {
+        val booking = currentBooking ?: return
+
+        var totalPaidAmount = 0.0
+        for (invoice in invoices) {
+            if (invoice.paymentStatus == "paid") {
+                totalPaidAmount += invoice.totalAmount
+            }
+        }
+
+        val fundAmount = invoices.firstOrNull()?.totalAmount ?: 0.0
+
+        val totalAfterDiscount = booking.totalFinal
+
+        val extraFee = totalPaidAmount + fundAmount - totalAfterDiscount
+
+        binding.tvExtraFee.text = Format.formatCurrency(extraFee)
+        binding.tvTotalPaidAmount.text = Format.formatCurrency(totalPaidAmount)
     }
 
     private fun loadRoomType(roomTypeId: String, onComplete: () -> Unit) {
@@ -550,10 +672,37 @@ class BookingDetailActivity : AppCompatActivity() {
             }
     }
 
+    private fun showCancellationPolicyDialog(hotelId: String) {
+        val htmlPolicyText = """        
+        <br><br>
+        1. Cancellation <b>more than 24 hours</b> before Check-in: 
+        <b><font color="#388E3C">100% refund of deposit.</font></b>
+        
+        <br><br>
+        2. Cancellation <b>within 24 hours</b> before Check-in: 
+        <b><font color="#D32F2F">No deposit refund (0%).</font></b>
+        
+        <br><br>
+        3. <b>No-Show</b> (Not arriving): 
+        <b><font color="#D32F2F">No deposit refund (0%).</font></b>
+        
+        <br><br>
+        <font color="#808080">Please contact support if you require further details.</font>
+    """.trimIndent()
+
+        val formattedText = HtmlCompat.fromHtml(htmlPolicyText, HtmlCompat.FROM_HTML_MODE_LEGACY)
+
+        AlertDialog.Builder(this)
+            .setTitle("Cancellation Policy")
+            .setMessage(formattedText)
+            .setPositiveButton("I Understand", null)
+            .show()
+    }
+
     fun convertTimestampToString(timestamp: Timestamp): String {
         val date: Date = timestamp.toDate()
 
-        val dateFormatter = SimpleDateFormat("dd MMM", Locale.getDefault())
+        val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
         return dateFormatter.format(date)
     }

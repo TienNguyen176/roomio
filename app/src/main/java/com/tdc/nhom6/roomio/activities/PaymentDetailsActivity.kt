@@ -1,6 +1,8 @@
 package com.tdc.nhom6.roomio.activities
 
+import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
@@ -10,11 +12,18 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
+import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.SetOptions
+
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.PaymentMethodAdapter
+import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter.Format
+import com.tdc.nhom6.roomio.databinding.DialogPaymentConfirmBinding
+import com.tdc.nhom6.roomio.databinding.DialogPaymentSuccessBinding
+import com.tdc.nhom6.roomio.models.Invoice
 import com.tdc.nhom6.roomio.models.PaymentMethod
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -28,6 +37,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
     private var paymentAdapter: PaymentMethodAdapter? = null
     private var paymentMethodsListener: ListenerRegistration? = null
     private var bookingListener: ListenerRegistration? = null
+    private var invoiceListener: ListenerRegistration? = null
     private var walletListener: ListenerRegistration? = null
     private var requiredAmount: Double = 0.0
     private var walletBalance: Double = 0.0
@@ -35,9 +45,17 @@ class PaymentDetailsActivity : AppCompatActivity() {
     private var bookingDocId: String? = null
     private var customerId: String? = null
     private lateinit var tvPaymentEmpty: TextView
+    private lateinit var tvTotalAmount: TextView
+    private lateinit var tvPaidAmount: TextView
     private var totalAmountToPay: Double = 0.0
+    private var invoicePaidAmount: Double = 0.0
+    private var baseRoomPrice: Double = 0.0
+    private var baseExtraFee: Double = 0.0
+    private var baseCleaningFee: Double = 0.0
+    private var invoiceDocId: String? = null
+    private lateinit var  hotelId: String
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+        override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_payment_details)
 
@@ -56,11 +74,10 @@ class PaymentDetailsActivity : AppCompatActivity() {
         val nightsExtra = intent.getIntExtra("NIGHTS_COUNT", -1)
         val guestsCount = intent.getIntExtra("GUESTS_COUNT", 0)
         val discount = intent.getStringExtra("DISCOUNT_TEXT") ?: "-"
-
         val roomPrice = intent.getDoubleExtra("ROOM_PRICE", 0.0)
         val extraFee = intent.getDoubleExtra("EXTRA_FEE", 0.0)
         val cleaningFee = intent.getDoubleExtra("CLEANING_FEE", 0.0)
-        val hotelId = intent.getStringExtra("HOTEL_ID")
+        hotelId = intent.getStringExtra("HOTEL_ID").toString()
         bookingDocId = intent.getStringExtra("BOOKING_ID")
 
         val checkInText = if (rawCheckIn.isNotBlank()) rawCheckIn else formatDateTimeOrEmpty(checkInMillis)
@@ -71,13 +88,14 @@ class PaymentDetailsActivity : AppCompatActivity() {
             else -> 0
         }
 
-        val totalAmount = roomPrice + extraFee + cleaningFee
-        totalAmountToPay = totalAmount
+        baseRoomPrice = roomPrice
+        baseExtraFee = extraFee
+        baseCleaningFee = cleaningFee
+        totalAmountToPay = roomPrice + extraFee + cleaningFee
 
         findViewById<TextView>(R.id.tvGuestName).text = "Guest name: $guestName"
         findViewById<TextView>(R.id.tvGuestPhone).text = if (guestPhone.isNotEmpty()) "Phone: $guestPhone" else ""
         findViewById<TextView>(R.id.tvGuestEmail).text = if (guestEmail.isNotEmpty()) "Email: $guestEmail" else ""
-
         findViewById<TextView>(R.id.tvResId).text = "Reservation ID: $resId"
         findViewById<TextView>(R.id.tvCheckIn).text = if (checkInText.isNotEmpty()) "Check-in: $checkInText" else "Check-in: -"
         findViewById<TextView>(R.id.tvCheckOut).text = if (checkOutText.isNotEmpty()) "Check-out: $checkOutText" else "Check-out: -"
@@ -93,11 +111,11 @@ class PaymentDetailsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvRoomPrice).text = "Room price/night: ${formatCurrency(roomPrice)}"
         findViewById<TextView>(R.id.tvExtraFee).text = "Extra fee: ${formatCurrency(extraFee)}"
         findViewById<TextView>(R.id.tvDiscount).text = "Discount/ voucher: $discount"
-        findViewById<TextView>(R.id.tvTotalAmount).text = "Total amount: ${formatCurrency(totalAmount)}"
-        findViewById<TextView>(R.id.tvGuestPay).text = "Guest pay: ${formatCurrency(totalAmount)}"
-        findViewById<TextView>(R.id.tvGrandTotal).text = "Total amount: ${formatCurrency(totalAmount)}"
+        tvTotalAmount = findViewById(R.id.tvTotalAmount)
+        tvPaidAmount = findViewById(R.id.tvPaidAmount)
+        updatePaymentSummary()
 
-        requiredAmount = totalAmount
+        requiredAmount = totalAmountToPay
         walletBalance = 0.0
         tvPaymentEmpty = findViewById(R.id.tvPaymentEmpty)
 
@@ -112,6 +130,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
 
         observePaymentMethods(hotelId)
         observeBookingCustomer(bookingDocId)
+        bookingDocId?.let { observeInvoiceTotals(it) }
 
         val btnConfirm = findViewById<MaterialButton>(R.id.btnConfirmPayment)
         btnConfirm.setOnClickListener {
@@ -128,6 +147,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
         super.onDestroy()
         paymentMethodsListener?.remove()
         bookingListener?.remove()
+        invoiceListener?.remove()
         walletListener?.remove()
     }
 
@@ -202,6 +222,56 @@ class PaymentDetailsActivity : AppCompatActivity() {
             }
     }
 
+    private fun observeInvoiceTotals(bookingId: String) {
+        invoiceListener?.remove()
+        val invoices = firestore.collection("invoices")
+        invoices.document(bookingId).get()
+            .addOnSuccessListener { doc ->
+                if (doc.exists()) {
+                    attachInvoiceListener(doc.reference)
+                } else {
+                    invoices.whereEqualTo("bookingId", bookingId)
+                        .limit(1)
+                        .get()
+                        .addOnSuccessListener { result ->
+                            val found = result.documents.firstOrNull()
+                            if (found != null) {
+                                attachInvoiceListener(found.reference)
+                            } else {
+                                invoicePaidAmount = 0.0
+                                updatePaymentSummary()
+                            }
+                        }
+                        .addOnFailureListener {
+                            invoicePaidAmount = 0.0
+                            updatePaymentSummary()
+                        }
+                }
+            }
+            .addOnFailureListener {
+                invoicePaidAmount = 0.0
+                updatePaymentSummary()
+            }
+    }
+
+    private fun attachInvoiceListener(ref: DocumentReference) {
+        invoiceDocId = ref.id
+        invoiceListener?.remove()
+        invoiceListener = ref.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                invoicePaidAmount = 0.0
+                updatePaymentSummary()
+                return@addSnapshotListener
+            }
+            val paid = snapshot?.getDouble("totalAmount")
+                ?: snapshot?.getDouble("totalPaidAmount")
+                ?: snapshot?.getDouble("paidAmount")
+                ?: 0.0
+            invoicePaidAmount = paid
+            updatePaymentSummary()
+        }
+    }
+
     private fun loadWalletBalance(customerId: String) {
         walletListener?.remove()
         walletListener = firestore.collection("users")
@@ -226,6 +296,16 @@ class PaymentDetailsActivity : AppCompatActivity() {
         tvPaymentEmpty.visibility = if (isEmpty) View.VISIBLE else View.GONE
     }
 
+    private fun updatePaymentSummary() {
+        val gross = baseRoomPrice + baseExtraFee + baseCleaningFee
+        val remaining = max(0.0, gross - invoicePaidAmount)
+        totalAmountToPay = remaining
+        requiredAmount = remaining
+        tvTotalAmount.text = "Total amount: ${formatCurrency(remaining)}"
+        tvPaidAmount.text = "Paid amount: ${formatCurrency(invoicePaidAmount)}"
+        paymentAdapter?.updateRequiredAmount(remaining)
+    }
+
     private fun showConfirmDialog(method: PaymentMethod) {
         AlertDialog.Builder(this)
             .setTitle("Confirm payment")
@@ -235,41 +315,154 @@ class PaymentDetailsActivity : AppCompatActivity() {
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Confirm") { dialog, _ ->
                 dialog.dismiss()
-                completeBooking(method)
+                if (isTransferMethod(method)) {
+                    openTransferPaymentScreen(method)
+                } else {
+                    val ownerId=getOwnerId(hotelId)
+                    customerId?.let { openDialogPaymentConfirm(it, ownerId,method) }
+                }
             }
             .show()
     }
 
-    private fun completeBooking(method: PaymentMethod) {
+    private fun getOwnerId(hotelId: String): String {
+        var ownerId=""
+        firestore.collection("hotels").document(hotelId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null && document.exists()) {
+                    ownerId=document.getString("ownerId").toString()
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.d("PaymentDetailsActivity", "getOwnerId failed with ", exception)
+            }
+        return ownerId
+    }
+
+    private fun isTransferMethod(method: PaymentMethod): Boolean {
+        return method.paymentMethodName.equals("Transfer payment", ignoreCase = true)
+    }
+
+    private fun openTransferPaymentScreen(method: PaymentMethod) {
+        val bookingId = bookingDocId
+        if (bookingId.isNullOrBlank()) {
+            Toast.makeText(this, "Missing booking reference", Toast.LENGTH_SHORT).show()
+            return
+        }
+        addInvoice(method) { invoiceId ->
+            invoiceDocId = invoiceId
+            val intent = Intent(this, PaymentActivity::class.java).apply {
+                putExtra("BOOKING_ID", bookingId)
+                putExtra("INVOICE_ID", bookingId)
+            }
+            startActivity(intent)
+        }
+    }
+
+    private fun addInvoice(method: PaymentMethod, onComplete: (invoiceDocId: String?) -> Unit = {}) {
         val docId = bookingDocId
         if (docId.isNullOrBlank()) {
             Toast.makeText(this, "Missing booking reference", Toast.LENGTH_SHORT).show()
             finish()
+            onComplete(null)
             return
         }
 
-        val updates = mutableMapOf<String, Any>(
-            "status" to "completed",
-            "paymentStatus" to "completed",
-            "paymentMethodName" to method.paymentMethodName,
-            "paymentCompletedAt" to FieldValue.serverTimestamp(),
-            "totalPaidAmount" to totalAmountToPay
-        )
-        method.paymentMethodId?.let { updates["paymentMethodId"] = it }
+        val invoices = firestore.collection("invoices")
+        val finalInvoiceRef = invoiceDocId?.let { invoices.document(it) } ?: invoices.document(docId)
 
-        firestore.collection("bookings")
-            .document(docId)
-            .update(updates)
-            .addOnSuccessListener {
-                Toast.makeText(this, "Payment confirmed", Toast.LENGTH_SHORT).show()
-                finish()
+        if (invoiceDocId == null) {
+            invoiceDocId = finalInvoiceRef.id
+        }
+
+        val newPaidTotal = invoicePaidAmount + totalAmountToPay
+        val invoiceUpdates = mapOf(
+            "bookingId" to docId,
+            "totalAmount" to newPaidTotal,
+            "paymentMethodId" to method.paymentMethodId
+        )
+
+        firestore.runBatch { batch ->
+            batch.set(finalInvoiceRef, invoiceUpdates, SetOptions.merge())
+        }.addOnSuccessListener {
+            Toast.makeText(this, "Payment confirmed", Toast.LENGTH_SHORT).show()
+            onComplete(finalInvoiceRef.id)
+        }.addOnFailureListener { error ->
+            Toast.makeText(
+                this,
+                "Failed to confirm payment: ${error.localizedMessage ?: "Unknown error"}",
+                Toast.LENGTH_LONG
+            ).show()
+            onComplete(null)
+        }
+    }
+    private fun openDialogPaymentConfirm(customerId: String, ownerId: String,method: PaymentMethod) {
+        val amount=totalAmountToPay
+        val viewBinding = DialogPaymentConfirmBinding.inflate(layoutInflater)
+        viewBinding.tvAmountPayment.text= Format.formatCurrency(amount)
+
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setView(viewBinding.root)
+            .create()
+
+        viewBinding.btnYes.setOnClickListener {
+            dialog.dismiss()
+            addInvoice(method) { invoiceId ->
+                invoiceDocId = invoiceId
+                firestore.runTransaction { transition ->
+                    val userRef=firestore.collection("users").document(customerId)
+                    val ownerRef=firestore.collection("users").document(ownerId)
+                    val userSnapshot=transition.get(userRef)
+                    val ownerSnapshot=transition.get(ownerRef)
+                    val currentCustomerBalance=userSnapshot.getDouble("walletBalance")
+                    val currentOwnerBalance=ownerSnapshot.getDouble("walletBalance")
+                    val newCustomerBalance = currentCustomerBalance?.minus(amount)
+                    val newOwnerBalance = currentOwnerBalance?.plus(amount)
+                    transition.update(userRef,"walletBalance",newCustomerBalance)
+                    transition.update(ownerRef,"walletBalance",newOwnerBalance)
+                }
+                    .addOnSuccessListener {
+                        Log.d("Payment", "Transaction success!")
+                        firestore.collection("bookings").document(bookingDocId!!)
+                            .update("status","completed")
+                        firestore.collection("invoices").document(invoiceId!!)
+                            .update("paymentStatus","paid")
+                        openDialogPaymentSuccess(amount)
+                    }.addOnFailureListener { e ->
+                        Log.w("Payment", "Transaction failure.", e)
+                    }
             }
-            .addOnFailureListener { error ->
-                Toast.makeText(
-                    this,
-                    "Failed to confirm payment: ${error.localizedMessage ?: "Unknown error"}",
-                    Toast.LENGTH_LONG
-                ).show()
+
+        }
+
+        viewBinding.btnNo.setOnClickListener {
+            dialog.dismiss()
+        }
+        dialog.show()
+    }
+    private fun openDialogPaymentSuccess(amount: Double){
+        val viewBinding = DialogPaymentSuccessBinding.inflate(layoutInflater)
+        viewBinding.tvAmountPayment.text=  Format.formatCurrency(amount)
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setView(viewBinding.root)
+            .create()
+
+        viewBinding.btnOK.setOnClickListener{
+            dialog.dismiss()
+            val intent=Intent(this,ReceptionActivity::class.java).apply {
+                flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
+            startActivity(intent)
+        }
+        dialog.setOnCancelListener{
+            dialog.dismiss()
+            val intent=Intent(this,ReceptionActivity::class.java).apply {
+                flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            startActivity(intent)
+        }
+
+        dialog.show()
     }
 }
