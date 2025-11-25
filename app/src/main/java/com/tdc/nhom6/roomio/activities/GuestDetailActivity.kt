@@ -7,7 +7,6 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.RadioButton
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -15,7 +14,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.adapters.PaymentMethodAdapter
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter.Format
@@ -79,7 +80,9 @@ class GuestDetailActivity : AppCompatActivity() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = "Guest Detail"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-
+        binding.toolbar.setNavigationOnClickListener {
+            finish()
+        }
         booking?.let { safeBooking ->
             startDataLoading(safeBooking)
             initial()
@@ -197,11 +200,6 @@ class GuestDetailActivity : AppCompatActivity() {
                 return@let
             }
 
-            if (newBookingId != null) {
-                handleNextPaymentStep(newBookingId!!, safePaymentMethod)
-                return@let
-            }
-
             binding.progressBar.visibility = View.VISIBLE
 
             updateRoomForBooking(bookingData,
@@ -210,20 +208,55 @@ class GuestDetailActivity : AppCompatActivity() {
                     updatedBooking.status = "pending"
                     updatedBooking.discountId= currentDiscount?.id
                     updatedBooking.discountPaymentMethodId= currentDiscountPM?.discountId
-                    db.collection("bookings")
-                        .add(updatedBooking)
-                        .addOnSuccessListener { documentReference ->
-                            newBookingId = documentReference.id
-                            Log.d("Firebase", "Thêm booking thành công. ID: $newBookingId")
+                    updatedBooking.note=binding.tvRequest.text.toString().trim()
 
-                            addInvoice(updatedBooking, documentReference.id, false)
+                    db.runTransaction { transaction ->
+                        val newBookingRef = db.collection("bookings").document()
+                        val hotelDiscountId = updatedBooking.discountId
 
-                            handleNextPaymentStep(documentReference.id, safePaymentMethod)
+                        if (hotelDiscountId != null && currentHotel != null) {
+                            val discountRef = db.collection("hotels")
+                                .document(currentHotel!!.hotelId)
+                                .collection("discounts")
+                                .document(hotelDiscountId)
 
+                            val discountSnapshot = transaction.get(discountRef)
+                            val currentCount = discountSnapshot.getLong("availableCount") ?: 0L
+
+                            if (currentCount > 0) {
+                                transaction.update(discountRef, "availableCount", FieldValue.increment(-1))
+                            } else {
+                                throw FirebaseFirestoreException(
+                                    "Discount is no longer available.",
+                                    FirebaseFirestoreException.Code.ABORTED
+                                )
+                            }
+                        }
+
+                        transaction.set(newBookingRef, updatedBooking)
+                        newBookingRef.id
+                    }
+                        .addOnSuccessListener { bookingId ->
+                            newBookingId = bookingId
+                            Log.d("Firebase", "Giao dịch ĐẶT PHÒNG/DISCOUNT thành công. ID: $bookingId")
+
+                            updateRoomStatus(updatedBooking.roomId)
+                            addInvoice(updatedBooking,newBookingId!!, false, safePaymentMethod) { invoiceId ->
+                                if (invoiceId != null) {
+                                    handleNextPaymentStep(bookingId, invoiceId, safePaymentMethod)
+                                } else {
+                                    binding.progressBar.visibility = View.GONE
+                                    Log.e("Firebase", "Lỗi: Invoice không được tạo thành công.")
+                                }
+                            }
                         }
                         .addOnFailureListener { e ->
                             binding.progressBar.visibility = View.GONE
-                            Log.e("Firebase", "Lỗi khi thêm booking", e)
+                            if (e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.ABORTED) {
+                                Log.e("Firebase", "Lỗi: Giao dịch bị hủy do discount đã hết hoặc lỗi khác.", e)
+                            } else {
+                                Log.e("Firebase", "Lỗi khi thực hiện giao dịch ĐẶT PHÒNG/DISCOUNT", e)
+                            }
                         }
                 },
                 onFailure = { exception ->
@@ -234,74 +267,95 @@ class GuestDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun handleNextPaymentStep(bookingId: String, safePaymentMethod: PaymentMethod) {
-        if (safePaymentMethod.paymentMethodName == "Travel wallet") {
-            currentHotel?.let { it1 ->
-                booking?.let {
-                    binding.progressBar.visibility = View.GONE
-                    openDialogPaymentConfirm(it.customerId, it1.ownerId, bookingId)
-                }
+    private fun updateRoomStatus(roomId: String?) {
+        currentHotel?.let { hotel ->
+            roomId?.let { id ->
+                db.collection("hotels")
+                    .document(hotel.hotelId)
+                    .collection("rooms")
+                    .document(id)
+                    .update("status_id", "room_pending")
+                    .addOnSuccessListener {
+                        Log.d("Firestore", "Cập nhật trạng thái phòng $id thành công: room_pending")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("Firestore", "LỖI: Không thể cập nhật trạng thái phòng $id", e)
+                    }
             }
-        } else {
-            binding.progressBar.visibility = View.GONE
-            val intent = Intent(this, PaymentActivity::class.java)
-            intent.putExtra("BOOKING_ID", bookingId)
-            startActivity(intent)
         }
     }
 
-    private fun addInvoice(booking: Booking, bookingId: String, isConfirmedPayment: Boolean) {
+    private fun handleNextPaymentStep(bookingId: String,invoiceId:String, safePaymentMethod: PaymentMethod) {
+        binding.progressBar.visibility = View.GONE
+
+        if (safePaymentMethod.paymentMethodName == "Travel wallet") {
+            currentHotel?.let { it1 ->
+                booking?.let {
+                    openDialogPaymentConfirm(it.customerId, it1.ownerId, bookingId)
+                } ?: run {
+                    Log.e("Payment", "Lỗi: Không thể xác nhận thanh toán Travel Wallet vì booking rỗng")
+                }
+            }
+        } else {
+            val intent = Intent(this, PaymentActivity::class.java)
+            intent.putExtra("BOOKING_ID", bookingId)
+            intent.putExtra("INVOICE_ID", invoiceId)
+            startActivity(intent)
+        }
+    }
+    private fun addInvoice(booking: Booking,bookingId: String, isConfirmedPayment: Boolean, paymentMethod: PaymentMethod, onInvoiceAdded: (String?) -> Unit) {
         val totalAmountValue = getAmountPayment()
-        val safePaymentMethod = selectedMethod!!
+        val safePaymentMethod = paymentMethod
 
         val paymentStatus = if (isConfirmedPayment) "paid" else "payment_pending"
 
         val invoice = Invoice(
-            bookingId = bookingId,
-            totalAmount = totalAmountValue,
-            paymentMethodId = safePaymentMethod.paymentMethodId!!,
-            paymentStatus = paymentStatus
-        )
+                bookingId = bookingId,
+                totalAmount = totalAmountValue,
+                paymentMethodId = safePaymentMethod.paymentMethodId!!,
+                paymentStatus = paymentStatus)
 
         db.collection("invoices")
             .add(invoice)
             .addOnSuccessListener { invoiceDocumentReference ->
-                Log.d("Firebase", "Thêm invoice thành công. ID: ${invoiceDocumentReference.id}")
+                val newInvoiceId = invoiceDocumentReference.id
+                Log.d("Firebase", "Thêm invoice thành công. ID: $newInvoiceId")
                 binding.progressBar.visibility = View.GONE
-
+                onInvoiceAdded(newInvoiceId)
                 if (isConfirmedPayment) {
-                    openDialogPaymentSuccess(invoice.totalAmount, bookingId)
+                    openDialogPaymentSuccess(invoice.totalAmount, booking.bookingId)
                 }
             }
             .addOnFailureListener { e ->
                 binding.progressBar.visibility = View.GONE
+                onInvoiceAdded(null)
                 Log.e("Firebase", "Lỗi khi thêm invoice", e)
             }
+
     }
 
-    private fun getAmountPayment():Double {
-        val checkedId = binding.groupFundAmount.checkedRadioButtonId
-
-        val radioButton = findViewById<RadioButton>(checkedId)
-
-        if (radioButton == null) {
-            Log.e("Firebase", "Lỗi: Không tìm thấy RadioButton đã chọn.")
+    private fun getAmountPayment(): Double {
+        val safeBooking = booking
+        if (safeBooking == null || safeBooking.totalFinal == null) {
+            Log.e("GuestDetail", "Lỗi: Đối tượng Booking hoặc totalFinal không hợp lệ.")
             return 0.0
         }
 
-        val rawText = radioButton.text.toString()
+        val finalPrice = safeBooking.totalFinal!!
+        val checkedId = binding.groupFundAmount.checkedRadioButtonId
 
-        val cleanedForSplit = rawText.replace("[^\\d\\.,\\s]".toRegex(), "")
-
-        val amountString = cleanedForSplit
-            .split(" ")
-            .firstOrNull { it.isNotEmpty() && it.first().isDigit() } ?: ""
-
-        var valueWithoutSeparators = amountString.replace("\\.".toRegex(), "")
-        valueWithoutSeparators = amountString.replace(",".toRegex(), "")
-
-        val totalAmountValue = valueWithoutSeparators.toDoubleOrNull() ?: 0.0
-        return totalAmountValue
+        return when (checkedId) {
+            binding.radFund10.id -> {
+                (finalPrice * 10.0) / 100.0
+            }
+            binding.radFund100.id -> {
+                finalPrice
+            }
+            else -> {
+                Log.e("GuestDetail", "Lỗi: Không tìm thấy RadioButton thanh toán hợp lệ được chọn.")
+                0.0
+            }
+        }
     }
 
     private fun openDialogPaymentConfirm(customerId: String, ownerId: String, bookingId: String) {

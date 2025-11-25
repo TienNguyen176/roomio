@@ -362,23 +362,23 @@
                     android:textColor="@color/black"
                     android:minHeight="48dp"/>
             </LinearLayout>
+            <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+                android:id="@+id/btnPayment"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Payment of deposit"
+                android:backgroundTint="#0090FF"
+                android:textColor="@color/white"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:textSize="15sp"
+                android:layout_margin="10sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:padding="10sp"
+                android:gravity="center"/>
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
-    <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
-        android:id="@+id/btnPayment"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Payment of deposit"
-        android:backgroundTint="#0090FF"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        android:textAllCaps="false"
-        android:textSize="15sp"
-        android:layout_margin="10sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:padding="10sp"
-        android:gravity="center"/>
 
     <ProgressBar
         android:id="@+id/progressBar"

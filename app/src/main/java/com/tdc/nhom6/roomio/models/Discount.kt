@@ -19,5 +19,3 @@ data class Discount(
 
     var lastResetDate: String = ""
 )
-
-

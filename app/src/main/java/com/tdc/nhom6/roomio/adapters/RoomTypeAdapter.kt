@@ -3,11 +3,13 @@ package com.tdc.nhom6.roomio.adapters
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -56,11 +58,9 @@ class RoomTypeAdapter(
         var facilityRatesListener: ListenerRegistration? = null
         var viewListener: ListenerRegistration? = null
         var facilityDetailsListener: ListenerRegistration? = null
+        var roomCountListener: ListenerRegistration? = null
 
         init {
-            binding.layoutBasic.gridFacilitiesBasic.layoutManager = GridLayoutManager(context, 2)
-            binding.layoutBasic.gridFacilitiesBasic.adapter = facilityAdapter
-
             binding.layoutDetail.gridFacilitiesDetail.layoutManager = GridLayoutManager(context, 2)
             binding.layoutDetail.gridFacilitiesDetail.adapter = facilityAdapter
         }
@@ -69,6 +69,7 @@ class RoomTypeAdapter(
             facilityRatesListener?.remove()
             viewListener?.remove()
             facilityDetailsListener?.remove()
+            roomCountListener?.remove()
         }
     }
 
@@ -96,24 +97,18 @@ class RoomTypeAdapter(
 
         val formattedPrice = Format.formatCurrency(roomType.pricePerNight)
 
-        binding.layoutBasic.tvNameTypeBasic.text = roomType.typeName
-        binding.layoutBasic.tvPriceBasic.text = formattedPrice
 
         binding.layoutDetail.tvNameType.text = roomType.typeName
         binding.layoutDetail.tvTotalPrice.text = formattedPrice
         binding.layoutDetail.tvNumberGuest.text = "${roomType.maxPeople} people"
 
-        binding.layoutBasic.areaBasic.tvFacilityName.text = "${roomType.area} m2"
         binding.layoutDetail.areaDetail.tvFacilityName.text = "${roomType.area} m2"
 
         loadViewRealtime(holder, roomType.viewId!!) { result ->
-            binding.layoutBasic.viewBasic.tvFacilityName.text = result.name
             binding.layoutDetail.viewDetail.tvFacilityName.text = result.name
         }
 
-        binding.layoutBasic.areaBasic.iconFacility.setImageResource(R.drawable.ic_bed)
         binding.layoutDetail.areaDetail.iconFacility.setImageResource(R.drawable.ic_bed)
-        binding.layoutBasic.viewBasic.iconFacility.setImageResource(R.drawable.ic_view)
         binding.layoutDetail.viewDetail.iconFacility.setImageResource(R.drawable.ic_view)
 
         val thumbnailImage = roomType.roomImages?.firstOrNull()
@@ -125,19 +120,7 @@ class RoomTypeAdapter(
 
         holder.facilitiesList.clear()
         loadFacilityRatesRealtime(roomType.roomTypeId, holder.facilitiesList, holder.facilityAdapter, holder)
-
-
-        if (expandedPositions.contains(position)) {
-            binding.layoutDetail.root.visibility = View.VISIBLE
-            binding.layoutBasic.root.visibility = View.GONE
-        } else {
-            binding.layoutDetail.root.visibility = View.GONE
-            binding.layoutBasic.root.visibility = View.VISIBLE
-        }
-
-        holder.itemView.setOnClickListener {
-            toggleExpansion(position)
-        }
+        
 
         binding.layoutDetail.cardImgRoom.setOnClickListener {
             roomType.roomImages?.let { images ->
@@ -148,9 +131,52 @@ class RoomTypeAdapter(
         binding.layoutDetail.btnReverve.setOnClickListener {
             showDateRangePickerDialog(roomType)
         }
-        binding.layoutBasic.btnReverveBasic.setOnClickListener {
-            showDateRangePickerDialog(roomType)
+
+        holder.roomCountListener = startAvailableRoomCountListener(roomType.roomTypeId) { count ->
+            binding.layoutDetail.tvAvailableRoomCount.text =
+                if (count > 0) {
+                    context.getString(R.string.available_rooms_format, count)
+                } else {
+                    ""
+                }
+
+            if (count > 0) {
+                binding.layoutDetail.btnReverve.isEnabled = true
+                binding.layoutDetail.btnReverve.alpha = 1.0f
+            } else {
+                binding.layoutDetail.btnReverve.isEnabled = false
+                binding.layoutDetail.btnReverve.alpha = 0.5f
+                binding.layoutDetail.btnReverve.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(context,R.color.red))
+                binding.layoutDetail.btnReverve.setTextColor(ContextCompat.getColor(context, R.color.red))
+                binding.layoutDetail.btnReverve.text = "Fully booked"
+            }
         }
+    }
+
+    private fun startAvailableRoomCountListener(roomTypeId: String, onCountResult: (Int) -> Unit): ListenerRegistration? {
+        val hotelId = (context as? HotelDetailActivity)?.currentHotel?.hotelId
+        if (hotelId == null) {
+            onCountResult(0)
+            return null
+        }
+
+        return HotelDetailActivity.db.collection("hotels").document(hotelId)
+            .collection("rooms")
+            .whereEqualTo("room_type_id", roomTypeId)
+            .whereEqualTo("status_id", "room_available")
+            .addSnapshotListener { querySnapshot, e ->
+                if (e != null) {
+                    Log.e("Firestore", "Lỗi lắng nghe phòng trống: ${e.message}")
+                    onCountResult(0)
+                    return@addSnapshotListener
+                }
+
+                if (querySnapshot != null) {
+                    onCountResult(querySnapshot.size())
+                } else {
+                    onCountResult(0)
+                }
+            }
     }
 
     private fun openDialogListImage(images: List<RoomImage>) {
@@ -159,19 +185,16 @@ class RoomTypeAdapter(
 
 
 
-        val imageUrls: MutableList<String> = images.map { roomImage ->
-            roomImage.imageUrl
-        }.toMutableList()
 
         val nextItemClickListener: (Int) -> Unit = { currentPosition ->
             val nextPosition = currentPosition + 1
-            if (nextPosition < imageUrls.size) {
+            if (nextPosition < images.size) {
                 recyclerImage.smoothScrollToPosition(nextPosition)
             }
         }
 
         recyclerImage.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-         recyclerImage.adapter = ImageListAdapter(imageUrls, nextItemClickListener)
+         recyclerImage.adapter = RoomImageListAdapter(images, nextItemClickListener)
 
         val dialog = AlertDialog.Builder(context)
             .setView(view)
@@ -313,17 +336,6 @@ class RoomTypeAdapter(
 
         dateRangePicker.show(fragmentManager, "DATE_RANGE_PICKER")
 
-    }
-
-    private fun toggleExpansion(position: Int) {
-        val previouslyExpanded = expandedPositions.contains(position)
-
-        expandedPositions.clear()
-
-        if (!previouslyExpanded) {
-            expandedPositions.add(position)
-        }
-        notifyDataSetChanged()
     }
 
     object Format {
