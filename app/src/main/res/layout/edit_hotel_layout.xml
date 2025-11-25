@@ -148,7 +148,7 @@
                 android:layout_height="40dp"
                 android:background="@drawable/bg_circle_button"
                 android:src="@android:drawable/ic_input_add"
-                android:tint="#0C6FEF"
+                app:tint="#0C6FEF"
                 android:contentDescription="Thêm tiện ích" />
         </LinearLayout>
 
