@@ -25,6 +25,7 @@ import com.tdc.nhom6.roomio.adapters.ReservationAdapter
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
 import com.tdc.nhom6.roomio.fragments.CleanerTask
 import com.tdc.nhom6.roomio.fragments.TaskStatus
+import com.tdc.nhom6.roomio.models.Booking
 import com.tdc.nhom6.roomio.models.HeaderColor
 import com.tdc.nhom6.roomio.models.ReservationStatus
 import com.tdc.nhom6.roomio.models.ReservationUi
@@ -42,6 +43,7 @@ class ReceptionFragment : Fragment() {
     private val allReservations = mutableListOf<ReservationUi>()
     private var currentFilter: ReservationStatus = ReservationStatus.ALL
     private var searchQuery: String = ""
+    private var currentBooking: Booking?= null
     private var bookingsListener: ListenerRegistration? = null
     private var invoicesListener: ListenerRegistration? = null
     private val activeJobs = mutableListOf<Job>()
@@ -68,7 +70,7 @@ class ReceptionFragment : Fragment() {
         CleanerTaskRepository.latestCleaningResult().observe(viewLifecycleOwner) {
             val consumed = CleanerTaskRepository.consumeLatestCleaningResult() ?: return@observe
             runCatching {
-                val roomId = consumed.first
+                val roomId = currentBooking?.roomId
                 val ctx = requireContext()
                 val intent = Intent(ctx, ServiceExtraFeeActivity::class.java)
                 intent.putExtra("ROOM_ID", roomId)
@@ -125,7 +127,7 @@ class ReceptionFragment : Fragment() {
             }
     }
 
-    private suspend fun handleBookingSnapshot(snapshots: QuerySnapshot) {
+    private fun handleBookingSnapshot(snapshots: QuerySnapshot) {
         if (!isLifecycleActive()) return
 
         val cleaningNotifications = collectCleaningNotifications(snapshots)
@@ -162,7 +164,6 @@ class ReceptionFragment : Fragment() {
             )
         }
     }
-
     private fun collectCleaningNotifications(snapshots: QuerySnapshot): List<Pair<String, String>> {
         val previous = allReservations.associateBy { it.documentId }
         val notifications = mutableListOf<Pair<String, String>>()
@@ -187,8 +188,8 @@ class ReceptionFragment : Fragment() {
 
         val documentId = doc.id
         val reservationId = doc.getString("reservationId") ?: documentId
-        val customerRaw = doc.get("customerid")
-            ?: doc.get("customerId")
+        val customerRaw =
+             doc.get("customerId")
             ?: doc.get("userId")
             ?: doc.get("userRef")
             ?: doc.get("customer")
@@ -238,8 +239,8 @@ class ReceptionFragment : Fragment() {
         val headerColorInitial = when {
             isCanceled -> HeaderColor.RED
             baseStatus == ReservationStatus.COMPLETED -> HeaderColor.GREEN
+            baseStatus == ReservationStatus.PAID -> HeaderColor.PURPLE
             baseStatus == ReservationStatus.PENDING -> HeaderColor.YELLOW
-            hasCheckedIn -> HeaderColor.GREEN
             else -> HeaderColor.BLUE
         }
 
@@ -265,7 +266,7 @@ class ReceptionFragment : Fragment() {
             numberGuest = numberGuest,
             roomType = finalRoomTypeName,
             roomTypeId = roomTypeId,
-            hotelId = doc.getString("hotel_id"),
+            hotelId = doc.getString("hotelId"),
             guestPhone = fallbackPhone,
             guestEmail = fallbackEmail,
             totalFinalAmount = totalFinal,
@@ -291,7 +292,7 @@ class ReceptionFragment : Fragment() {
             totalFinal = totalFinal,
             invoiceKeys = invoiceKeys,
             roomTypeId = roomTypeId,
-            hotelId = doc.getString("hotelId") ?: doc.getString("hotel_id"),
+            hotelId = doc.getString("hotelId") ?: doc.getString("hotelId"),
             guestPhone = fallbackPhone,
             guestEmail = fallbackEmail
         )
@@ -305,15 +306,15 @@ class ReceptionFragment : Fragment() {
     }
 
     private fun shouldIncludeBooking(doc: DocumentSnapshot): Boolean {
-        val paymentStatus = doc.getString("paymentStatus") ?: return true
-        val isApproved = paymentStatus.equals("payment_approved", ignoreCase = true)
-        if (!isApproved) {
+        val paymentStatus = doc.getString("status") ?: return true
+        val isconfirmed = paymentStatus.equals("confirm", ignoreCase = true)
+        if (!isconfirmed) {
             android.util.Log.d(
                 "ReceptionFragment",
                 "Skipping booking ${doc.id} - paymentStatus: $paymentStatus"
             )
         }
-        return isApproved
+        return isconfirmed
     }
 
     private fun resolveBaseStatus(
@@ -678,7 +679,7 @@ class ReceptionFragment : Fragment() {
 
         val normalizedStatus = meta.statusStr.lowercase(Locale.getDefault())
         val finalStatus = when {
-            paymentStatus == PaymentStatus.FULL -> ReservationStatus.COMPLETED
+            paymentStatus == PaymentStatus.FULL -> ReservationStatus.PAID
             normalizedStatus == "completed" -> ReservationStatus.COMPLETED
             normalizedStatus == "canceled" || normalizedStatus == "cancelled" -> ReservationStatus.CANCELED
             normalizedStatus == "pending_payment" || normalizedStatus == "pending payment" -> ReservationStatus.PENDING
@@ -701,7 +702,7 @@ class ReceptionFragment : Fragment() {
 
         val headerColor = when {
             finalStatus == ReservationStatus.CANCELED -> HeaderColor.RED
-            paymentStatus == PaymentStatus.FULL -> HeaderColor.GREEN
+            paymentStatus == PaymentStatus.FULL -> HeaderColor.PURPLE
             paymentStatus == PaymentStatus.PARTIAL -> HeaderColor.BLUE
             finalStatus == ReservationStatus.COMPLETED -> HeaderColor.GREEN
             action.equals("payment", ignoreCase = true) -> HeaderColor.YELLOW
@@ -890,6 +891,7 @@ class ReceptionFragment : Fragment() {
                         reservation.action.equals("payment", ignoreCase = true)
                 ReservationStatus.COMPLETED -> reservation.status == ReservationStatus.COMPLETED
                 ReservationStatus.CANCELED -> reservation.status == ReservationStatus.CANCELED
+                ReservationStatus.PAID -> TODO()
             }
 
             val searchMatch = if (query.isEmpty()) {

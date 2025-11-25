@@ -310,6 +310,7 @@ class ReservationViewHolder(view: View, private val onActionClick: (Int) -> Unit
             HeaderColor.GREEN -> android.graphics.Color.parseColor("#CDEFD7")
             HeaderColor.YELLOW -> android.graphics.Color.parseColor("#F7E7A8")
             HeaderColor.RED -> android.graphics.Color.parseColor("#841919")
+            HeaderColor.PURPLE -> android.graphics.Color.parseColor("#E3D4F1")
         }
 
         header.setBackgroundColor(headerColorValue)
