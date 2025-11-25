@@ -158,14 +158,11 @@ class HomeFragment : Fragment() {
      */
     private fun navigateToSearchResults(query: String) {
         try {
-            // Create SearchResultsFragment with the search query
-            val searchFragment = SearchResultsFragment.newInstance(query, "")
-
-            // Navigate to search results fragment
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.nav_host_container, searchFragment)
-                .addToBackStack("search_results")
-                .commit()
+            // Navigate to SearchActivity with the search query
+            val intent = android.content.Intent(requireContext(), com.tdc.nhom6.roomio.activities.SearchActivity::class.java)
+            intent.putExtra(com.tdc.nhom6.roomio.activities.SearchActivity.EXTRA_SEARCH_QUERY, query)
+            intent.putExtra(com.tdc.nhom6.roomio.activities.SearchActivity.EXTRA_LOCATION, "")
+            startActivity(intent)
 
         } catch (e: Exception) {
             android.widget.Toast.makeText(
