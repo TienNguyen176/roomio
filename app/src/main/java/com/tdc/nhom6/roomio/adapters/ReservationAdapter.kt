@@ -136,7 +136,7 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) :
                 Firebase.firestore.collection("bookings").document(docId)
                     .update(
                         mapOf(
-                            "status" to "checked_in",
+                            "status" to "checked_out",
                             "checkInDateActual" to actualCheckInTimestamp
                         )
                     )

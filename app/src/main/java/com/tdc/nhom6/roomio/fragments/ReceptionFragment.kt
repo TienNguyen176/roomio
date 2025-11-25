@@ -306,16 +306,10 @@ class ReceptionFragment : Fragment() {
     }
 
     private fun shouldIncludeBooking(doc: DocumentSnapshot): Boolean {
-        val paymentStatus = doc.getString("status") ?: return true
-        val isconfirmed = paymentStatus.equals("confirm", ignoreCase = true)
-        if (!isconfirmed) {
-            android.util.Log.d(
-                "ReceptionFragment",
-                "Skipping booking ${doc.id} - paymentStatus: $paymentStatus"
-            )
-        }
-        return isconfirmed
+        val paymentStatus = doc.getString("status")?.lowercase(Locale.getDefault()) ?: return true
+        return paymentStatus == "confirm" || paymentStatus == "checked_in" || paymentStatus == "checked_out"
     }
+
 
     private fun resolveBaseStatus(
         statusStr: String,
