@@ -1,36 +1,40 @@
 package com.tdc.nhom6.roomio.fragments
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.fragment.app.Fragment
 import androidx.appcompat.app.AlertDialog
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
-import com.tdc.nhom6.roomio.utils.RecyclerViewUtils
-import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.data.CleanerTaskRepository
-import android.content.Intent
-import com.tdc.nhom6.roomio.activities.ServiceExtraFeeActivity
-import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.firestore
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import java.util.Locale
-import java.util.Date
+import com.google.firebase.firestore.DocumentChange
+import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.QuerySnapshot
+import com.google.firebase.firestore.firestore
+import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.activities.ServiceExtraFeeActivity
 import com.tdc.nhom6.roomio.adapters.ReservationAdapter
+import com.tdc.nhom6.roomio.data.CleanerTaskRepository
 import com.tdc.nhom6.roomio.fragments.CleanerTask
 import com.tdc.nhom6.roomio.fragments.TaskStatus
 import com.tdc.nhom6.roomio.models.HeaderColor
 import com.tdc.nhom6.roomio.models.ReservationStatus
 import com.tdc.nhom6.roomio.models.ReservationUi
+import com.tdc.nhom6.roomio.utils.RecyclerViewUtils
 import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class ReceptionFragment : Fragment() {
     private lateinit var reservationAdapter: ReservationAdapter
@@ -38,8 +42,8 @@ class ReceptionFragment : Fragment() {
     private var currentFilter: ReservationStatus = ReservationStatus.ALL
     private var searchQuery: String = ""
     private var bookingsListener: ListenerRegistration? = null
-    private val activeJobs = mutableListOf<kotlinx.coroutines.Job>()
     private var invoicesListener: ListenerRegistration? = null
+    private val activeJobs = mutableListOf<Job>()
     private val reservationMeta = mutableMapOf<String, ReservationMeta>()
     private val invoiceDocuments = mutableMapOf<String, InvoiceDocInfo>()
     private val reservationDisplayCodes = mutableMapOf<String, String>()
@@ -49,49 +53,36 @@ class ReceptionFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        return inflater.inflate(R.layout.fragment_reception, container, false)
-    }
+    ): View? = inflater.inflate(R.layout.fragment_reception, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val rv = view.findViewById<RecyclerView>(R.id.rvReservations)
-        
-        // Configure RecyclerView to prevent swap behavior issues
         RecyclerViewUtils.configureRecyclerView(rv)
-        
-        // Observe cleaner results and navigate to Service extra fee when a new fee is posted
+
         CleanerTaskRepository.latestCleaningResult().observe(viewLifecycleOwner) {
-            // Consume to avoid re-triggering on configuration changes
             val consumed = CleanerTaskRepository.consumeLatestCleaningResult() ?: return@observe
-            try {
+            runCatching {
                 val roomId = consumed.first
                 val ctx = requireContext()
                 val intent = Intent(ctx, ServiceExtraFeeActivity::class.java)
                 intent.putExtra("ROOM_ID", roomId)
-                // Fallback: map reservation id to room id if needed
                 intent.putExtra("RESERVATION_ID", roomId)
-                // Forward some placeholder booking data if available later
                 intent.putExtra("RESERVATION_AMOUNT", 450000.0)
                 startActivity(intent)
-            } catch (_: Exception) { }
+            }
         }
 
         CleanerTaskRepository.tasks().observe(viewLifecycleOwner) { tasks ->
             handleCleanerTasksSnapshot(tasks)
         }
-        
-        // Initialize data
-        allReservations.clear()
 
-        
+        allReservations.clear()
         reservationAdapter = ReservationAdapter(allReservations.toMutableList())
         rv.adapter = reservationAdapter
 
         setupTabs(view)
-
         setupSearch(view)
-
         startInvoiceListener()
         startListeningBookings()
     }
@@ -100,7 +91,6 @@ class ReceptionFragment : Fragment() {
         super.onDestroyView()
         stopListeningBookings()
         stopInvoiceListener()
-        // Cancel all active coroutines to prevent resource leaks
         activeJobs.forEach { it.cancel() }
         activeJobs.clear()
         reservationMeta.clear()
@@ -110,13 +100,10 @@ class ReceptionFragment : Fragment() {
     private fun startListeningBookings() {
         stopListeningBookings()
         val db = Firebase.firestore
-        android.util.Log.d("ReceptionFragment", "Starting to listen to bookings collection...")
         bookingsListener = db.collection("bookings")
             .addSnapshotListener { snapshots, error ->
                 if (error != null) {
                     android.util.Log.e("ReceptionFragment", "Error listening to bookings: ${error.message}", error)
-                    android.util.Log.e("ReceptionFragment", "Error code: ${error.code}, details: ${error.localizedMessage}")
-                    // Show error to user
                     view?.let {
                         android.widget.Toast.makeText(
                             it.context,
@@ -126,494 +113,425 @@ class ReceptionFragment : Fragment() {
                     }
                     return@addSnapshotListener
                 }
-                if (snapshots == null) {
-                    android.util.Log.w("ReceptionFragment", "Bookings snapshot is null - no data received")
-                    return@addSnapshotListener
-                }
-                android.util.Log.d("ReceptionFragment", "Received ${snapshots.size()} booking documents")
-                if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
-                    return@addSnapshotListener
-                }
+                if (snapshots == null || !isLifecycleActive()) return@addSnapshotListener
                 viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                    if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
-                        return@launch
-                    }
-                    
-                    // Track cleaning completion changes for notifications
-                    val cleaningNotifications = mutableListOf<Pair<String, String>>() // reservationId to roomType
-                    
-                    // Process document changes to detect real-time updates
-                    for (change in snapshots.documentChanges) {
-                        if (change.type == com.google.firebase.firestore.DocumentChange.Type.MODIFIED) {
-                            val doc = change.document
-                            // Only filter out bookings that explicitly have a non-approved payment status
-                            val paymentStatus = doc.getString("paymentStatus") ?: ""
-                            val hasPaymentStatus = paymentStatus.isNotEmpty()
-                            val isPaymentApproved = paymentStatus.equals("payment_approved", ignoreCase = true)
-                            // Skip only if paymentStatus exists AND is not approved
-                            if (hasPaymentStatus && !isPaymentApproved) {
-                                continue
-                            }
-                            val documentId = doc.id
-                            val previousReservation = allReservations.find { it.documentId == documentId }
-                            val previousCleaningMillis = previousReservation?.cleaningCompletedAtMillis
-                            val newCleaningTimestamp = valueToTimestamp(doc.get("cleaningCompletedAt"))
-                            
-                            // Only notify if cleaning was just completed (null -> not null)
-                            if (previousCleaningMillis == null && newCleaningTimestamp != null) {
-                                val reservationId = doc.getString("reservationId") ?: documentId
-                                val roomTypeName = doc.getString("roomTypeName")
-                                    ?: doc.getString("room_type_name")
-                                    ?: (doc.get("roomType") as? String)
-                                    ?: "Room"
-                                cleaningNotifications.add(Pair(reservationId, roomTypeName))
+                    handleBookingSnapshot(snapshots)
+                }
+            }
+    }
+
+    private suspend fun handleBookingSnapshot(snapshots: QuerySnapshot) {
+        if (!isLifecycleActive()) return
+
+        val cleaningNotifications = collectCleaningNotifications(snapshots)
+        val builds = mutableListOf<ReservationBuildResult>()
+        val updatedReservations = mutableListOf<ReservationUi>()
+
+        for (doc in snapshots.documents) {
+            val build = buildReservation(doc) ?: continue
+            reservationMeta[build.meta.documentId] = build.meta
+            builds.add(build)
+            updatedReservations.add(applyCleaningStatusToReservation(build.ui))
+        }
+
+        val currentDocIds = updatedReservations.map { it.documentId }.toSet()
+        reservationMeta.keys.retainAll(currentDocIds)
+        reservationDisplayCodes.keys.retainAll(currentDocIds)
+
+        allReservations.clear()
+        allReservations.addAll(updatedReservations)
+        applyInvoiceDataToReservations(forceFilter = true)
+
+        cleaningNotifications.forEach { (reservationId, roomType) ->
+            showCleaningCompletedDialog(reservationId, roomType)
+        }
+
+        builds.forEach { build ->
+            launchCleanerTimestampRefresh(build.meta.documentId)
+            launchGuestEnrichment(build.meta.documentId, build.customerRaw)
+            launchRoomTypeEnrichment(
+                documentId = build.meta.documentId,
+                roomTypeSource = build.roomTypeSource,
+                fallbackName = build.ui.roomType,
+                knownRoomTypeId = build.meta.roomTypeId
+            )
+        }
+    }
+
+    private fun collectCleaningNotifications(snapshots: QuerySnapshot): List<Pair<String, String>> {
+        val previous = allReservations.associateBy { it.documentId }
+        val notifications = mutableListOf<Pair<String, String>>()
+        snapshots.documentChanges.forEach { change ->
+            if (change.type != DocumentChange.Type.MODIFIED) return@forEach
+            val doc = change.document
+            if (!shouldIncludeBooking(doc)) return@forEach
+            val previousReservation = previous[doc.id]
+            val previousCleaning = previousReservation?.cleaningCompletedAtMillis
+            val newCleaningTimestamp = valueToTimestamp(doc.get("cleaningCompletedAt"))
+            if (previousCleaning == null && newCleaningTimestamp != null) {
+                val reservationId = doc.getString("reservationId") ?: doc.id
+                val roomType = resolveRoomTypeName(resolveRoomTypeData(doc))
+                notifications.add(reservationId to roomType)
+            }
+        }
+        return notifications
+    }
+
+    private fun buildReservation(doc: DocumentSnapshot): ReservationBuildResult? {
+        if (!shouldIncludeBooking(doc)) return null
+
+        val documentId = doc.id
+        val reservationId = doc.getString("reservationId") ?: documentId
+        val customerRaw = doc.get("customerid")
+            ?: doc.get("customerId")
+            ?: doc.get("userId")
+            ?: doc.get("userRef")
+            ?: doc.get("customer")
+
+        val roomTypeData = resolveRoomTypeData(doc)
+        val roomTypeId = extractRoomTypeId(roomTypeData.source)
+
+        val checkInValue = doc.get("checkIn") ?: doc.get("checkInDate")
+        val checkOutValue = doc.get("checkOut") ?: doc.get("checkOutDate")
+        val checkInTimestamp = valueToTimestamp(checkInValue)
+        val checkOutTimestamp = valueToTimestamp(checkOutValue)
+        val checkInText = valueToDateTimeString(checkInValue)
+        val checkOutText = valueToDateTimeString(checkOutValue)
+
+        val hasCheckedIn = doc.get("checkInDateActual") != null
+        val hasCheckedOut = doc.get("checkOutDateActual") != null
+
+        val totalOrigin = (doc.get("totalOrigin") as? Number)?.toDouble() ?: 0.0
+        val totalFinal = (doc.get("totalFinal") as? Number)?.toDouble() ?: totalOrigin
+        val numberGuest = (doc.get("numberGuest") as? Number)?.toInt()
+            ?: (doc.get("number_guest") as? Number)?.toInt()
+            ?: (doc.get("guests") as? Number)?.toInt()
+            ?: 1
+
+        val isCanceled = doc.getBoolean("canceled") == true ||
+            doc.getString("status")?.equals("canceled", ignoreCase = true) == true
+        val statusStr = (doc.getString("status") ?: "").lowercase(Locale.getDefault()).trim()
+        val baseStatus = resolveBaseStatus(statusStr, isCanceled, checkInValue, checkOutValue)
+
+        val invoiceKeys = buildInvoiceKeys(doc, reservationId)
+        val finalRoomTypeName = resolveRoomTypeName(roomTypeData)
+
+        val badgeInitial = when {
+            isCanceled -> "Cancelled"
+            baseStatus == ReservationStatus.COMPLETED -> "Completed"
+            baseStatus == ReservationStatus.PENDING -> "Pending payment"
+            else -> ""
+        }
+        val actionInitial = when {
+            isCanceled -> "Cancelled"
+            baseStatus == ReservationStatus.COMPLETED -> "Completed"
+            baseStatus == ReservationStatus.PENDING -> "Payment"
+            hasCheckedIn -> "Check-out"
+            else -> "Check-in"
+        }
+        val headerColorInitial = when {
+            isCanceled -> HeaderColor.RED
+            baseStatus == ReservationStatus.COMPLETED -> HeaderColor.GREEN
+            baseStatus == ReservationStatus.PENDING -> HeaderColor.YELLOW
+            hasCheckedIn -> HeaderColor.GREEN
+            else -> HeaderColor.BLUE
+        }
+
+        val line1 = if (checkInText.isNotEmpty() || checkOutText.isNotEmpty())
+            "Check-in: $checkInText - Check-out: $checkOutText" else ""
+
+        val fallbackGuest = doc.getString("guestName") ?: "Guest"
+        val fallbackPhone = doc.getString("guestPhone") ?: doc.getString("phone")
+        val fallbackEmail = doc.getString("guestEmail") ?: doc.getString("email")
+        val line3Initial = if (customerRaw != null) "Guest name: Loading..." else "Guest name: $fallbackGuest"
+
+        val ui = ReservationUi(
+            documentId = documentId,
+            reservationId = reservationId,
+            displayReservationCode = getOrCreateDisplayCode(documentId),
+            badge = badgeInitial,
+            line1 = line1,
+            line2 = "",
+            line3 = line3Initial,
+            action = actionInitial,
+            headerColor = headerColorInitial,
+            status = baseStatus,
+            numberGuest = numberGuest,
+            roomType = finalRoomTypeName,
+            roomTypeId = roomTypeId,
+            hotelId = doc.getString("hotel_id"),
+            guestPhone = fallbackPhone,
+            guestEmail = fallbackEmail,
+            totalFinalAmount = totalFinal,
+            checkInText = checkInText,
+            checkOutText = checkOutText,
+            checkInMillis = checkInTimestamp,
+            checkOutMillis = checkOutTimestamp,
+            discountLabel = doc.getString("discountText")
+                ?: doc.getString("discountDescription")
+                ?: doc.getString("promotion")
+                ?: "-",
+            cleaningCompletedAtMillis = null
+        )
+
+        val meta = ReservationMeta(
+            documentId = documentId,
+            reservationId = reservationId,
+            statusStr = statusStr,
+            baseStatus = baseStatus,
+            isCanceled = isCanceled,
+            hasCheckedIn = hasCheckedIn,
+            hasCheckedOut = hasCheckedOut,
+            totalFinal = totalFinal,
+            invoiceKeys = invoiceKeys,
+            roomTypeId = roomTypeId,
+            hotelId = doc.getString("hotelId") ?: doc.getString("hotel_id"),
+            guestPhone = fallbackPhone,
+            guestEmail = fallbackEmail
+        )
+
+        return ReservationBuildResult(
+            meta = meta,
+            ui = ui,
+            customerRaw = customerRaw,
+            roomTypeSource = roomTypeData.source ?: roomTypeId
+        )
+    }
+
+    private fun shouldIncludeBooking(doc: DocumentSnapshot): Boolean {
+        val paymentStatus = doc.getString("paymentStatus") ?: return true
+        val isApproved = paymentStatus.equals("payment_approved", ignoreCase = true)
+        if (!isApproved) {
+            android.util.Log.d(
+                "ReceptionFragment",
+                "Skipping booking ${doc.id} - paymentStatus: $paymentStatus"
+            )
+        }
+        return isApproved
+    }
+
+    private fun resolveBaseStatus(
+        statusStr: String,
+        isCanceled: Boolean,
+        checkInValue: Any?,
+        checkOutValue: Any?
+    ): ReservationStatus = when {
+        isCanceled -> ReservationStatus.CANCELED
+        statusStr == "checked_out" || statusStr == "checked out" ||
+            statusStr == "pending_payment" || statusStr == "pending payment" -> ReservationStatus.PENDING
+        statusStr == "completed" -> ReservationStatus.COMPLETED
+        statusStr == "checked_in" || statusStr == "checked in" -> ReservationStatus.UNCOMPLETED
+        statusStr.isBlank() -> when {
+            checkOutValue != null -> ReservationStatus.PENDING
+            checkInValue != null -> ReservationStatus.UNCOMPLETED
+            else -> ReservationStatus.PENDING
+        }
+        else -> ReservationStatus.UNCOMPLETED
+    }
+
+    private fun buildInvoiceKeys(doc: DocumentSnapshot, reservationId: String): Set<String> {
+        val keys = mutableSetOf<String>()
+        keys += collectInvoiceKeyVariants(doc.id)
+        keys += collectInvoiceKeyVariants(reservationId)
+        listOf(
+            doc.get("id"),
+            doc.get("ID"),
+            doc.get("bookingId"),
+            doc.get("bookingDocId"),
+            doc.get("bookingCode"),
+            doc.get("booking_code"),
+            doc.get("bookingNumber"),
+            doc.get("booking_number"),
+            doc.get("bookingRef"),
+            doc.get("booking_ref"),
+            doc.get("reservationCode"),
+            doc.get("reservation_code")
+        ).forEach { value ->
+            keys += collectInvoiceKeyVariants(value)
+        }
+        reservationId.toIntOrNull()?.let { keys += collectInvoiceKeyVariants(it) }
+        return keys.filter { it.isNotEmpty() }.toSet()
+    }
+
+    private fun launchCleanerTimestampRefresh(documentId: String) {
+        val job = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val cleanerSnapshot = Firebase.firestore.collection("bookings")
+                    .document(documentId)
+                    .collection("cleaner")
+                    .orderBy("cleaningCompletedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    .limit(1)
+                    .get()
+                    .await()
+                if (!cleanerSnapshot.isEmpty) {
+                    val timestamp = valueToTimestamp(cleanerSnapshot.documents.first().get("cleaningCompletedAt"))
+                    launch(Dispatchers.Main) {
+                        if (isLifecycleActive()) {
+                            updateReservation(documentId) { existing ->
+                                existing.copy(cleaningCompletedAtMillis = timestamp)
                             }
                         }
                     }
-                    
-                    val updated = mutableListOf<ReservationUi>()
-                    android.util.Log.d("ReceptionFragment", "Processing ${snapshots.documents.size} bookings from Firestore")
-                    for (doc in snapshots.documents) {
-                        try {
-                            // Only filter out bookings that explicitly have a non-approved payment status
-                            // Allow bookings with payment_approved OR bookings without paymentStatus (backward compatibility)
-                            val paymentStatusRaw = doc.getString("paymentStatus") ?: ""
-                            val hasPaymentStatus = paymentStatusRaw.isNotEmpty()
-                            val isPaymentApproved = paymentStatusRaw.equals("payment_approved", ignoreCase = true)
-                            // Skip only if paymentStatus exists AND is not approved
-                            if (hasPaymentStatus && !isPaymentApproved) {
-                                android.util.Log.d("ReceptionFragment", "Skipping booking ${doc.id} - paymentStatus: $paymentStatusRaw")
-                                continue
-                            }
-                            android.util.Log.d("ReceptionFragment", "Including booking ${doc.id} - paymentStatus: ${if (hasPaymentStatus) paymentStatusRaw else "none"}")
-                            val documentId = doc.id
-                            val reservationId = doc.getString("reservationId") ?: documentId
-                            // Support multiple potential customer id fields
-                            val customerIdRaw = doc.get("customerid")
-                                ?: doc.get("customerId")
-                                ?: doc.get("userId")
-                                ?: doc.get("userRef")
-                                ?: (doc.get("customer") as? Map<*, *>)?.get("id")
-                                ?: doc.get("customer")
-                            // Try to read room type information directly if available
-                            val roomTypeInlineName =
-                                doc.getString("roomTypeName")
-                                    ?: doc.getString("room_type_name")
-                                    ?: (doc.get("roomType") as? String)
-                                    ?: ((doc.get("roomType") as? Map<*, *>)?.get("name") as? String)
-                                    ?: ((doc.get("room") as? Map<*, *>)?.get("typeName") as? String)
-                            val roomTypeSource =
-                                doc.get("roomTypeRef")
-                                    ?: doc.get("roomTypeId")
-                                    ?: doc.get("room_type_id")
-                                    ?: doc.get("roomType")
-                            val roomTypeId = extractRoomTypeId(roomTypeSource)
-                            
-                            val checkInValue = doc.get("checkIn") ?: doc.get("checkInDate")
-                            val checkOutValue = doc.get("checkOut") ?: doc.get("checkOutDate")
-                            
-                            // Check actual check-in/out dates to determine state
-                            val checkInDateActual = doc.get("checkInDateActual")
-                            val checkOutDateActual = doc.get("checkOutDateActual")
-                            val hasCheckedIn = checkInDateActual != null
-                            val hasCheckedOut = checkOutDateActual != null
-                            
-                            // Read totalOrigin and totalFinal from booking
-                            val totalOrigin = (doc.get("totalOrigin") as? Number)?.toDouble() ?: 0.0
-                            val totalFinal = (doc.get("totalFinal") as? Number)?.toDouble() ?: totalOrigin
-                            
-                            // Read number of guests from booking
-                            val numberGuest = (doc.get("numberGuest") as? Number)?.toInt()
-                                ?: (doc.get("number_guest") as? Number)?.toInt()
-                                ?: (doc.get("guests") as? Number)?.toInt()
-                                ?: 1
-                            
-                            // Store documentId for invoice lookup
-                            val bookingDocId = documentId
-                            val bookingReservationId = reservationId // Store reservationId for invoice lookup
-                            
-                            // Try to get numeric booking ID from booking document (invoices use Int bookingId)
-                            val bookingNumericId = (doc.get("id") as? Number)?.toInt()
-                                ?: (doc.get("bookingId") as? Number)?.toInt()
-                                ?: bookingDocId.toIntOrNull()
-                                ?: bookingReservationId.toIntOrNull()
-                            
-                            val isCanceled = (doc.getBoolean("canceled") == true) ||
-                                (doc.getString("status")?.equals("canceled", ignoreCase = true) == true)
-                            
-                            val statusStr = (doc.getString("status") ?: "").lowercase().trim()
-                            
-                            // Determine status based on booking data before payment info
-                            val status = when {
-                                isCanceled -> ReservationStatus.CANCELED
-                                statusStr == "checked_out" || statusStr == "checked out" || statusStr == "pending_payment" || statusStr == "pending payment" -> ReservationStatus.PENDING
-                                statusStr == "completed" -> ReservationStatus.COMPLETED
-                                statusStr == "checked_in" || statusStr == "checked in" -> ReservationStatus.UNCOMPLETED
-                                statusStr.isEmpty() || statusStr.isBlank() -> {
-                                    when {
-                                        checkOutValue != null -> ReservationStatus.PENDING
-                                        checkInValue != null -> ReservationStatus.UNCOMPLETED
-                                        else -> ReservationStatus.PENDING
-                                    }
-                                }
-                                else -> ReservationStatus.UNCOMPLETED
-                            }
-                            
-                            // Store check-in/out state for use in coroutines
-                            val bookingHasCheckedIn = hasCheckedIn
-                            val bookingHasCheckedOut = hasCheckedOut
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ReceptionFragment", "Error fetching cleaner data for $documentId", e)
+            }
+        }
+        activeJobs.add(job)
+        job.invokeOnCompletion { activeJobs.remove(job) }
+    }
 
-                            val invoiceKeys = mutableSetOf<String>()
-                            invoiceKeys += collectInvoiceKeyVariants(bookingDocId)
-                            invoiceKeys += collectInvoiceKeyVariants(bookingReservationId)
-                            bookingNumericId?.let { invoiceKeys += collectInvoiceKeyVariants(it) }
-                            bookingReservationId.toIntOrNull()?.let { invoiceKeys += collectInvoiceKeyVariants(it) }
-                            doc.get("id")?.let { invoiceKeys += collectInvoiceKeyVariants(it) }
-                            doc.get("ID")?.let { invoiceKeys += collectInvoiceKeyVariants(it) }
-                            doc.get("bookingCode")?.let { invoiceKeys += collectInvoiceKeyVariants(it) }
-                            doc.get("booking_code")?.let { invoiceKeys += collectInvoiceKeyVariants(it) }
-                            doc.get("bookingNumber")?.let { invoiceKeys += collectInvoiceKeyVariants(it) }
-                            doc.get("booking_number")?.let { invoiceKeys += collectInvoiceKeyVariants(it) }
-                            doc.get("reservationCode")?.let { invoiceKeys += collectInvoiceKeyVariants(it) }
-                            doc.get("reservation_code")?.let { invoiceKeys += collectInvoiceKeyVariants(it) }
-                            doc.get("bookingRef")?.let { invoiceKeys += collectInvoiceKeyVariants(it) }
-                            doc.get("booking_ref")?.let { invoiceKeys += collectInvoiceKeyVariants(it) }
-
-                            val checkInText = valueToDateTimeString(checkInValue)
-                            val checkOutText = valueToDateTimeString(checkOutValue)
-            val checkInTimestamp = valueToTimestamp(checkInValue)
-            val checkOutTimestamp = valueToTimestamp(checkOutValue)
-                            val discountText = doc.getString("discountText")
-                                ?: doc.getString("discountDescription")
-                                ?: doc.getString("promotion")
-                                ?: "-"
-                            
-                            // Read cleaningCompletedAt timestamp from cleaner subcollection (async)
-                            // Query cleaner subcollection for the latest cleaningCompletedAt
-                            viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                                try {
-                                    if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
-                                        return@launch
-                                    }
-                                    val cleanerSnapshot = db.collection("bookings")
-                                        .document(documentId)
-                                        .collection("cleaner")
-                                        .orderBy("cleaningCompletedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                                        .limit(1)
-                                        .get()
-                                        .await()
-                                    
-                                    if (!cleanerSnapshot.isEmpty) {
-                                        val cleanerDoc = cleanerSnapshot.documents.first()
-                                        val timestamp = valueToTimestamp(cleanerDoc.get("cleaningCompletedAt"))
-                                        
-                                        // Update the reservation with the cleaning timestamp
-                                        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                                            if (viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
-                                                val existingIndex = allReservations.indexOfFirst { it.documentId == documentId }
-                                                if (existingIndex >= 0) {
-                                                    val existing = allReservations[existingIndex]
-                                                    allReservations[existingIndex] = existing.copy(cleaningCompletedAtMillis = timestamp)
-                                                    reservationAdapter?.notifyItemChanged(existingIndex)
-                                                }
-                                            }
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    android.util.Log.e("ReceptionFragment", "Error fetching cleaner data for $documentId", e)
-                                }
-                            }
-                            
-                            // Resolve room type name
-                            val finalRoomTypeName = if (roomTypeInlineName.isNullOrBlank()) {
-                                // Try to resolve from roomTypeSource if available
-                                when (roomTypeSource) {
-                                    is String -> roomTypeSource.takeIf { it.isNotBlank() } ?: "Room"
-                                    is Map<*, *> -> (roomTypeSource["name"] as? String) ?: "Room"
-                                    else -> "Room"
-                                }
-                            } else {
-                                roomTypeInlineName
-                            }
- 
-                            val headerColorInitial = when {
-                                isCanceled -> HeaderColor.RED
-                                status == ReservationStatus.COMPLETED -> HeaderColor.GREEN
-                                status == ReservationStatus.PENDING -> HeaderColor.YELLOW
-                                bookingHasCheckedIn -> HeaderColor.GREEN
-                                else -> HeaderColor.BLUE
-                            }
-                            val badgeInitial = when {
-                                isCanceled -> "Cancelled"
-                                status == ReservationStatus.COMPLETED -> "Completed"
-                                status == ReservationStatus.PENDING -> "Pending payment"
-                                else -> ""
-                            }
-                            val actionInitial = when {
-                                isCanceled -> "Cancelled"
-                                status == ReservationStatus.COMPLETED -> "Completed"
-                                status == ReservationStatus.PENDING -> "Payment"
-                                bookingHasCheckedIn -> "Check-out"
-                                else -> "Check-in"
-                            }
- 
-                            val line1 = if (checkInText.isNotEmpty() || checkOutText.isNotEmpty())
-                                "Check-in: $checkInText - Check-out: $checkOutText"
-                            else
-                                ""
-                            var line2 = ""
-                            var line3 = "Guest name: Loading..."
-
-                            val metaEntry = ReservationMeta(
-                                documentId = documentId,
-                                reservationId = reservationId,
-                                statusStr = statusStr,
-                                baseStatus = status,
-                                isCanceled = isCanceled,
-                                hasCheckedIn = bookingHasCheckedIn,
-                                hasCheckedOut = bookingHasCheckedOut,
-                                totalFinal = totalFinal,
-                                invoiceKeys = invoiceKeys.toSet(),
-                                roomTypeId = roomTypeId,
-                                hotelId = doc.getString("hotelId") ?: doc.getString("hotel_id"),
-                                guestPhone = doc.getString("guestPhone"),
-                                guestEmail = doc.getString("guestEmail")
+    private fun launchGuestEnrichment(documentId: String, customerRaw: Any?) {
+        if (customerRaw == null) return
+        val job = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val userDoc = fetchUserDocument(customerRaw)
+                val guestInfo = resolveGuestInfo(userDoc, customerRaw)
+                launch(Dispatchers.Main) {
+                    if (isLifecycleActive()) {
+                        updateReservation(documentId) { existing ->
+                            existing.copy(
+                                line3 = "Guest name: ${guestInfo.name}",
+                                guestPhone = guestInfo.phone ?: existing.guestPhone,
+                                guestEmail = guestInfo.email ?: existing.guestEmail
                             )
-                            reservationMeta[documentId] = metaEntry
-
-                            val ui = ReservationUi(
-                                documentId = documentId,
-                                reservationId = reservationId,
-                                displayReservationCode = getOrCreateDisplayCode(documentId),
-                                badge = badgeInitial,
-                                line1 = line1,
-                                line2 = line2,
-                                line3 = line3,
-                                action = actionInitial,
-                                headerColor = headerColorInitial,
-                                status = status,
-                                numberGuest = numberGuest,
-                                roomType = finalRoomTypeName,
-                                roomTypeId = roomTypeId,
-                                hotelId = doc.getString("hotel_id"),
-                                guestPhone = doc.getString("guestPhone"),
-                                guestEmail = doc.getString("guestEmail"),
-                                totalFinalAmount = totalFinal,
-                                checkInText = checkInText,
-                                checkOutText = checkOutText,
-                                checkInMillis = checkInTimestamp,
-                                checkOutMillis = checkOutTimestamp,
-                                discountLabel = discountText,
-                                cleaningCompletedAtMillis = null // Will be updated asynchronously from cleaner subcollection
-                            )
-                            val adjustedUi = applyCleaningStatusToReservation(ui)
-                            updated.add(adjustedUi)
-                            val uiIndex = updated.lastIndex
-                            
-                            if (customerIdRaw != null) {
-                                // Resolve guest name concurrently; bind by index to avoid wrong item updates
-                                val customerJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                                    val currentJob = coroutineContext[Job]
-                                    try {
-                                        if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
-                                            return@launch
-                                        }
-                                        val userDoc = when (customerIdRaw) {
-                                            is com.google.firebase.firestore.DocumentReference -> customerIdRaw.get().await()
-                                            is String -> Firebase.firestore.collection("users").document(customerIdRaw).get().await()
-                                            is Number -> Firebase.firestore.collection("users").document(customerIdRaw.toString()).get().await()
-                                            is Map<*, *> -> {
-                                                val id = (customerIdRaw["id"] as? String) ?: (customerIdRaw["id"] as? Number)?.toString()
-                                                if (id != null) Firebase.firestore.collection("users").document(id).get().await() else null
-                                            }
-                                            else -> null
-                                        }
-                                        val guestName = if (userDoc != null && userDoc.exists()) {
-                                            val first = userDoc.getString("firstName") ?: userDoc.getString("first_name")
-                                            val last = userDoc.getString("lastName") ?: userDoc.getString("last_name")
-                                            val combined = listOfNotNull(first, last).joinToString(" ").trim()
-                                            when {
-                                                combined.isNotEmpty() -> combined
-                                                !userDoc.getString("fullName").isNullOrBlank() -> userDoc.getString("fullName")!!
-                                                !userDoc.getString("full_name").isNullOrBlank() -> userDoc.getString("full_name")!!
-                                                !userDoc.getString("displayName").isNullOrBlank() -> userDoc.getString("displayName")!!
-                                                !userDoc.getString("username").isNullOrBlank() -> userDoc.getString("username")!!
-                                                !userDoc.getString("name").isNullOrBlank() -> userDoc.getString("name")!!
-                                                else -> "Guest"
-                                            }
-                                        } else {
-                                            when (customerIdRaw) {
-                                                is String -> customerIdRaw
-                                                is Number -> customerIdRaw.toString()
-                                                is com.google.firebase.firestore.DocumentReference -> customerIdRaw.id
-                                                is Map<*, *> -> (customerIdRaw["id"] as? String) ?: "Guest"
-                                                else -> "Guest"
-                                            }
-                                        }
-                                        val guestPhone = userDoc?.getString("phoneNumber")
-                                            ?: userDoc?.getString("phone")
-                                            ?: userDoc?.getString("mobile")
-                                        val guestEmail = userDoc?.getString("email")
-                                        // Update UI on main for this specific index
-                                        launch(Dispatchers.Main) {
-                                            if (viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED) &&
-                                                uiIndex >= 0 && uiIndex < updated.size) {
-                                                val existing = updated[uiIndex]
-                                                updated[uiIndex] = existing.copy(
-                                                    line3 = "Guest name: $guestName",
-                                                    guestPhone = guestPhone,
-                                                    guestEmail = guestEmail
-                                                )
-                                                allReservations.clear()
-                                                allReservations.addAll(updated)
-                                                filterReservations()
-                                            }
-                                        }
-                                    } catch (_: Exception) {
-                                        // ignore
-                                    } finally {
-                                        currentJob?.let { activeJobs.remove(it) }
-                                    }
-                                }
-                                activeJobs.add(customerJob)
-                            } else {
-                                // Fallback: keep customerId or unknown
-                                val existing = updated[uiIndex]
-                                val fallbackGuest = doc.getString("guestName") ?: "Guest"
-                                val fallbackPhone = doc.getString("guestPhone") ?: doc.getString("phone")
-                                val fallbackEmail = doc.getString("guestEmail") ?: doc.getString("email")
-                                updated[uiIndex] = existing.copy(
-                                    line3 = "Guest name: $fallbackGuest",
-                                    guestPhone = fallbackPhone,
-                                    guestEmail = fallbackEmail
-                                )
-                            }
-
-                            // Resolve room type if not already present; support multiple formats
-                            val roomTypeRaw = roomTypeSource
-                            
-                            // Always fetch roomType document to get typeName (room name) if we have roomTypeId or roomTypeRaw
-                            if (roomTypeId != null || roomTypeRaw != null) {
-                                val roomTypeJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-                                    val currentJob = coroutineContext[Job]
-                                    try {
-                                        if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
-                                            return@launch
-                                        }
-                                        val typeDoc = when (roomTypeRaw) {
-                                            is com.google.firebase.firestore.DocumentReference -> roomTypeRaw.get().await()
-                                            is String -> {
-                                                // Try common collection names
-                                                val t1 = Firebase.firestore.collection("roomTypes").document(roomTypeRaw).get().await()
-                                                if (t1.exists()) t1 else Firebase.firestore.collection("room_types").document(roomTypeRaw).get().await()
-                                            }
-                                            is Map<*, *> -> {
-                                                val id = (roomTypeRaw["id"] as? String)
-                                                    ?: (roomTypeRaw["id"] as? Number)?.toString()
-                                                if (id != null) Firebase.firestore.collection("roomTypes").document(id).get().await() else null
-                                            }
-                                            else -> {
-                                                // Try using roomTypeId if available
-                                                roomTypeId?.let { id ->
-                                                    Firebase.firestore.collection("roomTypes").document(id).get().await()
-                                                        ?: Firebase.firestore.collection("room_types").document(id).get().await()
-                                                }
-                                            }
-                                        }
-                                        val resolvedRoomTypeId = roomTypeId
-                                            ?: typeDoc?.id
-                                            ?: extractRoomTypeId(roomTypeRaw)
-                                        val typeName = if (typeDoc != null && typeDoc.exists()) {
-                                            typeDoc.getString("name")
-                                                ?: typeDoc.getString("typeName")
-                                                ?: typeDoc.getString("title")
-                                                ?: typeDoc.getString("type_name")
-                                                ?: finalRoomTypeName
-                                        } else {
-                                            finalRoomTypeName
-                                        }
-                                        launch(Dispatchers.Main) {
-                                            if (viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
-                                                // Find the reservation in allReservations by documentId
-                                                val index = allReservations.indexOfFirst { it.documentId == bookingDocId }
-                                                if (index >= 0) {
-                                                    val existing = allReservations[index]
-                                                    allReservations[index] = existing.copy(
-                                                        roomType = typeName,
-                                                        roomTypeId = resolvedRoomTypeId
-                                                    )
-                                                    reservationMeta[bookingDocId]?.let { meta ->
-                                                        reservationMeta[bookingDocId] = meta.copy(roomTypeId = resolvedRoomTypeId)
-                                                    }
-                                                    applyInvoiceDataToReservations(forceFilter = true)
-                                                }
-                                            }
-                                        }
-                                    } catch (e: Exception) {
-                                        android.util.Log.e("ReceptionFragment", "Failed to fetch room type for $bookingDocId", e)
-                                    } finally {
-                                        currentJob?.let { activeJobs.remove(it) }
-                                    }
-                                }
-                                activeJobs.add(roomTypeJob)
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.e("ReceptionFragment", "Error processing booking document", e)
-                            // Skip malformed document
                         }
                     }
-                    android.util.Log.d("ReceptionFragment", "Processed ${updated.size} reservations, updating UI")
-                    // Replace list immediately so UI shows quickly
-                    if (viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
-                        val currentDocIds = updated.map { it.documentId }.toSet()
-                        reservationMeta.keys.retainAll(currentDocIds)
-                        reservationDisplayCodes.keys.retainAll(currentDocIds)
-                        allReservations.clear()
-                        allReservations.addAll(updated)
+                }
+            } catch (_: Exception) {
+            }
+        }
+        activeJobs.add(job)
+        job.invokeOnCompletion { activeJobs.remove(job) }
+    }
+
+    private fun launchRoomTypeEnrichment(
+        documentId: String,
+        roomTypeSource: Any?,
+        fallbackName: String,
+        knownRoomTypeId: String?
+    ) {
+        val source = roomTypeSource ?: knownRoomTypeId ?: return
+        val job = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val (typeName, resolvedId) = fetchRoomTypeDetails(source, fallbackName)
+                launch(Dispatchers.Main) {
+                    if (isLifecycleActive()) {
+                        updateReservation(documentId) { existing ->
+                            existing.copy(roomType = typeName, roomTypeId = resolvedId)
+                        }
+                        reservationMeta[documentId]?.let { meta ->
+                            reservationMeta[documentId] = meta.copy(roomTypeId = resolvedId)
+                        }
                         applyInvoiceDataToReservations(forceFilter = true)
-                        
-                        // Show cleaning completion notifications for real-time changes
-                        for ((reservationId, roomType) in cleaningNotifications) {
-                            showCleaningCompletedDialog(reservationId, roomType)
-                        }
                     }
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("ReceptionFragment", "Failed to fetch room type for $documentId", e)
             }
+        }
+        activeJobs.add(job)
+        job.invokeOnCompletion { activeJobs.remove(job) }
     }
 
-    private fun stopListeningBookings() {
-        try {
-            bookingsListener?.remove()
-        } catch (_: Exception) { }
-        bookingsListener = null
-    }
-
-    private fun startInvoiceListener() {
-        if (invoicesListener != null) return
-        invoicesListener = Firebase.firestore.collection("invoices")
-            .addSnapshotListener { snapshots, error ->
-                if (!isAdded) return@addSnapshotListener
-                if (error != null || snapshots == null) {
-                    return@addSnapshotListener
-                }
-                if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
-                    return@addSnapshotListener
-                }
-                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
-                    handleInvoiceSnapshot(snapshots)
-                }
+    private suspend fun fetchUserDocument(customerRaw: Any?): DocumentSnapshot? {
+        return when (customerRaw) {
+            is DocumentReference -> customerRaw.get().await()
+            is String -> Firebase.firestore.collection("users").document(customerRaw).get().await()
+            is Number -> Firebase.firestore.collection("users").document(customerRaw.toString()).get().await()
+            is Map<*, *> -> {
+                val id = (customerRaw["id"] as? String) ?: (customerRaw["id"] as? Number)?.toString()
+                id?.let { Firebase.firestore.collection("users").document(it).get().await() }
             }
+            else -> null
+        }
     }
 
-    private fun stopInvoiceListener() {
-        try {
-            invoicesListener?.remove()
-        } catch (_: Exception) { }
-        invoicesListener = null
-        invoiceDocuments.clear()
+    private fun resolveGuestInfo(userDoc: DocumentSnapshot?, customerRaw: Any?): GuestInfo {
+        if (userDoc != null && userDoc.exists()) {
+            val first = userDoc.getString("firstName") ?: userDoc.getString("first_name")
+            val last = userDoc.getString("lastName") ?: userDoc.getString("last_name")
+            val combined = listOfNotNull(first, last).joinToString(" ").trim()
+            val name = firstNonBlank(
+                combined.takeIf { it.isNotEmpty() },
+                userDoc.getString("fullName"),
+                userDoc.getString("full_name"),
+                userDoc.getString("displayName"),
+                userDoc.getString("username"),
+                userDoc.getString("name")
+            ) ?: "Guest"
+            val phone = userDoc.getString("phoneNumber") ?: userDoc.getString("phone") ?: userDoc.getString("mobile")
+            val email = userDoc.getString("email")
+            return GuestInfo(name, phone, email)
+        }
+
+        val fallback = when (customerRaw) {
+            is String -> customerRaw
+            is Number -> customerRaw.toString()
+            is DocumentReference -> customerRaw.id
+            is Map<*, *> -> (customerRaw["id"] as? String) ?: "Guest"
+            else -> "Guest"
+        }
+        return GuestInfo(fallback, null, null)
     }
 
-    private fun handleInvoiceSnapshot(snapshots: com.google.firebase.firestore.QuerySnapshot) {
+    private suspend fun fetchRoomTypeDetails(source: Any, fallbackName: String): Pair<String, String?> {
+        val doc = when (source) {
+            is DocumentReference -> source.get().await()
+            is String -> {
+                val primary = Firebase.firestore.collection("roomTypes").document(source).get().await()
+                if (primary.exists()) primary else Firebase.firestore.collection("room_types").document(source).get().await()
+            }
+            is Map<*, *> -> {
+                val id = (source["id"] as? String) ?: (source["id"] as? Number)?.toString()
+                id?.let { Firebase.firestore.collection("roomTypes").document(it).get().await() }
+            }
+            else -> null
+        }
+        val resolvedId = doc?.id ?: extractRoomTypeId(source)
+        val name = doc?.let {
+            it.getString("name")
+                ?: it.getString("typeName")
+                ?: it.getString("title")
+                ?: it.getString("type_name")
+        } ?: fallbackName
+        return name to resolvedId
+    }
+
+    private fun resolveRoomTypeData(doc: DocumentSnapshot): RoomTypeData {
+        val inlineName = doc.getString("roomTypeName")
+            ?: doc.getString("room_type_name")
+            ?: (doc.get("roomType") as? String)
+            ?: ((doc.get("roomType") as? Map<*, *>)?.get("name") as? String)
+            ?: ((doc.get("room") as? Map<*, *>)?.get("typeName") as? String)
+        val source = doc.get("roomTypeRef")
+            ?: doc.get("roomTypeId")
+            ?: doc.get("room_type_id")
+            ?: doc.get("roomType")
+        return RoomTypeData(inlineName, source)
+    }
+
+    private fun resolveRoomTypeName(data: RoomTypeData): String {
+        val inline = data.inlineName
+        if (!inline.isNullOrBlank()) return inline
+        return when (val source = data.source) {
+            is String -> source.takeIf { it.isNotBlank() } ?: "Room"
+            is Map<*, *> -> (source["name"] as? String) ?: "Room"
+            else -> "Room"
+        }
+    }
+
+    private fun updateReservation(documentId: String, transform: (ReservationUi) -> ReservationUi) {
+        val index = allReservations.indexOfFirst { it.documentId == documentId }
+        if (index < 0) return
+        val updated = transform(allReservations[index])
+        if (updated != allReservations[index]) {
+            allReservations[index] = updated
+            filterReservations()
+        }
+    }
+
+    private fun handleInvoiceSnapshot(snapshots: QuerySnapshot) {
         val newDocuments = mutableMapOf<String, InvoiceDocInfo>()
         for (doc in snapshots.documents) {
             val amount = when (val totalAmount = doc.get("totalAmount")) {
@@ -625,15 +543,10 @@ class ReceptionFragment : Fragment() {
             val keys = mutableSetOf<String>()
             keys += collectInvoiceKeyVariants(doc.id)
             keys += collectInvoiceKeyVariants(doc.get("bookingId"))
-
             keys += collectInvoiceKeyVariants(doc.get("bookingDocId"))
-
             keys += collectInvoiceKeyVariants(doc.get("bookingRef"))
-
             keys += collectInvoiceKeyVariants(doc.get("reservationId"))
-
             keys += collectInvoiceKeyVariants(doc.get("reservationCode"))
-
             if (keys.isEmpty()) continue
             newDocuments[doc.id] = InvoiceDocInfo(amount = amount, matcherKeys = keys.filter { it.isNotEmpty() }.toSet())
         }
@@ -642,11 +555,31 @@ class ReceptionFragment : Fragment() {
         applyInvoiceDataToReservations()
     }
 
+    private fun startInvoiceListener() {
+        if (invoicesListener != null) return
+        invoicesListener = Firebase.firestore.collection("invoices")
+            .addSnapshotListener { snapshots, error ->
+                if (!isAdded || error != null || snapshots == null) return@addSnapshotListener
+                if (!isLifecycleActive()) return@addSnapshotListener
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.Main) {
+                    handleInvoiceSnapshot(snapshots)
+                }
+            }
+    }
+
+    private fun stopListeningBookings() {
+        runCatching { bookingsListener?.remove() }
+        bookingsListener = null
+    }
+
+    private fun stopInvoiceListener() {
+        runCatching { invoicesListener?.remove() }
+        invoicesListener = null
+        invoiceDocuments.clear()
+    }
+
     private fun applyInvoiceDataToReservations(forceFilter: Boolean = false) {
-        if (!isAdded) return
-        if (!viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
-            return
-        }
+        if (!isLifecycleActive()) return
         var changed = false
         for (index in allReservations.indices) {
             val item = allReservations[index]
@@ -670,11 +603,9 @@ class ReceptionFragment : Fragment() {
     }
 
     private fun handleCleanerTasksSnapshot(tasks: List<CleanerTask>) {
-        val latestStatuses = mutableMapOf<String, TaskStatus>()
-        tasks.forEach { task ->
-            val bookingId = task.bookingDocId ?: return@forEach
-            latestStatuses[bookingId] = task.status
-        }
+        val latestStatuses = tasks.mapNotNull { task ->
+            task.bookingDocId?.let { it to task.status }
+        }.toMap()
         if (latestStatuses != cleaningStatusByBooking) {
             cleaningStatusByBooking.clear()
             cleaningStatusByBooking.putAll(latestStatuses)
@@ -683,9 +614,7 @@ class ReceptionFragment : Fragment() {
     }
 
     private fun applyCleaningStatusLocks(forceFilter: Boolean = false) {
-        if (!isAdded || !viewLifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.INITIALIZED)) {
-            return
-        }
+        if (!isLifecycleActive()) return
         var changed = false
         for (index in allReservations.indices) {
             val updated = applyCleaningStatusToReservation(allReservations[index])
@@ -741,7 +670,7 @@ class ReceptionFragment : Fragment() {
             else -> PaymentStatus.NONE
         }
 
-        val normalizedStatus = meta.statusStr.lowercase()
+        val normalizedStatus = meta.statusStr.lowercase(Locale.getDefault())
         val finalStatus = when {
             paymentStatus == PaymentStatus.FULL -> ReservationStatus.COMPLETED
             normalizedStatus == "completed" -> ReservationStatus.COMPLETED
@@ -763,7 +692,7 @@ class ReceptionFragment : Fragment() {
             paymentStatus != PaymentStatus.NONE -> "Check-in"
             else -> "Payment"
         }
- 
+
         val headerColor = when {
             finalStatus == ReservationStatus.CANCELED -> HeaderColor.RED
             paymentStatus == PaymentStatus.FULL -> HeaderColor.GREEN
@@ -776,7 +705,7 @@ class ReceptionFragment : Fragment() {
         val badge = when {
             finalStatus == ReservationStatus.CANCELED -> "Cancelled"
             finalStatus == ReservationStatus.COMPLETED -> "Completed"
-            action == "Payment" -> "Pending payment" // If action is payment, badge is pending payment
+            action == "Payment" -> "Pending payment"
             paymentStatus == PaymentStatus.FULL -> "Paid"
             paymentStatus == PaymentStatus.PARTIAL -> "Deposit paid"
             else -> ""
@@ -791,8 +720,7 @@ class ReceptionFragment : Fragment() {
     }
 
     private fun computeAmountForReservation(meta: ReservationMeta): Double {
-        if (invoiceDocuments.isEmpty()) return 0.0
-        if (meta.invoiceKeys.isEmpty()) return 0.0
+        if (invoiceDocuments.isEmpty() || meta.invoiceKeys.isEmpty()) return 0.0
         var total = 0.0
         for (info in invoiceDocuments.values) {
             if (info.matcherKeys.any { meta.invoiceKeys.contains(it) }) {
@@ -803,7 +731,7 @@ class ReceptionFragment : Fragment() {
     }
 
     private fun extractRoomTypeId(source: Any?): String? = when (source) {
-        is com.google.firebase.firestore.DocumentReference -> source.id
+        is DocumentReference -> source.id
         is String -> source
         is Map<*, *> -> {
             (source["id"] as? String)
@@ -818,40 +746,37 @@ class ReceptionFragment : Fragment() {
         val normalized = when (value) {
             is Number -> value.toLong().toString()
             is String -> value.trim()
-            is com.google.firebase.firestore.DocumentReference -> value.id
+            is DocumentReference -> value.id
             is Map<*, *> -> (value["id"] as? String)?.trim()
             else -> null
         }
         if (normalized.isNullOrEmpty()) return emptySet()
-        val lowercase = normalized.lowercase()
+        val lowercase = normalized.lowercase(Locale.getDefault())
         return if (normalized == lowercase) setOf(normalized) else setOf(normalized, lowercase)
     }
 
-    private fun valueToDateTimeString(value: Any?): String {
-        return when (value) {
-            null -> ""
-//            is String -> {
-//                val trimmed = value.trim()
-//                trimmed.toLongOrNull()?.let { convertTimestampToString(it) }
-//                    ?: parseDateString(trimmed)?.let { formatDateTime(it) }
-//                    ?: trimmed
-//            }
-            is Timestamp -> convertTimestampToString(value)
-            else -> value.toString()
+    private fun valueToDateTimeString(value: Any?): String = when (value) {
+        null -> ""
+        is Timestamp -> convertTimestampToString(value)
+        is String -> {
+            val trimmed = value.trim()
+            trimmed.toLongOrNull()?.let { convertTimestampToString(Timestamp(Date(it))) }
+                ?: parseDateString(trimmed)?.let { convertTimestampToString(Timestamp(Date(it))) }
+                ?: trimmed
         }
+        else -> value.toString()
     }
 
-    private fun valueToTimestamp(value: Any?): Timestamp? {
-        return when (value) {
-            null -> null
-
-            is String -> {
-                val trimmed = value.trim()
-                trimmed.toLongOrNull()?.let { Timestamp(Date(it)) }
-                    ?: parseDateString(trimmed)?.let { Timestamp(Date(it)) }
-            }
-            else -> null
+    private fun valueToTimestamp(value: Any?): Timestamp? = when (value) {
+        null -> null
+        is Timestamp -> value
+        is String -> {
+            val trimmed = value.trim()
+            trimmed.toLongOrNull()?.let { Timestamp(Date(it)) }
+                ?: parseDateString(trimmed)?.let { Timestamp(Date(it)) }
         }
+        is Number -> Timestamp(Date(value.toLong()))
+        else -> null
     }
 
     private fun parseDateString(value: String): Long? {
@@ -875,12 +800,9 @@ class ReceptionFragment : Fragment() {
         return null
     }
 
-
     fun convertTimestampToString(timestamp: Timestamp): String {
         val date: Date = timestamp.toDate()
-
         val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-
         return dateFormatter.format(date)
     }
 
@@ -894,67 +816,50 @@ class ReceptionFragment : Fragment() {
         return String.format(Locale.US, "RIO-%03d", number.coerceAtLeast(1))
     }
 
+    private fun firstNonBlank(vararg values: String?): String? =
+        values.firstOrNull { !it.isNullOrBlank() }
+
     private fun setupTabs(view: View) {
         val tabAll = view.findViewById<android.widget.TextView>(R.id.tabAll)
         val tabUncompleted = view.findViewById<android.widget.TextView>(R.id.tabUncompleted)
         val tabPending = view.findViewById<android.widget.TextView>(R.id.tabPending)
         val tabCompleted = view.findViewById<android.widget.TextView>(R.id.tabCompleted)
         val tabCanceled = view.findViewById<android.widget.TextView>(R.id.tabCanceled)
-        
+
         val tabs = listOf(tabAll, tabUncompleted, tabPending, tabCompleted, tabCanceled)
-        val statuses = listOf(ReservationStatus.ALL, ReservationStatus.UNCOMPLETED, ReservationStatus.PENDING, ReservationStatus.COMPLETED, ReservationStatus.CANCELED)
-        
+        val statuses = listOf(
+            ReservationStatus.ALL,
+            ReservationStatus.UNCOMPLETED,
+            ReservationStatus.PENDING,
+            ReservationStatus.COMPLETED,
+            ReservationStatus.CANCELED
+        )
+
         fun updateTabSelection(selectedIndex: Int) {
             tabs.forEachIndexed { index, tab ->
                 if (index == selectedIndex) {
-                    // Selected tab - highlighted style
                     tab.setBackgroundColor(android.graphics.Color.parseColor("#2D6C8C"))
                     tab.setTextColor(android.graphics.Color.WHITE)
                 } else {
-                    // Unselected tab - default style
                     tab.background = context?.getDrawable(R.drawable.bg_tab_chip)
                     tab.setTextColor(android.graphics.Color.parseColor("#2D6C8C"))
                 }
             }
         }
-        
-        tabAll.setOnClickListener {
-            currentFilter = ReservationStatus.ALL
-            updateTabSelection(0)
-            filterReservations()
+
+        tabs.forEachIndexed { index, tab ->
+            tab.setOnClickListener {
+                currentFilter = statuses[index]
+                updateTabSelection(index)
+                filterReservations()
+            }
         }
-        
-        tabUncompleted.setOnClickListener {
-            currentFilter = ReservationStatus.UNCOMPLETED
-            updateTabSelection(1)
-            filterReservations()
-        }
-        
-        tabPending.setOnClickListener {
-            currentFilter = ReservationStatus.PENDING
-            updateTabSelection(2)
-            filterReservations()
-        }
-        
-        tabCompleted.setOnClickListener {
-            currentFilter = ReservationStatus.COMPLETED
-            updateTabSelection(3)
-            filterReservations()
-        }
-        
-        tabCanceled.setOnClickListener {
-            currentFilter = ReservationStatus.CANCELED
-            updateTabSelection(4)
-            filterReservations()
-        }
-        
-        // Set initial selection
+
         updateTabSelection(0)
     }
 
     private fun setupSearch(view: View) {
         val etSearch = view.findViewById<android.widget.EditText>(R.id.etSearch)
-        
         etSearch.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -969,7 +874,6 @@ class ReceptionFragment : Fragment() {
         val locale = Locale.getDefault()
         val query = searchQuery.trim()
         val filtered = allReservations.filter { reservation ->
-            // Filter by status using the actual status field
             val statusMatch = when (currentFilter) {
                 ReservationStatus.ALL -> true
                 ReservationStatus.PENDING -> {
@@ -981,8 +885,7 @@ class ReceptionFragment : Fragment() {
                 ReservationStatus.COMPLETED -> reservation.status == ReservationStatus.COMPLETED
                 ReservationStatus.CANCELED -> reservation.status == ReservationStatus.CANCELED
             }
-            
-            // Filter by search query
+
             val searchMatch = if (query.isEmpty()) {
                 true
             } else {
@@ -1009,21 +912,18 @@ class ReceptionFragment : Fragment() {
                 ).any { numberText ->
                     numberText.lowercase(locale).contains(lowerQuery)
                 }
-
                 textMatches || numericMatches
             }
-            
+
             statusMatch && searchMatch
         }
-        
-        // Sort: reservations with recent cleaningCompletedAt go to the top
+
         val sorted = filtered.sortedByDescending { reservation ->
             reservation.cleaningCompletedAtMillis?.toDate()?.time ?: Long.MIN_VALUE
         }
-        
         reservationAdapter.updateData(sorted.toMutableList())
     }
-    
+
     private fun showCleaningCompletedDialog(reservationId: String, roomType: String) {
         if (!isAdded || context == null) return
         AlertDialog.Builder(requireContext())
@@ -1033,38 +933,58 @@ class ReceptionFragment : Fragment() {
             .show()
     }
 
+    private fun isLifecycleActive(): Boolean {
+        return isAdded && viewLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.INITIALIZED)
+    }
 
+    private data class ReservationMeta(
+        val documentId: String,
+        val reservationId: String,
+        val statusStr: String,
+        val baseStatus: ReservationStatus,
+        val isCanceled: Boolean,
+        val hasCheckedIn: Boolean,
+        val hasCheckedOut: Boolean,
+        val totalFinal: Double,
+        val invoiceKeys: Set<String>,
+        val roomTypeId: String?,
+        val hotelId: String?,
+        val guestPhone: String?,
+        val guestEmail: String?
+    )
 
+    private data class InvoiceDocInfo(
+        val amount: Double,
+        val matcherKeys: Set<String>
+    )
+
+    private data class PaymentUiState(
+        val status: ReservationStatus,
+        val headerColor: HeaderColor,
+        val badge: String,
+        val action: String
+    )
+
+    private enum class PaymentStatus {
+        NONE, PARTIAL, FULL
+    }
+
+    private data class ReservationBuildResult(
+        val meta: ReservationMeta,
+        val ui: ReservationUi,
+        val customerRaw: Any?,
+        val roomTypeSource: Any?
+    )
+
+    private data class RoomTypeData(
+        val inlineName: String?,
+        val source: Any?
+    )
+
+    private data class GuestInfo(
+        val name: String,
+        val phone: String?,
+        val email: String?
+    )
 }
 
-private data class ReservationMeta(
-    val documentId: String,
-    val reservationId: String,
-    val statusStr: String,
-    val baseStatus: ReservationStatus,
-    val isCanceled: Boolean,
-    val hasCheckedIn: Boolean,
-    val hasCheckedOut: Boolean,
-    val totalFinal: Double,
-    val invoiceKeys: Set<String>,
-    val roomTypeId: String?,
-    val hotelId: String?,
-    val guestPhone: String?,
-    val guestEmail: String?
-)
-
-private data class InvoiceDocInfo(
-    val amount: Double,
-    val matcherKeys: Set<String>
-)
-
-private data class PaymentUiState(
-    val status: ReservationStatus,
-    val headerColor: HeaderColor,
-    val badge: String,
-    val action: String
-)
-
-private enum class PaymentStatus {
-    NONE, PARTIAL, FULL
-}

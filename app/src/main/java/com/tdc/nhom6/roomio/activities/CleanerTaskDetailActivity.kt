@@ -11,74 +11,85 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.google.firebase.storage.FirebaseStorage
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.CleaningImageAdapter
+import com.tdc.nhom6.roomio.apis.CloudinaryRepository
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
 import com.tdc.nhom6.roomio.fragments.TaskStatus
 import com.tdc.nhom6.roomio.utils.CleanerStatusUtils
 import java.io.File
-import java.util.UUID
+import java.io.FileOutputStream
+import kotlinx.coroutines.launch
 
 class CleanerTaskDetailActivity : AppCompatActivity() {
     private val firestore = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
+    private lateinit var cloudinaryRepo: CloudinaryRepository
     private lateinit var imageAdapter: CleaningImageAdapter
-    private val uploadedImageUrls = mutableListOf<String>()
     private var bookingId: String = ""
     private var cameraImageUri: Uri? = null
+    private var currentPhotoFile: File? = null
     private var pendingPermissionRationaleShown = false
 
     private val takePhotoLauncher =
         registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
             try {
                 android.util.Log.d("CleanerTaskDetail", "Photo result callback: success=$success")
-                
+
                 // Check if activity is still valid
                 if (isFinishing || isDestroyed) {
                     android.util.Log.w("CleanerTaskDetail", "Activity is finishing/destroyed, ignoring photo result")
                     return@registerForActivityResult
                 }
-                
+
                 if (!success) {
                     android.util.Log.d("CleanerTaskDetail", "Camera canceled or failed")
                     return@registerForActivityResult
                 }
-                
+
                 val uri = cameraImageUri
                 if (uri == null) {
                     android.util.Log.e("CleanerTaskDetail", "Camera image URI is null")
                     return@registerForActivityResult
                 }
-                
+
                 // Verify adapter is initialized
                 if (!::imageAdapter.isInitialized) {
                     android.util.Log.e("CleanerTaskDetail", "ImageAdapter not initialized")
                     return@registerForActivityResult
                 }
-                
-                // If success=true, the camera app has already written the file
-                // Just add it to the adapter without verification
-                android.util.Log.d("CleanerTaskDetail", "Adding photo to adapter: $uri")
-                
+
+                var photoFile = currentPhotoFile
+                if (photoFile == null || !photoFile.exists()) {
+                    photoFile = copyUriToTempFile(uri)
+                }
+                if (photoFile == null || !photoFile.exists()) {
+                    android.util.Log.e("CleanerTaskDetail", "Unable to resolve captured photo file for URI: $uri")
+                    Toast.makeText(this, "Unable to process captured photo", Toast.LENGTH_SHORT).show()
+                    return@registerForActivityResult
+                }
+
+                android.util.Log.d("CleanerTaskDetail", "Adding photo to adapter: $uri -> ${photoFile.absolutePath}")
+
                 // Add image directly (callback is already on UI thread)
                 try {
                     if (!isFinishing && !isDestroyed && ::imageAdapter.isInitialized) {
-                        val item = CleaningImageAdapter.ImageItem(uri = uri, isUploading = false)
+                        val item = CleaningImageAdapter.ImageItem(uri = uri, file = photoFile, isUploading = false)
                         val beforeCount = imageAdapter.itemCount
                         imageAdapter.addImage(item)
                         val afterCount = imageAdapter.itemCount
                         android.util.Log.d("CleanerTaskDetail", "✓ Photo added: before=$beforeCount, after=$afterCount, URI=$uri")
-                        
+
                         // Force UI update
                         runOnUiThread {
                             updateMarkAsCleanButton()
                         }
+                        currentPhotoFile = null
                     } else {
                         android.util.Log.w("CleanerTaskDetail", "Activity state changed, skipping image add")
                     }
@@ -111,6 +122,7 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_cleaner_task_detail)
+        cloudinaryRepo = CloudinaryRepository(this)
 
         val roomId = intent.getStringExtra("ROOM_ID") ?: ""
         bookingId = intent.getStringExtra("BOOKING_ID") ?: ""
@@ -129,7 +141,7 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         val tasks = CleanerTaskRepository.tasks().value ?: emptyList()
         var task = tasks.find { it.roomId == roomId }
         var status = task?.status ?: TaskStatus.DIRTY
-        
+
         // If status is DIRTY, change to IN_PROGRESS when opening this screen
         if (status == TaskStatus.DIRTY && bookingId.isNotEmpty()) {
             android.util.Log.d("CleanerTaskDetail", "Changing status from DIRTY to IN_PROGRESS")
@@ -142,7 +154,7 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
                 updateStatusInFirebase(TaskStatus.IN_PROGRESS)
             }
         }
-        
+
         val tvStatus = findViewById<TextView>(R.id.tvStatus)
         tvStatus.text = CleanerStatusUtils.getStatusText(status)
         tvStatus.setBackgroundResource(R.drawable.bg_tab_chip)
@@ -188,10 +200,10 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
             android.util.Log.w("CleanerTaskDetail", "No bookingId, cannot update status in Firebase")
             return
         }
-        
+
         val statusValue = CleanerStatusUtils.toFirebaseStatus(status)
         android.util.Log.d("CleanerTaskDetail", "Updating status in Firebase to: $statusValue for booking: $bookingId")
-        
+
         // Find or create cleaner document and update status
         firestore.collection("bookings").document(bookingId)
             .collection("cleaner")
@@ -206,7 +218,7 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
                         .collection("cleaner")
                         .document()
                 }
-                
+
                 cleanerDocRef.set(
                     mapOf(
                         "status" to statusValue,
@@ -220,7 +232,7 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
                 .addOnFailureListener { e ->
                     android.util.Log.e("CleanerTaskDetail", "Failed to update status: ${e.message}", e)
                 }
-                
+
                 // Also update parent booking document
                 firestore.collection("bookings").document(bookingId)
                     .update(
@@ -260,6 +272,19 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
     }
 
 
+    private fun copyUriToTempFile(uri: Uri): File? {
+        return try {
+            val tempFile = File.createTempFile("cleaning_", ".jpg", cacheDir)
+            contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(tempFile).use { output -> input.copyTo(output) }
+            }
+            tempFile
+        } catch (e: Exception) {
+            android.util.Log.e("CleanerTaskDetail", "Failed to copy URI to temp file: ${e.message}", e)
+            null
+        }
+    }
+
     private fun openCamera() {
         try {
             val fileName = "cleaning_${System.currentTimeMillis()}.jpg"
@@ -275,13 +300,15 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
                     File(cacheDir, fileName)
                 }
             }
-            
+
+            currentPhotoFile = file
+
             file.parentFile?.mkdirs()
             if (!file.exists()) {
                 file.createNewFile()
             }
             android.util.Log.d("CleanerTaskDetail", "Creating camera file: ${file.absolutePath}")
-            
+
             cameraImageUri = FileProvider.getUriForFile(
                 this,
                 "${packageName}.fileprovider",
@@ -317,116 +344,76 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         btnMarkAsClean.isEnabled = false
         btnMarkAsClean.text = "Uploading..."
 
-        // Collect all existing image URLs first
-        val existingUrls = imageAdapter.images.mapNotNull { it.url }
-        uploadedImageUrls.clear()
-        uploadedImageUrls.addAll(existingUrls)
-        
-        android.util.Log.d("CleanerTaskDetail", "Starting upload: ${existingUrls.size} existing URLs, ${imageAdapter.images.size} total images")
-
-        // Find all images that need to be uploaded (have URI but no URL)
-        val imagesToUpload = imageAdapter.images.filter { it.uri != null && it.url == null }
-        
-        if (imagesToUpload.isEmpty()) {
-            // All images already have URLs (shouldn't happen in normal flow, but handle it)
-            val allUrls = imageAdapter.images.mapNotNull { it.url }
-            android.util.Log.d("CleanerTaskDetail", "All images already uploaded, using ${allUrls.size} URLs")
-            if (allUrls.isEmpty()) {
-                Toast.makeText(this, "No images to save", Toast.LENGTH_SHORT).show()
-                btnMarkAsClean.isEnabled = true
-                btnMarkAsClean.text = "Mark as clean"
-                return
-            }
-            markTaskAsClean(roomId, task, allUrls)
-            return
-        }
-        
-        android.util.Log.d("CleanerTaskDetail", "Found ${imagesToUpload.size} photos to upload")
-
-        var uploadCount = 0
-        val totalUploads = imagesToUpload.size
-        android.util.Log.d("CleanerTaskDetail", "Uploading $totalUploads new images")
-
-        imagesToUpload.forEachIndexed { index, item ->
-            val uri = item.uri ?: return@forEachIndexed
-            val position = imageAdapter.images.indexOf(item)
-            
-            // Mark as uploading
-            imageAdapter.updateImage(position, item.copy(isUploading = true))
-            
-            val imageId = UUID.randomUUID().toString()
-            val storageRef = storage.reference.child("cleaning_images/$roomId/$imageId.jpg")
-            
-            android.util.Log.d("CleanerTaskDetail", "Uploading image $index/$totalUploads to: cleaning_images/$roomId/$imageId.jpg")
-            
-            // Verify file exists before uploading
+        lifecycleScope.launch {
             try {
-                val filePath = uri.path
-                android.util.Log.d("CleanerTaskDetail", "Uploading from URI: $uri, path: $filePath")
-                if (filePath != null) {
-                    val file = File(filePath)
-                    if (!file.exists()) {
-                        android.util.Log.e("CleanerTaskDetail", "File does not exist: $filePath")
-                        imageAdapter.updateImage(position, item.copy(isUploading = false))
-                        Toast.makeText(this, "Image file not found", Toast.LENGTH_SHORT).show()
+                val imagesToUpload = imageAdapter.images.filter { it.url.isNullOrBlank() && it.file != null }
+                android.util.Log.d("CleanerTaskDetail", "Found ${imagesToUpload.size} photos to upload via Cloudinary")
+
+                if (imagesToUpload.isEmpty()) {
+                    val allUrls = imageAdapter.images.mapNotNull { it.url }
+                    if (allUrls.isEmpty()) {
+                        Toast.makeText(this@CleanerTaskDetailActivity, "No images to save", Toast.LENGTH_SHORT).show()
                         btnMarkAsClean.isEnabled = true
                         btnMarkAsClean.text = "Mark as clean"
+                        return@launch
+                    }
+                    markTaskAsClean(roomId, task, allUrls)
+                    return@launch
+                }
+
+                imagesToUpload.forEachIndexed { index, item ->
+                    val position = imageAdapter.images.indexOf(item)
+                    var workingItem = item
+                    var file = workingItem.file
+                    val workingUri = workingItem.uri
+                    if (file == null && workingUri != null) {
+                        file = copyUriToTempFile(workingUri)
+                        if (file != null) {
+                            workingItem = workingItem.copy(file = file)
+                            imageAdapter.updateImage(position, workingItem)
+                        }
+                    }
+                    if (file == null || !file.exists()) {
+                        android.util.Log.e("CleanerTaskDetail", "Skipping image ${index + 1} - file missing")
+                        imageAdapter.updateImage(position, workingItem.copy(isUploading = false))
                         return@forEachIndexed
                     }
-                    android.util.Log.d("CleanerTaskDetail", "File exists, size: ${file.length()} bytes")
-                }
-            } catch (e: Exception) {
-                android.util.Log.w("CleanerTaskDetail", "Could not verify file existence: ${e.message}")
-            }
-            
-            storageRef.putFile(uri)
-                .addOnProgressListener { taskSnapshot ->
-                    val progress = (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount)
-                    android.util.Log.d("CleanerTaskDetail", "Upload progress for image $index: ${progress.toInt()}%")
-                }
-                .continueWithTask { uploadTask ->
-                    if (!uploadTask.isSuccessful) {
-                        val exception = uploadTask.exception
-                        android.util.Log.e("CleanerTaskDetail", "Upload task failed: ${exception?.message}", exception)
-                        throw exception ?: Exception("Upload failed")
+
+                    workingItem = workingItem.copy(isUploading = true)
+                    imageAdapter.updateImage(position, workingItem)
+                    android.util.Log.d("CleanerTaskDetail", "Uploading image ${index + 1}/${imagesToUpload.size} from ${file.absolutePath}")
+
+                    val uploadResult = cloudinaryRepo.uploadSingleImage(file, CLOUDINARY_FOLDER)
+                    val url = uploadResult?.secure_url
+                    if (url.isNullOrBlank()) {
+                        throw IllegalStateException("Failed to upload image ${index + 1}")
                     }
-                    storageRef.downloadUrl
+
+                    workingItem = workingItem.copy(url = url, uri = null, file = null, isUploading = false)
+                    imageAdapter.updateImage(position, workingItem)
                 }
-                .addOnSuccessListener { downloadUri ->
-                    val url = downloadUri.toString()
-                    uploadedImageUrls.add(url)
-                    android.util.Log.d("CleanerTaskDetail", "✓ Image $index/$totalUploads uploaded successfully: $url")
-                    
-                    // Update image item with URL
-                    imageAdapter.updateImage(position, item.copy(url = url, uri = null, isUploading = false))
-                    
-                    uploadCount++
-                    android.util.Log.d("CleanerTaskDetail", "Upload progress: $uploadCount/$totalUploads complete")
-                    if (uploadCount == totalUploads) {
-                        // All uploads complete - collect all URLs from adapter
-                        val allUrls = imageAdapter.images.mapNotNull { it.url }
-                        android.util.Log.d("CleanerTaskDetail", "✓ All uploads complete! Total URLs collected: ${allUrls.size}")
-                        if (allUrls.isEmpty()) {
-                            android.util.Log.w("CleanerTaskDetail", "⚠ Warning: No image URLs collected!")
-                            Toast.makeText(this, "Warning: No images were uploaded", Toast.LENGTH_LONG).show()
-                        }
-                        markTaskAsClean(roomId, task, allUrls)
-                    }
-                }
-                .addOnFailureListener { e ->
-                    android.util.Log.e("CleanerTaskDetail", "✗ Image upload failed for image $index: ${e.message}", e)
-                    android.util.Log.e("CleanerTaskDetail", "Error type: ${e.javaClass.simpleName}")
-                    imageAdapter.updateImage(position, item.copy(isUploading = false))
-                    Toast.makeText(this, "Failed to upload image ${index + 1}: ${e.message}", Toast.LENGTH_LONG).show()
+
+                val allUrls = imageAdapter.images.mapNotNull { it.url }
+                android.util.Log.d("CleanerTaskDetail", "✓ All uploads complete! Total URLs collected: ${allUrls.size}")
+                if (allUrls.isEmpty()) {
+                    Toast.makeText(this@CleanerTaskDetailActivity, "No images to save", Toast.LENGTH_SHORT).show()
                     btnMarkAsClean.isEnabled = true
                     btnMarkAsClean.text = "Mark as clean"
+                    return@launch
                 }
+                markTaskAsClean(roomId, task, allUrls)
+            } catch (e: Exception) {
+                android.util.Log.e("CleanerTaskDetail", "Failed to upload images: ${e.message}", e)
+                Toast.makeText(this@CleanerTaskDetailActivity, "Failed to upload images: ${e.message}", Toast.LENGTH_LONG).show()
+                btnMarkAsClean.isEnabled = true
+                btnMarkAsClean.text = "Mark as clean"
+            }
         }
     }
 
     private fun markTaskAsClean(roomId: String, task: com.tdc.nhom6.roomio.fragments.CleanerTask?, imageUrls: List<String>) {
         android.util.Log.d("CleanerTaskDetail", "markTaskAsClean called with ${imageUrls.size} images, bookingId: $bookingId")
-        
+
         // Update task status to CLEAN (completed) in local repository first
         task?.let { currentTask ->
             val updated = currentTask.copy(status = TaskStatus.CLEAN)
@@ -475,7 +462,7 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
             finish() // Navigate back to task list
         }
     }
-    
+
     private fun saveCleanerData(cleanerDocRef: com.google.firebase.firestore.DocumentReference, imageUrls: List<String>) {
         val statusValue = CleanerStatusUtils.toFirebaseStatus(TaskStatus.CLEAN)
         val updates = mapOf(
@@ -484,24 +471,24 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
             "cleaningCompletedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
             "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
         )
-        
+
         android.util.Log.d("CleanerTaskDetail", "Saving cleaner data to document: ${cleanerDocRef.id}")
         android.util.Log.d("CleanerTaskDetail", "Status: $statusValue, Images count: ${imageUrls.size}")
         if (imageUrls.isNotEmpty()) {
             android.util.Log.d("CleanerTaskDetail", "First image URL: ${imageUrls.first()}")
         }
-        
+
         // Show loading indicator
         val btnMarkAsClean = findViewById<MaterialButton>(R.id.btnStartCleaning)
         btnMarkAsClean.isEnabled = false
         btnMarkAsClean.text = "Saving..."
-        
+
         cleanerDocRef.set(updates, SetOptions.merge())
             .addOnSuccessListener {
                 android.util.Log.d("CleanerTaskDetail", "✓ Successfully saved to cleaner subcollection: ${cleanerDocRef.id}")
                 android.util.Log.d("CleanerTaskDetail", "  - Status: $statusValue")
                 android.util.Log.d("CleanerTaskDetail", "  - Images: ${imageUrls.size}")
-                
+
                 // Also update the parent booking document's cleanerStatusLatest
                 if (bookingId.isNotEmpty()) {
                     firestore.collection("bookings").document(bookingId)
@@ -555,5 +542,9 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
                     Toast.makeText(this@CleanerTaskDetailActivity, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
+    }
+
+    companion object {
+        private const val CLOUDINARY_FOLDER = "cleaner_tasks"
     }
 }

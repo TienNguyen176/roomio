@@ -8,6 +8,7 @@ import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
+import java.io.File
 
 class CleaningImageAdapter(
     val images: MutableList<ImageItem>,
@@ -17,7 +18,8 @@ class CleaningImageAdapter(
     data class ImageItem(
         val uri: Uri? = null,
         val url: String? = null,
-        val isUploading: Boolean = false
+        val isUploading: Boolean = false,
+        val file: File? = null
     )
 
     class ImageViewHolder(view: View) : RecyclerView.ViewHolder(view) {

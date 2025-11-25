@@ -34,6 +34,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
     private lateinit var lostAdapter: LostItemAdapter
     private lateinit var brokenAdapter: BrokenFurnitureAdapter
     private lateinit var miniBarAdapter: MiniBarAdapter
+    private val minibarIdLookup = mutableMapOf<String, String>()
     private val firestore by lazy { FirebaseFirestore.getInstance() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -149,10 +150,11 @@ class CleaningInspectionActivity : AppCompatActivity() {
                         // 2. Save minibar items to miniBarUsed
                         val checkedMiniBarItems = miniBarAdapter.getCheckedItems()
                         checkedMiniBarItems.forEach { item ->
-                            if (item.checked && item.quantity > 0 && item.minibarId.isNotEmpty()) {
+                            val minibarId = minibarIdLookup[item.name] ?: ""
+                            if (item.checked && item.quantity > 0 && minibarId.isNotEmpty()) {
                                 val minibarData = mapOf(
                                     "bookingId" to bookingId,
-                                    "minibarId" to item.minibarId,
+                                    "minibarId" to minibarId,
                                     "quantity" to item.quantity,
                                     "createdAt" to cleaningTimestamp
                                 )
@@ -385,6 +387,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
     private fun loadMinibarFromHotel(hotelId: String) {
         lifecycleScope.launch {
             android.util.Log.d("CleaningInspection", "loadMinibarFromHotel called with hotelId: $hotelId")
+            minibarIdLookup.clear()
             val minibarItems = withContext(Dispatchers.IO) {
                 runCatching { 
                     fetchMinibarItems(hotelId) 
@@ -436,11 +439,12 @@ class CleaningInspectionActivity : AppCompatActivity() {
                         is java.math.BigDecimal -> raw.toDouble()
                         else -> null
                     } ?: 0.0
-                    val minibarId = doc.id // Use document ID as minibarId
                     
                     if (price > 0) {
-                        android.util.Log.d("CleaningInspection", "Found minibar item: id=$minibarId, name=$name, price=$price")
-                        MiniBarAdapter.MiniItem(name, price, checked = false, quantity = 0, minibarId = minibarId)
+                        val minibarId = doc.id
+                        minibarIdLookup[name] = minibarId
+                        android.util.Log.d("CleaningInspection", "Found minibar item (fallback): id=$minibarId, name=$name, price=$price")
+                        MiniBarAdapter.MiniItem(name, price, checked = false, quantity = 0)
                     } else {
                         android.util.Log.w("CleaningInspection", "Skipping minibar item with invalid price: name=$name")
                         null
@@ -459,8 +463,9 @@ class CleaningInspectionActivity : AppCompatActivity() {
                 val minibarId = doc.id // Use document ID as minibarId
                 
                 if (price > 0) {
+                    minibarIdLookup[name] = minibarId
                     android.util.Log.d("CleaningInspection", "Found minibar item: id=$minibarId, name=$name, price=$price")
-                    MiniBarAdapter.MiniItem(name, price, checked = false, quantity = 0, minibarId = minibarId)
+                    MiniBarAdapter.MiniItem(name, price, checked = false, quantity = 0)
                 } else {
                     android.util.Log.w("CleaningInspection", "Skipping minibar item with invalid price: name=$name")
                     null
