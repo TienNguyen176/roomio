@@ -437,7 +437,7 @@ class SearchResultsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
         when (item.type) {
             SearchResultType.HOTEL -> {
                 item.hotel?.let { hotel ->
-                    loadImage(hotel.images.firstOrNull() ?: "hotel_64260231_1", img)
+                    loadImage(hotel.images.firstOrNull() ?: "", img)
                     title.text = hotel.hotelName
                     location.text = extractLocationFromAddress(hotel.hotelAddress)
                     price.text = formatPrice(hotel.pricePerNight)
@@ -469,15 +469,11 @@ class SearchResultsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
     }
 
     private fun extractLocationFromAddress(address: String): String {
-        // Extract city name from address (e.g., "123 Nguyen Hue, Quận 1, TP. Hồ Chí Minh" -> "Ho Chi Minh City")
-        return when {
-            address.contains("TP. Hồ Chí Minh") || address.contains("Ho Chi Minh") -> "Ho Chi Minh City"
-            address.contains("Vũng Tàu") || address.contains("Vung Tau") -> "Vung Tau"
-            address.contains("Đà Nẵng") || address.contains("Da Nang") -> "Da Nang"
-            address.contains("Hà Nội") || address.contains("Hanoi") -> "Hanoi"
-            address.contains("Nha Trang") -> "Nha Trang"
-            address.contains("Phú Quốc") || address.contains("Phu Quoc") -> "Phu Quoc"
-            else -> "Vietnam"
+        // Return the address as-is, or extract the last part (typically city) if address contains commas
+        return if (address.contains(",")) {
+            address.split(",").lastOrNull()?.trim() ?: address
+        } else {
+            address
         }
     }
 
@@ -523,17 +519,8 @@ class SearchResultsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
                 .error(R.drawable.caption)
                 .into(target)
         } else {
-            val resId = when (nameOrUrl) {
-                "hotel_64260231_1" -> R.drawable.caption
-                "hotel_del_coronado_views_suite1600x900" -> R.drawable.hotel_del_coronado_views_suite1600x900
-                "swimming_pool_1" -> R.drawable.swimming_pool_1
-                "room_640278495" -> R.drawable.room_640278495
-                "rectangle_copy_2" -> R.drawable.rectangle_copy_2
-                "property_colombo" -> R.drawable.property_colombo
-                "dsc04512_scaled_1" -> R.drawable.dsc04512_scaled_1
-                else -> R.drawable.caption
-            }
-            target.setImageResource(resId)
+            // Fallback to default placeholder for non-URL image names
+            target.setImageResource(R.drawable.caption)
         }
     }
 }

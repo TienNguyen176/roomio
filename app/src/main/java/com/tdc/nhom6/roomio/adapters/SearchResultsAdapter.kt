@@ -75,14 +75,11 @@ class SearchResultsAdapter(var items: List<SearchResultItem>) :
         }
 
         private fun extractLocationFromAddress(address: String): String {
-            return when {
-                address.contains("TP. Hồ Chí Minh", true) || address.contains("Ho Chi Minh", true) -> "Ho Chi Minh City"
-                address.contains("Vũng Tàu", true) || address.contains("Vung Tau", true) -> "Vung Tau"
-                address.contains("Đà Nẵng", true) || address.contains("Da Nang", true) -> "Da Nang"
-                address.contains("Hà Nội", true) || address.contains("Hanoi", true) -> "Hanoi"
-                address.contains("Nha Trang", true) -> "Nha Trang"
-                address.contains("Phú Quốc", true) || address.contains("Phu Quoc", true) -> "Phu Quoc"
-                else -> "Vietnam"
+            // Return the address as-is, or extract the last part (typically city) if address contains commas
+            return if (address.contains(",")) {
+                address.split(",").lastOrNull()?.trim() ?: address
+            } else {
+                address
             }
         }
 
