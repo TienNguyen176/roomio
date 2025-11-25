@@ -7,13 +7,8 @@ import com.google.firebase.Timestamp
 data class Reply(
     @DocumentId
     val id: String = "",
-
-    val reviewId: String = "",
-
     val userId: String = "",
-
+    val userName: String = "",
     val message: String = "",
-
-    @ServerTimestamp
-    val createdAt: Timestamp? = null
+    val createdAt: Timestamp = Timestamp.now()
 )
