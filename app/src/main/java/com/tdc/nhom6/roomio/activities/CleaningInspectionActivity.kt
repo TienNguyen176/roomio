@@ -343,7 +343,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
             val roomTypeDoc = firestore.collection("roomTypes").document(roomTypeId).get().await()
             if (roomTypeDoc.exists()) {
                 val hotelId = roomTypeDoc.getString("hotelId")
-                    ?: roomTypeDoc.getString("hotel_id")
+                    ?: roomTypeDoc.getString("hotelId")
                     ?: (roomTypeDoc.get("hotelRef") as? com.google.firebase.firestore.DocumentReference)?.id
                 if (hotelId != null) {
                     android.util.Log.d("CleaningInspection", "Found hotelId from roomType: $hotelId")
@@ -362,7 +362,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
             if (bookingDoc.exists()) {
                 android.util.Log.d("CleaningInspection", "Booking document exists, checking for hotelId fields...")
                 // Try multiple field name variations
-                val hotelId = bookingDoc.getString("hotel_id")
+                val hotelId = bookingDoc.getString("hotelId")
                     ?: bookingDoc.getString("hotelId")
                     ?: bookingDoc.getString("hotel")
                     ?: (bookingDoc.get("hotelRef") as? com.google.firebase.firestore.DocumentReference)?.id

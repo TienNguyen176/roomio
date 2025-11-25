@@ -49,11 +49,13 @@ class ReceptionFragment : Fragment() {
     private val reservationDisplayCodes = mutableMapOf<String, String>()
     private val cleaningStatusByBooking = mutableMapOf<String, TaskStatus>()
 
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? = inflater.inflate(R.layout.fragment_reception, container, false)
+
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -259,7 +261,7 @@ class ReceptionFragment : Fragment() {
             numberGuest = numberGuest,
             roomType = finalRoomTypeName,
             roomTypeId = roomTypeId,
-            hotelId = doc.getString("hotel_id"),
+            hotelId = doc.getString("hotelId"),
             guestPhone = fallbackPhone,
             guestEmail = fallbackEmail,
             totalFinalAmount = totalFinal,
@@ -285,7 +287,7 @@ class ReceptionFragment : Fragment() {
             totalFinal = totalFinal,
             invoiceKeys = invoiceKeys,
             roomTypeId = roomTypeId,
-            hotelId = doc.getString("hotelId") ?: doc.getString("hotel_id"),
+            hotelId = doc.getString("hotelId") ?: doc.getString("hotelId"),
             guestPhone = fallbackPhone,
             guestEmail = fallbackEmail
         )
