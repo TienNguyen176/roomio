@@ -19,40 +19,28 @@ import com.google.firebase.firestore.ListenerRegistration
 
 class HomeFragment : Fragment() {
 
-    // Adapters for our RecyclerViews
     private lateinit var hotReviewAdapter: HotReviewAdapter
     private lateinit var dealsAdapter: DealsAdapter
 
-    // Firebase repository for data operations
     private lateinit var firebaseRepository: FirebaseRepository
-    private var hotReviews = emptyList<Hotel>()
+
+    private var hotReviews: List<Hotel> = emptyList()
+    private var deals: List<Hotel> = emptyList()
+
     private var hotReviewsListener: ListenerRegistration? = null
     private var dealsListener: ListenerRegistration? = null
-    override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_home, container, false)
-    }
+
+    // ... (onCreateView)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Initialize Firebase repository
         firebaseRepository = FirebaseRepository()
 
-        // Set up the Hot Reviews RecyclerView
         setupHotReviewsRecyclerView(view)
-
-        // Set up the Deals RecyclerView
         setupDealsRecyclerView(view)
-
-        // Set up search functionality
         setupSearchFunctionality(view)
 
-        // Set up "View all" actions to show list view
         view.findViewById<android.widget.TextView>(R.id.tvViewAllHot)?.setOnClickListener {
             navigateToSearchResults("")
         }
@@ -60,18 +48,72 @@ class HomeFragment : Fragment() {
             navigateToSearchResults("")
         }
 
-        // Load data from Firebase
         loadDataFromFirebase()
     }
 
-    /**
-     * Sets up the Hot Reviews RecyclerView
-     * This shows hotel reviews in a horizontal scrolling list
-     */
+    private fun loadDataFromFirebase() {
+        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
+        Log.d("Firebase", "HomeFragment: hasPlay=$hasPlay")
+
+        hotReviewsListener?.remove()
+
+        if (hasPlay) {
+            // Realtime: Lắng nghe Hot Reviews
+            hotReviewsListener = firebaseRepository.observeHotReviews { hotels ->
+                hotReviews = hotels
+                hotReviewAdapter.updateData(hotReviews)
+                Log.d("Firebase", "Realtime: ${hotReviews.size} hot reviews loaded.")
+            }
+        } else {
+            firebaseRepository.getHotReviews { hotels ->
+                hotReviews = hotels
+                hotReviewAdapter.updateData(hotReviews)
+                Log.d("Firebase", "One-shot: ${hotReviews.size} hot reviews loaded.")
+            }
+        }
+
+        dealsListener?.remove()
+
+        if (hasPlay) {
+            dealsListener = firebaseRepository.observeDealsHotels { hotels ->
+                deals = hotels
+                dealsAdapter.updateData(deals)
+                Log.d("Firebase", "Realtime: ${deals.size} deals loaded.")
+            }
+        } else {
+            firebaseRepository.observeDealsHotels { hotels ->
+                deals = hotels
+                dealsAdapter.updateData(deals)
+                Log.d("Firebase", "One-shot: ${deals.size} deals loaded.")
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+
+        try {
+            hotReviewsListener?.remove()
+            dealsListener?.remove()
+        } catch (e: Exception) {
+            Log.e("Firebase", "Error removing listeners: ${e.message}")
+        }
+        hotReviewsListener = null
+        dealsListener = null
+    }
+
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        return inflater.inflate(R.layout.fragment_home, container, false)
+    }
+
     private fun setupHotReviewsRecyclerView(view: View) {
         val rvHotReviews = view.findViewById<RecyclerView>(R.id.rvHotReview)
 
-        // Set horizontal layout manager with improved configuration
         val layoutManager = LinearLayoutManager(
             requireContext(),
             LinearLayoutManager.HORIZONTAL,
@@ -79,36 +121,25 @@ class HomeFragment : Fragment() {
         )
         RecyclerViewUtils.configureRecyclerView(rvHotReviews, layoutManager)
 
-        // Create adapter with empty list initially
         hotReviewAdapter = HotReviewAdapter(hotReviews)
         rvHotReviews.adapter = hotReviewAdapter
     }
 
-    /**
-     * Sets up the Deals RecyclerView
-     * This shows hotel deals in a grid layout (2 columns)
-     */
     private fun setupDealsRecyclerView(view: View) {
         val rvDeals = view.findViewById<RecyclerView>(R.id.rvDeals)
 
-        // Set grid layout manager with 2 columns
         val gridLayoutManager = GridLayoutManager(requireContext(), 2)
         RecyclerViewUtils.configureRecyclerView(rvDeals, gridLayoutManager)
 
-        // Create adapter with empty list initially
-        dealsAdapter = DealsAdapter(emptyList())
+        // Khởi tạo Adapter với biến deals đã khai báo
+        dealsAdapter = DealsAdapter(deals)
         rvDeals.adapter = dealsAdapter
     }
 
-    /**
-     * Sets up search functionality
-     * When user types and presses search, it navigates to search results
-     */
     private fun setupSearchFunctionality(view: View) {
         val searchLayout = view.findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.searchLayout)
         val searchEditText = searchLayout.editText
 
-        // Handle search button click
         searchLayout.setEndIconOnClickListener {
             val query = searchEditText?.text?.toString() ?: ""
             if (query.isNotEmpty()) {
@@ -116,7 +147,6 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // Handle search on enter key press
         searchEditText?.setOnEditorActionListener { _, _, _ ->
             val query = searchEditText.text?.toString() ?: ""
             if (query.isNotEmpty()) {
@@ -126,39 +156,8 @@ class HomeFragment : Fragment() {
         }
     }
 
-    /**
-     * Loads data from Firebase
-     * This replaces sample data with real Firebase data
-     */
-    private fun loadDataFromFirebase() {
-        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
-        Log.d("Firebase", "HomeFragment: hasPlay=$hasPlay")
-        if (hasPlay) {
-            // Observe hot reviews (realtime)
-            hotReviewsListener?.remove()
-            hotReviewsListener = firebaseRepository.observeHotReviews { hotels ->
-                hotReviews = hotels
-                hotReviewAdapter.updateData(hotReviews)
-                Log.d("Firebase", "Realtime: ${hotReviews.size} hot reviews")
-            }
-
-        } else {
-            // Fallback to one-shot loads when Play Services missing
-            firebaseRepository.getHotReviews { hotels ->
-                hotReviews = hotels
-                hotReviewAdapter.updateData(hotReviews)
-                Log.d("Firebase", "One-shot: ${hotReviews.size} hot reviews")
-            }
-        }
-    }
-
-    /**
-     * Navigates to search results screen
-     * This is called when user searches for something
-     */
     private fun navigateToSearchResults(query: String) {
         try {
-            // Navigate to SearchActivity with the search query
             val intent = android.content.Intent(requireContext(), com.tdc.nhom6.roomio.activities.SearchActivity::class.java)
             intent.putExtra(com.tdc.nhom6.roomio.activities.SearchActivity.EXTRA_SEARCH_QUERY, query)
             intent.putExtra(com.tdc.nhom6.roomio.activities.SearchActivity.EXTRA_LOCATION, "")
@@ -172,15 +171,5 @@ class HomeFragment : Fragment() {
             ).show()
             println("Search navigation error: ${e.message}")
         }
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        try {
-            hotReviewsListener?.remove()
-            dealsListener?.remove()
-        } catch (_: Exception) { }
-        hotReviewsListener = null
-        dealsListener = null
     }
 }
