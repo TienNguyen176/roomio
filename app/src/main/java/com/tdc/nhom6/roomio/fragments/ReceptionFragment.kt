@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
@@ -49,18 +50,20 @@ class ReceptionFragment : Fragment() {
     private val reservationDisplayCodes = mutableMapOf<String, String>()
     private val cleaningStatusByBooking = mutableMapOf<String, TaskStatus>()
 
-
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? = inflater.inflate(R.layout.fragment_reception, container, false)
 
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         val rv = view.findViewById<RecyclerView>(R.id.rvReservations)
         RecyclerViewUtils.configureRecyclerView(rv)
+
+        view.findViewById<ImageView>(R.id.btnBack)?.setOnClickListener {
+            requireActivity().finish()
+        }
 
         CleanerTaskRepository.latestCleaningResult().observe(viewLifecycleOwner) {
             val consumed = CleanerTaskRepository.consumeLatestCleaningResult() ?: return@observe
@@ -212,7 +215,7 @@ class ReceptionFragment : Fragment() {
             ?: 1
 
         val isCanceled = doc.getBoolean("canceled") == true ||
-            doc.getString("status")?.equals("canceled", ignoreCase = true) == true
+                doc.getString("status")?.equals("canceled", ignoreCase = true) == true
         val statusStr = (doc.getString("status") ?: "").lowercase(Locale.getDefault()).trim()
         val baseStatus = resolveBaseStatus(statusStr, isCanceled, checkInValue, checkOutValue)
 
@@ -262,7 +265,7 @@ class ReceptionFragment : Fragment() {
             numberGuest = numberGuest,
             roomType = finalRoomTypeName,
             roomTypeId = roomTypeId,
-            hotelId = doc.getString("hotelId"),
+            hotelId = doc.getString("hotel_id"),
             guestPhone = fallbackPhone,
             guestEmail = fallbackEmail,
             totalFinalAmount = totalFinal,
@@ -288,7 +291,7 @@ class ReceptionFragment : Fragment() {
             totalFinal = totalFinal,
             invoiceKeys = invoiceKeys,
             roomTypeId = roomTypeId,
-            hotelId = doc.getString("hotelId") ?: doc.getString("hotelId"),
+            hotelId = doc.getString("hotelId") ?: doc.getString("hotel_id"),
             guestPhone = fallbackPhone,
             guestEmail = fallbackEmail
         )
@@ -321,7 +324,7 @@ class ReceptionFragment : Fragment() {
     ): ReservationStatus = when {
         isCanceled -> ReservationStatus.CANCELED
         statusStr == "checked_out" || statusStr == "checked out" ||
-            statusStr == "pending_payment" || statusStr == "pending payment" -> ReservationStatus.PENDING
+                statusStr == "pending_payment" || statusStr == "pending payment" -> ReservationStatus.PENDING
         statusStr == "completed" -> ReservationStatus.COMPLETED
         statusStr == "checked_in" || statusStr == "checked in" -> ReservationStatus.UNCOMPLETED
         statusStr.isBlank() -> when {
@@ -642,13 +645,13 @@ class ReceptionFragment : Fragment() {
         val meta = reservationMeta[reservation.documentId] ?: return false
         val normalizedStatus = meta.statusStr.lowercase(Locale.getDefault())
         val requiresCleaner = meta.hasCheckedOut ||
-            normalizedStatus == "pending_payment" ||
-            normalizedStatus == "pending payment" ||
-            normalizedStatus == "checked_out" ||
-            normalizedStatus == "checked out"
+                normalizedStatus == "pending_payment" ||
+                normalizedStatus == "pending payment" ||
+                normalizedStatus == "checked_out" ||
+                normalizedStatus == "checked out"
         if (!requiresCleaner) return false
         val cleaningDone = reservation.cleaningCompletedAtMillis != null ||
-            cleaningStatusByBooking[reservation.documentId] == TaskStatus.CLEAN
+                cleaningStatusByBooking[reservation.documentId] == TaskStatus.CLEAN
         if (cleaningDone) return false
         cleaningStatusByBooking[reservation.documentId]?.let { status ->
             if (status != TaskStatus.CLEAN) return true
@@ -881,10 +884,10 @@ class ReceptionFragment : Fragment() {
                 ReservationStatus.ALL -> true
                 ReservationStatus.PENDING -> {
                     reservation.status == ReservationStatus.PENDING ||
-                        reservation.action.equals("payment", ignoreCase = true)
+                            reservation.action.equals("payment", ignoreCase = true)
                 }
                 ReservationStatus.UNCOMPLETED -> reservation.status == ReservationStatus.UNCOMPLETED ||
-                    reservation.action.equals("payment", ignoreCase = true)
+                        reservation.action.equals("payment", ignoreCase = true)
                 ReservationStatus.COMPLETED -> reservation.status == ReservationStatus.COMPLETED
                 ReservationStatus.CANCELED -> reservation.status == ReservationStatus.CANCELED
             }

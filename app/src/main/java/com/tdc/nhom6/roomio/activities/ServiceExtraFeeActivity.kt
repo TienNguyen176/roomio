@@ -58,8 +58,10 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_service_extra_fee)
-        findViewById<ImageView>(R.id.btnBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+//        findViewById<ImageView>(R.id.btnBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
         tvResId = findViewById(R.id.tvResId)
+
         tvGuestName = findViewById(R.id.tvGuestName)
         tvCheckIn = findViewById(R.id.tvCheckIn)
         tvCheckOut = findViewById(R.id.tvCheckOut)

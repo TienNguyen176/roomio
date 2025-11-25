@@ -135,7 +135,8 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
 
         // Back button
         findViewById<ImageView>(R.id.btnBack).setOnClickListener {
-            onBackPressedDispatcher.onBackPressed()
+//            onBackPressedDispatcher.onBackPressed()
+            findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
         }
 
         // Room ID

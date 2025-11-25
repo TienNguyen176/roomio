@@ -46,7 +46,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
         tvTotalCharges = findViewById(R.id.tvTotalCharges)
 
         // Back button
-        findViewById<ImageView>(R.id.btnBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        findViewById<ImageView>(R.id.btnBack).setOnClickListener { finish() }
 
         // Show basic room id until booking data loads
         val roomId = intent.getStringExtra("ROOM_ID") ?: ""
