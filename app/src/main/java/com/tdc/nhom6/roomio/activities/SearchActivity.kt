@@ -7,7 +7,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.toObject
-import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.SearchResultsAdapter
 import com.tdc.nhom6.roomio.databinding.FragmentSearchResultsBinding
 import com.tdc.nhom6.roomio.models.Hotel
@@ -16,7 +15,6 @@ import com.tdc.nhom6.roomio.models.SearchResultItem
 import com.tdc.nhom6.roomio.models.SearchResultType
 import com.tdc.nhom6.roomio.repository.FirebaseRepository
 import com.tdc.nhom6.roomio.utils.RecyclerViewUtils
-import com.tdc.nhom6.roomio.activities.HotelDetailActivity
 
 class SearchActivity : AppCompatActivity() {
     private lateinit var binding: FragmentSearchResultsBinding
@@ -136,7 +134,7 @@ class SearchActivity : AppCompatActivity() {
                 currentItems.sortBy { item ->
                     when (item.type) {
                         SearchResultType.HOTEL -> item.hotel?.pricePerNight ?: 0.0
-                        SearchResultType.DEAL -> item.deal?.discountPricePerNight ?: 0.0
+                        SearchResultType.DEAL -> item.deal?.pricePerNight ?: 0.0
                         SearchResultType.REVIEW -> item.review?.pricePerNight ?: 0.0
                     }
                 }
@@ -145,7 +143,7 @@ class SearchActivity : AppCompatActivity() {
                 currentItems.sortByDescending { item ->
                     when (item.type) {
                         SearchResultType.HOTEL -> item.hotel?.pricePerNight ?: 0.0
-                        SearchResultType.DEAL -> item.deal?.discountPricePerNight ?: 0.0
+                        SearchResultType.DEAL -> item.deal?.pricePerNight ?: 0.0
                         SearchResultType.REVIEW -> item.review?.pricePerNight ?: 0.0
                     }
                 }
@@ -154,7 +152,7 @@ class SearchActivity : AppCompatActivity() {
                 currentItems.sortByDescending { item ->
                     when (item.type) {
                         SearchResultType.HOTEL -> item.hotel?.averageRating ?: 0.0
-                        SearchResultType.DEAL -> item.deal?.rating ?: 0.0
+                        SearchResultType.DEAL -> item.deal?.averageRating ?: 0.0
                         SearchResultType.REVIEW -> item.review?.rating ?: 0.0
                     }
                 }

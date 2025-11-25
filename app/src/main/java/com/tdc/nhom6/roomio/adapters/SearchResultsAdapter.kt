@@ -58,11 +58,11 @@ class SearchResultsAdapter(var items: List<SearchResultItem>) :
                     }
                 }
                 SearchResultType.DEAL -> item.deal?.let { deal ->
-                    loadImage(deal.imageUrl, img)
+                    loadImage(deal.images[0], img)
                     title.text = deal.hotelName
-                    location.text = deal.hotelLocation
-                    price.text = formatPrice(deal.discountPricePerNight)
-                    setStarRating(deal.rating)
+                    location.text = deal.hotelAddress
+                    price.text = formatPrice(deal.pricePerNight)
+                    setStarRating(deal.averageRating)
                 }
                 SearchResultType.REVIEW -> item.review?.let { review ->
                     loadImage(review.hotelImage, img)
