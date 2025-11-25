@@ -5,6 +5,7 @@ import android.app.Dialog
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.util.Patterns
 import android.view.LayoutInflater
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
@@ -13,7 +14,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.lifecycleScope
-import com.bumptech.glide.Glide
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentReference
@@ -71,6 +71,7 @@ class BusinessRegistrationActivity : AppCompatActivity() {
         const val HOTEL_SELECTED_TEXT = "Chọn loại hình khách sạn"
         const val FOLDER_CCCD = "room_cccd"
         const val FOLDER_LICENSE = "room_license"
+        const val IMAGE_UPLOADED = "Đã upload"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -173,6 +174,7 @@ class BusinessRegistrationActivity : AppCompatActivity() {
         takePhotoLauncher.launch(cameraImageUri!!)
     }
 
+    @SuppressLint("SetTextI18n")
     private fun handleSelectedImage(uri: Uri) {
         when (selectedType) {
             CCCD_MAT_TRUOC -> {
@@ -183,10 +185,38 @@ class BusinessRegistrationActivity : AppCompatActivity() {
                 binding.imgMatSau.setImageURI(uri)
                 fileCCCDMatSau = uriToFile(uri)
             }
-            GIAY_PHEP_KINH_DOANH -> fileGiayPhepKinhDoanh = uriToFile(uri)
-            GIAY_PHEP_PCCC -> fileGiayPhepPCCC = uriToFile(uri)
-            GIAY_PHEP_ANTT -> fileGiayPhepANTT = uriToFile(uri)
-            GIAY_PHEP_VSATTP -> fileGiayPhepVSATTP = uriToFile(uri)
+            GIAY_PHEP_KINH_DOANH -> {
+                fileGiayPhepKinhDoanh = uriToFile(uri)
+                binding.tvUploadGiayPhepKinhDoanh.apply {
+                    text = IMAGE_UPLOADED
+                    setTextColor(getColor(R.color.purple))
+                    paint.isUnderlineText = true // gạch chân
+                }
+            }
+            GIAY_PHEP_PCCC -> {
+                fileGiayPhepPCCC = uriToFile(uri)
+                binding.tvUploadGiayChungNhanPCCC.apply {
+                    text = IMAGE_UPLOADED
+                    setTextColor(getColor(R.color.purple))
+                    paint.isUnderlineText = true
+                }
+            }
+            GIAY_PHEP_ANTT -> {
+                fileGiayPhepANTT = uriToFile(uri)
+                binding.tvUploadGiayChungNhanANTT.apply {
+                    text = IMAGE_UPLOADED
+                    setTextColor(getColor(R.color.purple))
+                    paint.isUnderlineText = true
+                }
+            }
+            GIAY_PHEP_VSATTP -> {
+                fileGiayPhepVSATTP = uriToFile(uri)
+                binding.tvUploadGiayChungNhanVSATTP.apply {
+                    text = IMAGE_UPLOADED
+                    setTextColor(getColor(R.color.purple))
+                    paint.isUnderlineText = true
+                }
+            }
         }
     }
 
@@ -239,6 +269,22 @@ class BusinessRegistrationActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun hasFormData(): Boolean {
+        return !binding.edtHoTen.text?.isEmpty()!! ||
+                !binding.edtCCCD.text?.isEmpty()!! ||
+                !binding.edtNamSinh.text?.isEmpty()!! ||
+                !binding.edtDiaChiThuongTru.text?.isEmpty()!! ||
+                !binding.edtSDT.text?.isEmpty()!! ||
+                !binding.edtEmail.text?.isEmpty()!! ||
+                !binding.edtHotelName.text?.isEmpty()!! ||
+                !binding.edtHotelAddress.text?.isEmpty()!! ||
+                !binding.edtSoTang.text?.isEmpty()!! ||
+                !binding.edtSoPhong.text?.isEmpty()!! ||
+                fileCCCDMatTruoc != null ||
+                fileGiayPhepKinhDoanh != null ||
+                fileGiayPhepANTT != null
+    }
+
     // --- LOADING DIALOG ---
     private fun showLoadingDialog() {
         if (loadingDialog == null) {
@@ -280,6 +326,30 @@ class BusinessRegistrationActivity : AppCompatActivity() {
         })
     }
 
+    private fun showExitConfirmationDialog() {
+        // Nếu form trống, thoát luôn
+        if (!hasFormData()) {
+            finish()
+            return
+        }
+
+        val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+        builder.setTitle("Xác nhận thoát")
+        builder.setMessage("Những gì bạn đã nhập sẽ không được lưu. Bạn có chắc chắn muốn thoát?")
+        builder.setPositiveButton("Thoát") { dialog, _ ->
+            dialog.dismiss()
+            finish()
+        }
+        builder.setNegativeButton("Hủy") { dialog, _ ->
+            dialog.dismiss()
+        }
+
+        val dialog = builder.create()
+        dialog.show()
+
+        dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setTextColor(getColor(R.color.red))
+    }
+
     // --- SEND DATA ---
     private fun sendData() {
         val userName = binding.edtHoTen.text.toString().trim()
@@ -303,6 +373,23 @@ class BusinessRegistrationActivity : AppCompatActivity() {
             email.isEmpty() || hotelName.isEmpty() || hotelAddress.isEmpty()
         ) {
             Toast.makeText(this, "Vui lòng nhập đầy đủ thông tin!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Check email
+        if (email.isEmpty() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            Toast.makeText(this, "Vui lòng nhập email hợp lệ!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Check phone
+        if (!phone.matches("^\\d{10}\$".toRegex())) {
+            Toast.makeText(this, "Số điện thoại không hợp lệ!", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (selectedHotelTypeId.isNullOrEmpty()) {
+            Toast.makeText(this, "Vui lòng chọn loại hình khách sạn!", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -353,6 +440,7 @@ class BusinessRegistrationActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("DefaultLocale")
     private fun saveHotelRequestToFirestore(hotelRequest: HotelRequestModel) {
         val counterRef: DocumentReference = db.collection("counters").document("hotelRequestCounter")
         db.runTransaction { transaction ->
@@ -366,7 +454,6 @@ class BusinessRegistrationActivity : AppCompatActivity() {
             transaction.set(requestRef, hotelRequest)
             null
         }.addOnSuccessListener {
-            navigateTo(ProfileFragment::class.java, flag = false)
             Toast.makeText(this, "Gửi yêu cầu thành công!", Toast.LENGTH_LONG).show()
             finish()
         }.addOnFailureListener { e ->
@@ -376,7 +463,15 @@ class BusinessRegistrationActivity : AppCompatActivity() {
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        onBackPressedDispatcher.onBackPressed()
+        onBackPressed()
         return true
+    }
+
+    override fun onBackPressed() {
+        if (hasFormData()) {
+            showExitConfirmationDialog()
+        } else {
+            super.onBackPressed()
+        }
     }
 }

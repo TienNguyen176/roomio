@@ -3,6 +3,7 @@ package com.tdc.nhom6.roomio.models
 import com.google.firebase.Timestamp
 
 data class HotelRequestModel(
+    var id: String = "",
     val user_id: String = "",
     val username: String = "",
     val birth_date: String = "",

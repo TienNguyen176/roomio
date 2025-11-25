@@ -3,7 +3,6 @@ package com.tdc.nhom6.roomio.adapters
 import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
@@ -13,7 +12,7 @@ import com.tdc.nhom6.roomio.databinding.ItemHotelRequestBinding
 import com.tdc.nhom6.roomio.models.HotelRequestModel
 
 class HotelRequestAdapter(
-    private val list: ArrayList<Pair<HotelRequestModel, String>>,
+    private val list: MutableList<Pair<HotelRequestModel, String>>,
     private val onItemClick: (HotelRequestModel) -> Unit
 ) : RecyclerView.Adapter<HotelRequestAdapter.ViewHolder>() {
 
