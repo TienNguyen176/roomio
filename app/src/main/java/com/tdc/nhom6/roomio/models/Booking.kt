@@ -8,11 +8,13 @@ import kotlinx.parcelize.Parcelize
 @Parcelize
 data class Booking(
     @DocumentId
-    val bookingId: String? = null,
+    var bookingId: String? = null,
 
     val customerId: String = "",
     val roomTypeId: String = "",
+    var roomId: String? = null,
     var discountId: String? = null,
+    var discountPaymentMethodId: String? = null,
 
     var status: String = "pending",
 
@@ -26,7 +28,7 @@ data class Booking(
     val checkOutDateActual: Timestamp? = null,
 
     val numberGuest: Int = 1,
-    val note: String? = null,
+    var note: String? = null,
 
     val createdAt: Timestamp = Timestamp.now()
 

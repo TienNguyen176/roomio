@@ -8,7 +8,7 @@ import com.tdc.nhom6.roomio.databinding.ItemImageLayoutBinding
 
 class ImageListAdapter(
     private val images: MutableList<String>,
-    private val onDelete: (String) -> Unit
+    private val onDelete: (Int) -> Unit
 ) : RecyclerView.Adapter<ImageListAdapter.ImageViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ImageViewHolder {
@@ -24,7 +24,7 @@ class ImageListAdapter(
         val url = images[position]
         Glide.with(holder.itemView.context).load(url).into(holder.binding.imgPreview)
 
-        holder.binding.btnDelete.setOnClickListener { onDelete(url) }
+        holder.binding.btnDelete.setOnClickListener { onDelete(position) }
     }
 
     override fun getItemCount() = images.size
