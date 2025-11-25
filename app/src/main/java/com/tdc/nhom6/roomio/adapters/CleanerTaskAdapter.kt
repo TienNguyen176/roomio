@@ -50,11 +50,11 @@ class CleanerTaskAdapter(
         fun bind(task: CleanerTask, onActionClick: (Int, CleanerTask) -> Unit) {
             tvRoomId.text = task.roomId
             tvTimestamp.text = task.timestamp
-            
+
             // Set status text and color
             tvStatus.text = CleanerStatusUtils.getStatusText(task.status)
             tvStatus.setTextColor(android.graphics.Color.parseColor(CleanerStatusUtils.getStatusColor(task.status)))
-            
+
             // Set button text and state
             when (task.status) {
                 TaskStatus.DIRTY -> {
@@ -82,7 +82,7 @@ class CleanerTaskAdapter(
                     btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#639DBA")))
                 }
             }
-            
+
             btnAction.setOnClickListener {
                 if (task.status != TaskStatus.CLEAN) {
                     val pos = bindingAdapterPosition

@@ -226,12 +226,12 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
                     ),
                     SetOptions.merge()
                 )
-                .addOnSuccessListener {
-                    android.util.Log.d("CleanerTaskDetail", "✓ Status updated to $statusValue in Firebase")
-                }
-                .addOnFailureListener { e ->
-                    android.util.Log.e("CleanerTaskDetail", "Failed to update status: ${e.message}", e)
-                }
+                    .addOnSuccessListener {
+                        android.util.Log.d("CleanerTaskDetail", "✓ Status updated to $statusValue in Firebase")
+                    }
+                    .addOnFailureListener { e ->
+                        android.util.Log.e("CleanerTaskDetail", "Failed to update status: ${e.message}", e)
+                    }
 
                 // Also update parent booking document
                 firestore.collection("bookings").document(bookingId)

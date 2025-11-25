@@ -102,7 +102,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                         // 1. Save lost items and broken furniture to facilitiesUsed
                         val checkedLostItems = lostAdapter.getCheckedItems()
                         val checkedBrokenItems = brokenAdapter.getCheckedItems()
-                        
+
                         checkedLostItems.forEach { item ->
                             if (item.checked && item.quantity > 0 && item.facilityId.isNotEmpty()) {
                                 val facilityData = mapOf(
@@ -124,7 +124,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                                     }
                             }
                         }
-                        
+
                         checkedBrokenItems.forEach { item ->
                             if (item.checked && item.facilityId.isNotEmpty()) {
                                 val facilityData = mapOf(
@@ -146,7 +146,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                                     }
                             }
                         }
-                        
+
                         // 2. Save minibar items to miniBarUsed
                         val checkedMiniBarItems = miniBarAdapter.getCheckedItems()
                         checkedMiniBarItems.forEach { item ->
@@ -170,7 +170,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                                     }
                             }
                         }
-                        
+
                         // 3. Save cleaner data to cleaner subcollection (status and cleaning fee only)
                         val cleanerData = mapOf(
                             "cleaningFee" to fee,
@@ -178,12 +178,12 @@ class CleaningInspectionActivity : AppCompatActivity() {
                             "images" to emptyList<String>(),
                             "updatedAt" to cleaningTimestamp
                         )
-                        
+
                         val cleanerDocRef = firestore.collection("bookings")
                             .document(bookingId)
                             .collection("cleaner")
                             .document() // Auto-generate document ID
-                        
+
                         cleanerDocRef.set(cleanerData)
                             .addOnSuccessListener {
                                 android.util.Log.d("CleaningInspection", "Saved cleaner data to cleaner subcollection: ${cleanerDocRef.id}")
@@ -231,7 +231,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
         if (bookingId != null) {
             loadMinibarFromFirebase(bookingId)
         }
-        
+
         // Also try getting hotelId from roomType if available
         if (roomTypeId != null) {
             lifecycleScope.launch {
@@ -244,7 +244,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                 }
             }
         }
-        
+
         // Fallback: try direct hotelId from intent
         val hotelId = intent.getStringExtra("HOTEL_ID")?.takeIf { it.isNotBlank() }
         if (hotelId != null) {
@@ -368,7 +368,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                     ?: (bookingDoc.get("hotelRef") as? com.google.firebase.firestore.DocumentReference)?.id
                     ?: (bookingDoc.get("hotel") as? Map<*, *>)?.get("id")?.toString()
                     ?: (bookingDoc.get("hotel") as? Map<*, *>)?.get("hotelId")?.toString()
-                
+
                 if (hotelId != null) {
                     android.util.Log.d("CleaningInspection", "Found hotelId: $hotelId")
                     return hotelId
@@ -389,8 +389,8 @@ class CleaningInspectionActivity : AppCompatActivity() {
             android.util.Log.d("CleaningInspection", "loadMinibarFromHotel called with hotelId: $hotelId")
             minibarIdLookup.clear()
             val minibarItems = withContext(Dispatchers.IO) {
-                runCatching { 
-                    fetchMinibarItems(hotelId) 
+                runCatching {
+                    fetchMinibarItems(hotelId)
                 }.getOrElse { e ->
                     android.util.Log.e("CleaningInspection", "Error in fetchMinibarItems: ${e.message}", e)
                     emptyList()
@@ -415,9 +415,9 @@ class CleaningInspectionActivity : AppCompatActivity() {
                 .whereEqualTo("status", true)
                 .get()
                 .await()
-            
+
             android.util.Log.d("CleaningInspection", "Minibar query returned ${snapshot.size()} documents")
-            
+
             if (snapshot.isEmpty) {
                 android.util.Log.w("CleaningInspection", "No minibar items found for hotelId: $hotelId (status=true)")
                 // Try without status filter as fallback
@@ -439,7 +439,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                         is java.math.BigDecimal -> raw.toDouble()
                         else -> null
                     } ?: 0.0
-                    
+
                     if (price > 0) {
                         val minibarId = doc.id
                         minibarIdLookup[name] = minibarId
@@ -461,7 +461,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                     else -> null
                 } ?: 0.0
                 val minibarId = doc.id // Use document ID as minibarId
-                
+
                 if (price > 0) {
                     minibarIdLookup[name] = minibarId
                     android.util.Log.d("CleaningInspection", "Found minibar item: id=$minibarId, name=$name, price=$price")
@@ -482,13 +482,13 @@ class CleaningInspectionActivity : AppCompatActivity() {
             val rates = withContext(Dispatchers.IO) {
                 runCatching { fetchDamageRates(roomTypeId) }.getOrElse { DamageRateResult(emptyList(), emptyList()) }
             }
-            
+
             android.util.Log.d("CleaningInspection", "Fetched ${rates.brokenItems.size} broken items and ${rates.lostItems.size} lost items from Firebase")
-            
+
 
             brokenAdapter.replaceItems(rates.brokenItems.toMutableList())
             lostAdapter.replaceItems(rates.lostItems.toMutableList())
-            
+
             updateTotal()
         }
     }
@@ -537,7 +537,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
         val facilityIds = snapshot.documents.mapNotNull { doc ->
             doc.getString("facilityId")
         }.toSet()
-        
+
         if (facilityIds.isEmpty()) {
             android.util.Log.d("CleaningInspection", "No facilityIds found in damageLossRates")
             return DamageRateResult(emptyList(), emptyList())
@@ -558,9 +558,9 @@ class CleaningInspectionActivity : AppCompatActivity() {
                 ?: doc.getString("status")
                 ?: statusLookup[facilityId]
                 ?: "0"
-            
+
             val facilityName = namesMap[facilityId] ?: facilityId
-            
+
             // Only include entries with valid prices from Firebase
             if (price > 0) {
                 android.util.Log.d("CleaningInspection", "Found rate: facilityId=$facilityId, name=$facilityName, price=$price, status=$status")
@@ -569,7 +569,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                 null
             }
         }
-        
+
         if (entries.isEmpty()) {
             android.util.Log.d("CleaningInspection", "No valid entries with prices > 0")
             return DamageRateResult(emptyList(), emptyList())
@@ -584,7 +584,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                 broken += BrokenFurnitureAdapter.BrokenItem(entry.facilityName, entry.price, facilityId = entry.facilityId)
             }
         }
-        
+
         android.util.Log.d("CleaningInspection", "Created ${lost.size} lost items and ${broken.size} broken items from Firebase")
         return DamageRateResult(lost, broken)
     }
