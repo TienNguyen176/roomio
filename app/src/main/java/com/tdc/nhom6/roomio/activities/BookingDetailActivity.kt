@@ -175,17 +175,59 @@ class BookingDetailActivity : AppCompatActivity() {
                     }
 
                     "completed"-> {
-                        binding.tvBookingStatus.text = "Reservation is completed"
-                        binding.tvBookingStatus.setBackgroundColor(getColor(R.color.blue))
-                        binding.btnAction.text="Booking review"
-                        binding.btnAction.setTextColor(getColor(R.color.yellow))
-                        binding.btnAction.background=getDrawable(R.drawable.shape_foreground_radius)
-                        binding.btnAction.backgroundTintList = ColorStateList.valueOf(getColor(R.color.yellow))
-                        binding.btnAction.setOnClickListener {
-                            val intent = Intent(this, ReviewActivity::class.java)
-                            intent.putExtra("HOTEL_ID", currentRoomType?.hotelId)
-                            intent.putExtra("BOOKING_ID", bookingId)
-                            startActivity(intent)
+//                        binding.tvBookingStatus.text = "Reservation is completed"
+//                        binding.tvBookingStatus.setBackgroundColor(getColor(R.color.blue))
+//                        binding.btnAction.text="Booking review"
+//                        binding.btnAction.setTextColor(getColor(R.color.yellow))
+//                        binding.btnAction.background=getDrawable(R.drawable.shape_foreground_radius)
+//                        binding.btnAction.backgroundTintList = ColorStateList.valueOf(getColor(R.color.yellow))
+//                        currentHotel?.let { db.collection("hotels").document(it.hotelId).collection("reviews").whereEqualTo("bookingId",loadedBooking.bookingId).addSnapshotListener{documentSnapshot,excepion - >
+//
+//                        } }
+//                        binding.btnAction.setOnClickListener {
+//                            val intent = Intent(this, ReviewActivity::class.java)
+//                            intent.putExtra("HOTEL_ID", currentRoomType?.hotelId)
+//                            intent.putExtra("BOOKING_ID", bookingId)
+//                            startActivity(intent)
+//                        }
+
+                        currentHotel?.let { hotel ->
+                            db.collection("hotels")
+                                .document(hotel.hotelId)
+                                .collection("reviews")
+                                .whereEqualTo("bookingId", loadedBooking.bookingId)
+                                .addSnapshotListener { querySnapshot, exception ->
+
+                                    if (exception != null) {
+                                        Log.e("TAG", "Lỗi lắng nghe Reviews: ", exception)
+                                        updateActionButton(isReviewed = false, bookingId)
+                                        return@addSnapshotListener
+                                    }
+
+                                    if (querySnapshot != null) {
+                                        val isReviewed = !querySnapshot.isEmpty
+
+                                        if (isReviewed) {
+                                            Log.d(
+                                                "TAG",
+                                                "Review found for booking ${loadedBooking.bookingId}"
+                                            )
+                                            updateActionButton(
+                                                isReviewed = true,
+                                                loadedBooking.bookingId
+                                            )
+                                        } else {
+                                            Log.d(
+                                                "TAG",
+                                                "No review found for booking ${loadedBooking.bookingId}"
+                                            )
+                                            updateActionButton(
+                                                isReviewed = false,
+                                                loadedBooking.bookingId
+                                            )
+                                        }
+                                    }
+                                }
                         }
 
                     }
@@ -212,8 +254,13 @@ class BookingDetailActivity : AppCompatActivity() {
                         }
                     }
                     else -> {
-                        Log.e("PaymentError", "Unhandled status or status is null: ${loadedBooking?.status}")
-                        binding.tvBookingStatus.text = "Status Unknown"
+                        binding.tvBookingStatus.text = "Reservation is active"
+                        binding.tvBookingStatus.setBackgroundColor(getColor(R.color.blue))
+                        binding.btnAction.text="Cancellation and refund"
+                        binding.btnAction.setTextColor(getColor(R.color.gray_700))
+                        binding.btnAction.background=getDrawable(R.drawable.shape_foreground_radius)
+                        binding.btnAction.backgroundTintList = ColorStateList.valueOf(getColor(R.color.gray_700))
+                        binding.btnAction.isEnabled = false
                     }
                 }
 
@@ -249,6 +296,46 @@ class BookingDetailActivity : AppCompatActivity() {
                 } else {
                     Log.w("PaymentActivity", "No invoices found for Booking ID: $bookingId.")
                     binding.tvFundAmount.text = "N/A"
+                }
+            }
+        }
+    }
+
+    private fun updateActionButton(isReviewed: Boolean, bookingId: String?) {
+        val TAG = "ReviewUpdate"
+
+        val ACTIVE_BG_COLOR = getColor(R.color.yellow)
+
+        if (isReviewed) {
+            binding.btnAction.text = "Reviewed"
+            binding.btnAction.isEnabled = false
+
+            binding.btnAction.alpha = 0.5f
+
+            binding.btnAction.setTextColor(ACTIVE_BG_COLOR)
+            binding.btnAction.backgroundTintList = ColorStateList.valueOf(ACTIVE_BG_COLOR)
+
+            binding.btnAction.setOnClickListener(null)
+            Log.d(TAG, "Nút được đặt thành Reviewed và Disabled (alpha=0.5).")
+
+        } else {
+            binding.btnAction.text = "Booking review"
+            binding.btnAction.isEnabled = true
+
+            binding.btnAction.alpha = 1.0f
+
+            binding.btnAction.setTextColor(getColor(R.color.white))
+            binding.btnAction.background = getDrawable(R.drawable.shape_foreground_radius)
+            binding.btnAction.backgroundTintList = ColorStateList.valueOf(ACTIVE_BG_COLOR)
+
+            binding.btnAction.setOnClickListener {
+                if (bookingId != null && currentRoomType != null) {
+                    val intent = Intent(this, ReviewActivity::class.java)
+                    intent.putExtra("HOTEL_ID", currentRoomType!!.hotelId)
+                    intent.putExtra("BOOKING_ID", bookingId)
+                    startActivity(intent)
+                } else {
+                    Log.e(TAG, "Không thể mở ReviewActivity: bookingId hoặc hotelId bị thiếu.")
                 }
             }
         }
