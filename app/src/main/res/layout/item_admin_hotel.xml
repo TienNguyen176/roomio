@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardHotel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardElevation="4dp"
+        app:cardCornerRadius="12dp"
+        app:cardUseCompatPadding="true"
+        android:padding="8dp"
+        app:cardBackgroundColor="@color/white"
+        app:strokeColor="@color/gray"
+        app:strokeWidth="2dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Hotel Image -->
+            <ImageView
+                android:id="@+id/imgHotel"
+                android:layout_width="85dp"
+                android:layout_height="85dp"
+                android:scaleType="centerCrop"
+                android:layout_marginStart="16dp"
+                android:src="@drawable/ic_not_image"/>
+
+            <!-- Info Container -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="10dp">
+
+                <!-- Hotel Name -->
+                <TextView
+                    android:id="@+id/tvHotelName"
+                    android:layout_marginTop="15dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Khach San Bien Sao"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:textColor="@android:color/black"/>
+
+                <!-- Hotel Owner -->
+                <TextView
+                    android:id="@+id/tvHotelOwner"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tên chủ Hotel"
+                    android:textColor="@color/orange"
+                    android:textSize="13sp"
+                    android:background="@drawable/bg_role_default"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingBottom="3dp"
+                    android:layout_marginTop="10dp"/>
+
+                <!-- Rating -->
+                <LinearLayout
+                    android:id="@+id/layoutRating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="10dp">
+
+                    <ImageView
+                        android:id="@+id/ivStar1"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_star_filled"
+                        android:layout_marginEnd="2dp"
+                        app:tint="#FFA500"/>
+
+                    <ImageView
+                        android:id="@+id/ivStar2"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_star_filled"
+                        android:layout_marginEnd="2dp"
+                        app:tint="#FFA500"/>
+
+                    <ImageView
+                        android:id="@+id/ivStar3"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_star_filled"
+                        android:layout_marginEnd="2dp"
+                        app:tint="#FFA500"/>
+
+                    <ImageView
+                        android:id="@+id/ivStar4"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_star_filled"
+                        android:layout_marginEnd="2dp"
+                        app:tint="#FFA500"/>
+
+                    <ImageView
+                        android:id="@+id/ivStar5"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_star_half"
+                        app:tint="#FFA500"/>
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</LinearLayout>

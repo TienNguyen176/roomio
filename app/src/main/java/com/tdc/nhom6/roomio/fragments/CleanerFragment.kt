@@ -42,8 +42,8 @@ class CleanerFragment : Fragment() {
         
         // Setup back button
         view.findViewById<android.widget.ImageView>(R.id.btnBack).setOnClickListener {
-//            requireActivity().onBackPressedDispatcher.onBackPressed()
-            parentFragmentManager.popBackStack()
+            requireActivity().onBackPressedDispatcher.onBackPressed()
+            //parentFragmentManager.popBackStack()
         }
         
         // Initialize data (seed once for demo if empty)

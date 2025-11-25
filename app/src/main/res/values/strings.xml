@@ -4,7 +4,7 @@
     <string name="cloudinary_cloud_name">dgxcjxzqi</string>
     <string name="cloudinary_upload_preset">upload_images</string>
 
-    <string name="app_bar_title_hotel_manager">Quản lý khách sạn</string>
+    <string name="app_bar_title_hotel_manager">Danh sách khách sạn</string>
     <string name="app_bar_title_dang_ky_kinh_doanh">Đăng ký kinh doanh</string>
     <string name="app_bar_title_service">Danh sách dịch vụ</string>
     <string name="app_bar_title_facilities">Danh sách tiện ích</string>

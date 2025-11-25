@@ -58,22 +58,27 @@
             <TextView
                 android:id="@+id/tabAll"
                 style="@style/ReceptionTab"
+                android:gravity="center"
                 android:text="@string/all" />
             <TextView
                 android:id="@+id/tabUncompleted"
                 style="@style/ReceptionTab"
+                android:gravity="center"
                 android:text="@string/uncompleted" />
             <TextView
                 android:id="@+id/tabPending"
                 style="@style/ReceptionTab"
+                android:gravity="center"
                 android:text="@string/pending" />
             <TextView
                 android:id="@+id/tabCompleted"
                 style="@style/ReceptionTab"
+                android:gravity="center"
                 android:text="@string/completed" />
             <TextView
                 android:id="@+id/tabCanceled"
                 style="@style/ReceptionTab"
+                android:gravity="center"
                 android:text="@string/canceled" />
         </LinearLayout>
     </HorizontalScrollView>
@@ -103,6 +108,7 @@
             android:layout_weight="1"
             android:background="@android:color/transparent"
             android:hint="Search"
+            android:layout_marginStart="10dp"
             android:padding="0dp"
             android:textColor="@android:color/black"
             android:textColorHint="@android:color/darker_gray"

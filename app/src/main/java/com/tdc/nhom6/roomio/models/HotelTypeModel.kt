@@ -1,10 +1,10 @@
 package com.tdc.nhom6.roomio.models
 
-import java.util.Date
+import com.google.firebase.Timestamp
 
 data class HotelTypeModel(
-    val type_id: String = "",
-    val type_name: String = "",
-    val description: String = "",
-    val created_at: Date = Date()
+    var type_id: String? = null,
+    var type_name: String = "",
+    var description: String = "",
+    var created_at: Timestamp? = null
 )

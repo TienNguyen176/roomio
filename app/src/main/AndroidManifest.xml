@@ -63,6 +63,15 @@
         <activity
             android:name=".activities.admin.AdminHotelManagerActivity"
             android:exported="false" />
+        <activity
+            android:name=".activities.admin.HotelTypesActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.admin.HotelServicesActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.admin.HotelFacilitiesActivity"
+            android:exported="false" />
 
         <activity
             android:name=".activities.owner.AdminHotelActivity"

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/addHotelType"
+        android:title="Thêm Loại Hình Khách Sạn"
+        android:icon="@drawable/ic_add_24" />
+    <item
+        android:id="@+id/servicesManager"
+        android:title="Quản Lý Services"
+        android:icon="@drawable/ic_settings_24" />
+    <item
+        android:id="@+id/facilitiesManager"
+        android:title="Quản Lý Facilities"
+        android:icon="@drawable/ic_settings_24" />
+</menu>
