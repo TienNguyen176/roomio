@@ -137,4 +137,5 @@
     <string name="tho_t">Thoát</string>
     <string name="exit">Thoát</string>
     <string name="available_rooms_format">%1$d rooms left</string>
+    <string name="anonymous_user">Anonymous</string>
 </resources>

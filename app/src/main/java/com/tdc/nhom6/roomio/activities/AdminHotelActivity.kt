@@ -128,14 +128,16 @@ class AdminHotelActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        btnInvoiceManagement.setOnClickListener {
+        btnDiscount.setOnClickListener {
             if (!checkHotelId()) return@setOnClickListener
-            Toast.makeText(this@AdminHotelActivity, "Invoice Management for ID: $currentHotelId clicked", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this@AdminHotelActivity, DiscountActivity::class.java)
+            intent.putExtra("hotelId", currentHotelId)
+            startActivity(intent)
         }
 
         btnRating.setOnClickListener {
             if (!checkHotelId()) return@setOnClickListener
-            val intent = Intent(this@AdminHotelActivity, DiscountActivity::class.java)
+            val intent = Intent(this@AdminHotelActivity, HotelReviewActivity::class.java)
             intent.putExtra("hotelId", currentHotelId)
             startActivity(intent)
         }
@@ -143,6 +145,12 @@ class AdminHotelActivity : AppCompatActivity() {
         btnEditHotel.setOnClickListener {
             if (!checkHotelId()) return@setOnClickListener
             val intent = Intent(this@AdminHotelActivity, EditHotelActivity::class.java)
+            intent.putExtra("hotelId", currentHotelId)
+            startActivity(intent)
+        }
+        btnMinibar.setOnClickListener {
+            if (!checkHotelId()) return@setOnClickListener
+            val intent = Intent(this@AdminHotelActivity, MinibarActivity::class.java)
             intent.putExtra("hotelId", currentHotelId)
             startActivity(intent)
         }

@@ -553,7 +553,7 @@ class GuestDetailActivity : AppCompatActivity() {
                         loadFinalDiscountAndRefreshUI(targetDiscountId)
                     } else {
                         db.collection("invoices")
-                            .whereEqualTo("paymentMethodId", "Travel wallet")
+                            .whereEqualTo("paymentMethodId", getPaymentMethodIdByName("Travel wallet"))
                             .limit(1)
                             .get()
                             .addOnSuccessListener { invoicesResult ->
@@ -564,11 +564,16 @@ class GuestDetailActivity : AppCompatActivity() {
                             }
                             .addOnFailureListener { Log.e("Firestore", "Lỗi kiểm tra Invoices", it) }
                     }
+
                 }
                 .addOnFailureListener { Log.e("Firestore", "Lỗi kiểm tra Bookings", it) }
         } else {
             loadFinalDiscountAndRefreshUI(targetDiscountId)
         }
+    }
+
+    private fun getPaymentMethodIdByName(name: String): String? {
+        return listPaymentMethod.find { it.paymentMethodName == name }?.paymentMethodId
     }
 
     private fun loadFinalDiscountAndRefreshUI(discountPaymentMethodId: String?) {

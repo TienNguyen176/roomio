@@ -339,7 +339,7 @@ class FirebaseRepository {
                 callback(hotels)
             }
     }
-
+//
 //    fun getDeals(callback: (List<Deal>) -> Unit) {
 //        Log.d("Firebase", "getDeals called")
 //        try {
@@ -764,7 +764,7 @@ class FirebaseRepository {
 //            }
 //        }
 //    }
-
+//
 
 
 }
