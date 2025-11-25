@@ -137,11 +137,10 @@
             android:name=".activities.MinibarActivity"
             android:theme="@style/Theme.Roomio.M3"
             android:exported="true" />
+
+
         <activity
             android:name=".activities.ReceptionActivity"
-            android:exported="false"/>
-        <activity
-            android:name=".activities.CleanerActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -149,6 +148,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!--        <activity-->
+        <!--            android:name=".activities.ReceptionActivity"-->
+        <!--            android:exported="false"/>-->
+<!--        <activity-->
+<!--            android:name=".activities.CleanerActivity"-->
+<!--            android:exported="true">-->
+<!--            <intent-filter>-->
+<!--                <action android:name="android.intent.action.MAIN" />-->
+
+<!--                <category android:name="android.intent.category.LAUNCHER" />-->
+<!--            </intent-filter>-->
+<!--        </activity>-->
         <activity
             android:name=".activities.PaymentDetailsActivity"
             android:exported="false"
