@@ -8,7 +8,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tdc.nhom6.roomio.utils.RecyclerViewUtils
 import com.bumptech.glide.Glide
@@ -158,7 +157,7 @@ class SearchResultsFragment : Fragment() {
                 currentItems.sortBy { item ->
                     when (item.type) {
                         SearchResultType.HOTEL -> item.hotel?.pricePerNight ?: 0.0
-                        SearchResultType.DEAL -> item.deal?.discountPricePerNight ?: 0.0
+                        SearchResultType.DEAL -> item.deal?.pricePerNight ?: 0.0
                         SearchResultType.REVIEW -> item.review?.pricePerNight ?: 0.0
                     }
                 }
@@ -167,7 +166,7 @@ class SearchResultsFragment : Fragment() {
                 currentItems.sortByDescending { item ->
                     when (item.type) {
                         SearchResultType.HOTEL -> item.hotel?.pricePerNight ?: 0.0
-                        SearchResultType.DEAL -> item.deal?.discountPricePerNight ?: 0.0
+                        SearchResultType.DEAL -> item.deal?.pricePerNight ?: 0.0
                         SearchResultType.REVIEW -> item.review?.pricePerNight ?: 0.0
                     }
                 }
@@ -176,7 +175,7 @@ class SearchResultsFragment : Fragment() {
                 currentItems.sortByDescending { item ->
                     when (item.type) {
                         SearchResultType.HOTEL -> item.hotel?.averageRating ?: 0.0
-                        SearchResultType.DEAL -> item.deal?.rating ?: 0.0
+                        SearchResultType.DEAL -> item.deal?.averageRating ?: 0.0
                         SearchResultType.REVIEW -> item.review?.rating ?: 0.0
                     }
                 }
@@ -339,64 +338,64 @@ class SearchResultsFragment : Fragment() {
         }
     }
 
-//
-//    private fun performDealsSearch(results: MutableList<SearchResultItem>) {
-//        // Realtime deals based on discounts
-//        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
-//        if (hasPlay) {
-//            dealsListener?.remove()
-//            dealsListener = firebaseRepository.observeDeals { deals ->
-//                try {
-//                    deals.filter {
-//                        it.hotelName.lowercase().contains(searchQuery.lowercase()) ||
-//                        it.hotelLocation.lowercase().contains(searchQuery.lowercase())
-//                    }.forEach { deal ->
-//                        results.add(
-//                            SearchResultItem(
-//                                type = SearchResultType.DEAL,
-//                                hotel = null,
-//                                deal = deal,
-//                                review = null
-//                            )
-//                        )
-//                    }
-//
-//                    searchResultsAdapter.updateData(results)
-//
-//                    val message = if (results.isEmpty()) {
-//                        "No results found for '$searchQuery'. Try: Ares, Vung Tau, Saigon, Sapa, or Nha Trang"
-//                    } else {
-//                        "Found ${results.size} results for '$searchQuery'"
-//                    }
-//                    android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
-//                } catch (e: Exception) {
-//                    android.widget.Toast.makeText(requireContext(), "Error searching deals: ${e.message}", Toast.LENGTH_LONG).show()
-//                }
-//            }
-//        } else {
-//            // One-shot fallback
-//            firebaseRepository.getDeals { deals ->
-//                try {
-//                    deals.filter {
-//                        it.hotelName.lowercase().contains(searchQuery.lowercase()) ||
-//                        it.hotelLocation.lowercase().contains(searchQuery.lowercase())
-//                    }.forEach { deal ->
-//                        results.add(
-//                            SearchResultItem(
-//                                type = SearchResultType.DEAL,
-//                                hotel = null,
-//                                deal = deal,
-//                                review = null
-//                            )
-//                        )
-//                    }
-//                    searchResultsAdapter.updateData(results)
-//                } catch (e: Exception) {
-//                    android.widget.Toast.makeText(requireContext(), "Error searching deals: ${e.message}", Toast.LENGTH_LONG).show()
-//                }
-//            }
-//        }
-//    }
+
+    private fun performDealsSearch(results: MutableList<SearchResultItem>) {
+        // Realtime deals based on discounts
+        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
+        if (hasPlay) {
+            dealsListener?.remove()
+            dealsListener = firebaseRepository.observeDealsHotels { deals ->
+                try {
+                    deals.filter {
+                        it.hotelName.lowercase().contains(searchQuery.lowercase()) ||
+                        it.hotelAddress.lowercase().contains(searchQuery.lowercase())
+                    }.forEach { deal ->
+                        results.add(
+                            SearchResultItem(
+                                type = SearchResultType.DEAL,
+                                hotel = null,
+                                deal = deal,
+                                review = null
+                            )
+                        )
+                    }
+
+                    searchResultsAdapter.updateData(results)
+
+                    val message = if (results.isEmpty()) {
+                        "No results found for '$searchQuery'. Try: Ares, Vung Tau, Saigon, Sapa, or Nha Trang"
+                    } else {
+                        "Found ${results.size} results for '$searchQuery'"
+                    }
+                    android.widget.Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(requireContext(), "Error searching deals: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        } else {
+            // One-shot fallback
+            firebaseRepository.observeDealsHotels { deals ->
+                try {
+                    deals.filter {
+                        it.hotelName.lowercase().contains(searchQuery.lowercase()) ||
+                        it.hotelAddress.lowercase().contains(searchQuery.lowercase())
+                    }.forEach { deal ->
+                        results.add(
+                            SearchResultItem(
+                                type = SearchResultType.DEAL,
+                                hotel = null,
+                                deal = deal,
+                                review = null
+                            )
+                        )
+                    }
+                    searchResultsAdapter.updateData(results)
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(requireContext(), "Error searching deals: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     // All offline/sample search code removed
 }
@@ -447,12 +446,12 @@ class SearchResultsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView
             }
             SearchResultType.DEAL -> {
                 item.deal?.let { deal ->
-                    loadImage(deal.imageUrl, img)
+                    loadImage(deal.images[0], img)
                     title.text = deal.hotelName
-                    location.text = deal.hotelLocation
-                    price.text = formatPrice(deal.discountPricePerNight)
+                    location.text = deal.hotelAddress
+                    price.text = formatPrice(deal.pricePerNight)
 
-                    setStarRating(deal.rating)
+                    setStarRating(deal.averageRating)
                 }
             }
             SearchResultType.REVIEW -> {

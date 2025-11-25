@@ -23,6 +23,6 @@ enum class SearchResultType {
 data class SearchResultItem(
     val type: SearchResultType,
     val hotel: Hotel?,
-    val deal: Deal?,
+    val deal: Hotel?,
     val review: HotReview?
 )
