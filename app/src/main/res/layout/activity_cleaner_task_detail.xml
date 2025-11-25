@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#FFFFFF"
+    android:padding="16dp">
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Header with Back button and Title -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="16dp">
+
+                <ImageView
+                    android:id="@+id/btnBack"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_arrow_back"
+                    android:contentDescription="Back"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Cleaner"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="#000000"
+                    android:gravity="center" />
+
+                <!-- Spacer to center the title -->
+                <View
+                    android:layout_width="32dp"
+                    android:layout_height="1dp" />
+            </LinearLayout>
+
+            <!-- Room Information -->
+            <TextView
+                android:id="@+id/tvRoomId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Room F03-07"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Status Badge -->
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Dirty"
+                android:textSize="14sp"
+                android:textColor="#000000"
+                android:background="@drawable/bg_tab_chip"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Checked-out Time -->
+            <TextView
+                android:id="@+id/tvCheckedOut"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Checked-out : 11.00 PM"
+                android:textSize="14sp"
+                android:textColor="#757575"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Notes Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Notes"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:id="@+id/tvNotes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Replace bedding and towels"
+                android:textSize="14sp"
+                android:textColor="#000000"
+                android:layout_marginBottom="24dp" />
+
+            <!-- Image Upload Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Cleaning Images"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:layout_marginBottom="8dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvCleaningImages"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="120dp"
+                android:layout_marginBottom="8dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnUploadImages"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Upload images"
+                android:textColor="#000000"
+                android:backgroundTint="#E0E0E0"
+                app:cornerRadius="20dp"
+                android:layout_gravity="center"
+                android:layout_marginBottom="24dp" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Start Cleaning Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnStartCleaning"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Mark as clean"
+        android:textColor="#000000"
+        android:backgroundTint="#E0E0E0"
+        app:cornerRadius="20dp"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>
+

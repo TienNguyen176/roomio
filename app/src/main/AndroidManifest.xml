@@ -127,6 +127,30 @@
             android:exported="false" />
 
         <activity
+            android:name=".activities.order.ApproverPaymentActivity"
+            android:exported="true" />
+
+        <activity
+            android:name=".activities.cleaner.CleanerActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.cleaner.CleanerTaskDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.cleaner.CleaningInspectionActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".activities.receptionist.ReceptionActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.receptionist.ServiceExtraFeeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.receptionist.PaymentDetailsActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".activities.hotel.HotelDetailActivity"
             android:exported="false" />
 

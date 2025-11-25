@@ -27,7 +27,7 @@ class FilterBottomSheetFragment : BottomSheetDialogFragment() {
     //private var tienIch: List<Facility> = emptyList()
     private val tienIchIds = mutableSetOf<String>()
 
-    private val DEFAULT_MIN_PRICE = 1_000_000
+    private val DEFAULT_MIN_PRICE = 0
     private val DEFAULT_MAX_PRICE = 10_000_000
     private var currentMinPrice = DEFAULT_MIN_PRICE
     private var currentMaxPrice = DEFAULT_MAX_PRICE

@@ -6,11 +6,11 @@ data class User(
     var username: String = "",
     var email: String = "",
     var phone: String = "",
-    val gender: String = "",
+    val genderId: String = "",
     val birthDate: String = "",
     var roleId: String = "user",   // mặc định user
     var createdAt: String = "",
-    var balance: Double = 0.0
+    var walletBalance: Double = 0.0
 )
 
 

@@ -14,7 +14,6 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.tdc.nhom6.roomio.activities.booking.BookingDetailActivity
 import com.tdc.nhom6.roomio.adapters.PaymentMethodAdapter
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter.Format
 import com.tdc.nhom6.roomio.databinding.ActivityGuestDetailBinding

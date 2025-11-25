@@ -4,13 +4,12 @@ package com.tdc.nhom6.roomio.models
  * Header color enum for reservation cards
  */
 enum class HeaderColor {
-    BLUE, GREEN, YELLOW, RED
+    BLUE, GREEN, YELLOW, RED, PURPLE
 }
 
 /**
  * Reservation status enum
  */
 enum class ReservationStatus {
-    ALL, UNCOMPLETED, PENDING, COMPLETED, CANCELED
+    ALL, UNCOMPLETED, PENDING, COMPLETED, CANCELED, PAID
 }
-

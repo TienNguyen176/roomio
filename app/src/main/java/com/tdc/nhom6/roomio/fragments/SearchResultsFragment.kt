@@ -1,6 +1,8 @@
 package com.tdc.nhom6.roomio.fragments
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -11,17 +13,14 @@ import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.lifecycle.lifecycleScope
-import com.tdc.nhom6.roomio.databinding.FragmentSearchResultsLayoutBinding
-import com.tdc.nhom6.roomio.models.Hotel
-import com.tdc.nhom6.roomio.models.SearchResultItem
-import com.tdc.nhom6.roomio.models.SearchResultType
-import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.FirebaseFirestore
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity
 import com.tdc.nhom6.roomio.adapters.SearchResultsAdapter
-import com.tdc.nhom6.roomio.models.Facility
-import com.tdc.nhom6.roomio.models.Service
+import com.tdc.nhom6.roomio.databinding.FragmentSearchResultsLayoutBinding
+import com.tdc.nhom6.roomio.models.*
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -29,28 +28,46 @@ import kotlinx.coroutines.withContext
 
 class SearchResultsFragment : Fragment() {
 
+    // ====================================
+    // Binding & Adapter
+    // ====================================
     private var _binding: FragmentSearchResultsLayoutBinding? = null
     private val binding get() = _binding!!
 
     private lateinit var searchResultsAdapter: SearchResultsAdapter
-    private var searchQuery: String = ""
 
+    // ====================================
+    // Firebase
+    // ====================================
     private val db = FirebaseFirestore.getInstance()
     private var hotelsListener: ListenerRegistration? = null
+    private var roomTypesListener: ListenerRegistration? = null
 
-    private var minPrice = 1_000_000 // Giá mặc định Min
-    private var maxPrice = 10_000_000 // Giá mặc định Max
-
+    // ====================================
+    // Data Caches
+    // ====================================
     private val hotelsCache = mutableListOf<Hotel>()
-    private var currentComparator: Comparator<Hotel>? = null
-
-    //private var allTienIch: List<Facility> = emptyList()
+    private val roomTypesCache = mutableMapOf<String, MutableList<RoomType>>()
     private var allServices: List<Service> = emptyList()
+    //private var allTienIch: List<Facility> = emptyList()
 
+    // ====================================
+    // Filter & Sort
+    // ====================================
+    private var minPrice = 0
+    private var maxPrice = 10_000_000
     private var appliedServiceIds = mutableSetOf<String>()
     private var appliedFacilityIds = mutableSetOf<String>()
+    private var currentComparator: Comparator<Hotel>? = compareBy { it.pricePerNight } // Mặc định sort giá Thấp -> Cao
+
+    // ====================================
+    // Search
+    // ====================================
+    private var searchQuery: String = ""
 
     companion object {
+        private const val TAG = "SearchResultsFragment"
+
         fun newInstance(query: String, location: String): SearchResultsFragment {
             val fragment = SearchResultsFragment()
             val args = Bundle()
@@ -59,9 +76,11 @@ class SearchResultsFragment : Fragment() {
             fragment.arguments = args
             return fragment
         }
-        private const val TAG = "SearchResultsFragment"
     }
 
+    // ====================================
+    // Lifecycle
+    // ====================================
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -83,39 +102,34 @@ class SearchResultsFragment : Fragment() {
         //loadAllTienIch()
 
         loadHotelsFromFirebase()
+        loadRoomTypesFromFirebase()
 
-
-        // Tự động focus vào thanh tìm kiếm sau khi màn hình được tạo
+        // Tự động focus vào thanh tìm kiếm
         binding.edtSearchQuery.requestFocus()
         binding.edtSearchQuery.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
-
-                // Chạy filter
                 filterHotels(binding.edtSearchQuery.text.toString().trim())
 
-                // Ẩn bàn phím
-                val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                val imm =
+                    requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 imm.hideSoftInputFromWindow(binding.edtSearchQuery.windowToken, 0)
 
                 true
-            } else {
-                false
-            }
+            } else false
         }
-
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         hotelsListener?.remove()
+        roomTypesListener?.remove()
         _binding = null
     }
 
     // ====================================
-    // UI
+    // UI Setup
     // ====================================
     private fun setupUI() {
-        // NOTE: ensure your layout's EditText id is edtSearchQuery (not tvSearchQuery)
         binding.edtSearchQuery.setText(searchQuery)
 
         binding.btnBack.setOnClickListener {
@@ -124,21 +138,6 @@ class SearchResultsFragment : Fragment() {
 
         binding.btnSort.setOnClickListener { showSortOptions() }
 
-//        binding.btnFilter.setOnClickListener {
-//            val filterFragment = FilterBottomSheetFragment()
-//            filterFragment.setAmenities(allServices)
-//            //filterFragment.setTienIch(allTienIch)
-//
-//            // NHẬN KẾT QUẢ LỌC TỪ FILTER BOTTOM SHEET
-//            filterFragment.setOnApplyFilterListener { min, max, selectedServices, selectedFacilities ->
-//                Log.d(TAG, "Filter applied: min=$min max=$max services=${selectedServices.size} facilities=${selectedFacilities.size}")
-//                applyFilter(min, max, selectedServices, selectedFacilities)
-//            }
-//
-//            filterFragment.show(parentFragmentManager, FilterBottomSheetFragment::class.java.simpleName)
-//        }
-
-        //Loc
         binding.btnFilter.setOnClickListener {
             val filterFragment = FilterBottomSheetFragment()
 
@@ -163,16 +162,23 @@ class SearchResultsFragment : Fragment() {
             filterFragment.show(parentFragmentManager, "FilterBottomSheetFragment")
         }
 
-        // Cho phép focus và show keyboard khi cần
+        // Cho phép focus và show keyboard
         binding.searchBar.isFocusableInTouchMode = true
-
-
     }
 
-
+    // ====================================
+    // RecyclerView Setup
+    // ====================================
     private fun setupRecyclerView() {
         binding.rvSearchResults.layoutManager = LinearLayoutManager(requireContext())
         searchResultsAdapter = SearchResultsAdapter(emptyList())
+
+        searchResultsAdapter.onHotelClick = { hotelId ->
+            val intent = Intent(requireContext(), HotelDetailActivity::class.java)
+            intent.putExtra("HOTEL_ID", hotelId)
+            startActivity(intent)
+        }
+
         binding.rvSearchResults.adapter = searchResultsAdapter
     }
 
@@ -182,72 +188,8 @@ class SearchResultsFragment : Fragment() {
         }
     }
 
-    // Áp filter nhận từ bottom sheet
-    private fun applyFilter(
-        min: Int,
-        max: Int,
-        selectedServiceIds: Set<String>,
-        selectedFacilityIds: Set<String>
-    ) {
-        minPrice = min
-        maxPrice = max
-
-        var filtered = hotelsCache.filter { hotel ->
-
-            // Convert pricePerNight Double → Int
-            val price = hotel.pricePerNight.toInt()
-            val priceMatch = price in minPrice..maxPrice
-
-            val nameMatch = hotel.hotelName.lowercase().contains(searchQuery.lowercase())
-            // Lọc dịch vụ bằng service_name
-            val serviceMatch =
-                if (selectedServiceIds.isEmpty()) true
-                else hotel.serviceIds.containsAll(selectedServiceIds)
-
-            // Lọc tiện ích bằng facility_name (nếu bạn dùng tên)
-            val facilityMatch =
-                if (selectedFacilityIds.isEmpty()) true
-                else hotel.facilityIds.containsAll(selectedFacilityIds)
-
-            priceMatch && nameMatch && serviceMatch && facilityMatch
-        }
-
-
-
-        currentComparator?.let { comparator ->
-            filtered = filtered.sortedWith(comparator)
-        }
-
-        updateHotelResults(filtered)
-    }
-
     // ====================================
-    // SEARCH REALTIME
-    // ====================================
-    private fun setupSearchRealtime() {
-        // use EditText's change listener
-        binding.edtSearchQuery.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                val text = s?.toString()?.trim() ?: ""
-                searchQuery = text
-
-                if (text.isEmpty()) {
-                    // nếu đang có filter giá => vẫn áp filter giá
-                    val listToShow = hotelsCache.filter {
-                        it.pricePerNight.toInt() in minPrice..maxPrice
-                    }
-                    updateHotelResults(listToShow)
-                } else {
-                    filterHotels(text)
-                }
-            }
-        })
-    }
-
-    // ====================================
-    // FIREBASE
+    // Firebase Data Loading
     // ====================================
     private fun loadHotelsFromFirebase() {
         hotelsListener?.remove()
@@ -262,8 +204,8 @@ class SearchResultsFragment : Fragment() {
                 hotelsCache.addAll(snapshot.toObjects(Hotel::class.java))
 
                 if (searchQuery.isBlank()) {
-                    // show with current price filter applied
-                    val listToShow = hotelsCache.filter { it.pricePerNight.toInt() in minPrice..maxPrice }
+                    val listToShow =
+                        hotelsCache.filter { it.pricePerNight.toInt() in minPrice..maxPrice }
                     updateHotelResults(listToShow)
                 } else {
                     filterHotels(searchQuery)
@@ -272,12 +214,79 @@ class SearchResultsFragment : Fragment() {
         }
     }
 
+    private fun loadRoomTypesFromFirebase() {
+        roomTypesListener?.remove()
+        roomTypesListener = db.collection("roomTypes").addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                Log.e(TAG, "Error loading room types: ${error.message}")
+                return@addSnapshotListener
+            }
+
+            roomTypesCache.clear()
+            if (snapshot != null) {
+                for (doc in snapshot) {
+                    val roomType = doc.toObject(RoomType::class.java)
+                    val hotelId = roomType.hotelId
+                    if (!roomTypesCache.containsKey(hotelId)) {
+                        roomTypesCache[hotelId] = mutableListOf()
+                    }
+                    roomTypesCache[hotelId]?.add(roomType)
+                }
+            }
+
+            // Cập nhật lại danh sách hotel sau khi có room types
+            applyFilter(minPrice, maxPrice, appliedServiceIds, appliedFacilityIds)
+        }
+    }
+
     // ====================================
-    // FILTER / SEARCH / UPDATE UI
+    // Filter / Search
     // ====================================
+    private fun setupSearchRealtime() {
+        binding.edtSearchQuery.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val text = s?.toString()?.trim() ?: ""
+                searchQuery = text
+
+                if (text.isEmpty()) {
+                    val listToShow = hotelsCache
+                        .map { getHotelWithRoomPrice(it) }
+                        .filter { it.pricePerNight.toInt() in minPrice..maxPrice }
+                    updateHotelResults(listToShow)
+                } else {
+                    filterHotels(text)
+                }
+            }
+        })
+    }
+
+    private fun applyFilter(
+        min: Int,
+        max: Int,
+        selectedServiceIds: Set<String>,
+        selectedFacilityIds: Set<String>
+    ) {
+        var filtered = hotelsCache.map { getHotelWithRoomPrice(it) }.filter { hotel ->
+            val priceMatch = hotel.pricePerNight.toInt() in min..max
+            val nameMatch = hotel.hotelName.lowercase().contains(searchQuery.lowercase())
+            val serviceMatch = if (selectedServiceIds.isEmpty()) true else hotel.serviceIds.containsAll(selectedServiceIds)
+            val facilityMatch = if (selectedFacilityIds.isEmpty()) true else hotel.facilityIds.containsAll(selectedFacilityIds)
+
+            priceMatch && nameMatch && serviceMatch && facilityMatch
+        }
+
+        currentComparator?.let { comparator ->
+            filtered = filtered.sortedWith(comparator)
+        }
+
+        updateHotelResults(filtered)
+    }
+
     private fun filterHotels(query: String) {
         val lower = query.lowercase()
-        var filtered = hotelsCache.filter { hotel ->
+        var filtered = hotelsCache.map { getHotelWithRoomPrice(it) }.filter { hotel ->
             val nameOk = hotel.hotelName.lowercase().contains(lower)
             val priceOk = hotel.pricePerNight.toInt() in minPrice..maxPrice
             nameOk && priceOk
@@ -291,8 +300,20 @@ class SearchResultsFragment : Fragment() {
     }
 
     private fun updateHotelResults(list: List<Hotel>) {
+        val updatedList = list.map { hotel ->
+            val roomTypes = roomTypesCache[hotel.hotelId] ?: emptyList()
+            val lowestPrice = roomTypes.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
+            val highestPrice = roomTypes.maxOfOrNull { it.pricePerNight }
+
+            hotel.copy(
+                pricePerNight = lowestPrice,
+                lowestPricePerNight = if (roomTypes.isNotEmpty()) lowestPrice else null,
+                highestPricePerNight = highestPrice
+            )
+        }
+
         searchResultsAdapter.updateData(
-            list.map {
+            updatedList.map {
                 SearchResultItem(
                     type = SearchResultType.HOTEL,
                     hotel = it,
@@ -304,34 +325,52 @@ class SearchResultsFragment : Fragment() {
     }
 
     // ====================================
-    // SORT
+    // Sort
     // ====================================
+    @SuppressLint("SetTextI18n")
     private fun showSortOptions() {
         val sortOptions = arrayOf(
-            "Giá: Thấp đến Cao",
-            "Giá: Cao xuống thấp",
-            "Tên: A - Z"
+            "Price: Low to High",
+            "Price: High to Low",
+            "Rating: High to Low",
+            "Name: A to Z"
         )
 
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle("Sort by")
             .setItems(sortOptions) { _, which ->
-
+                val selectedSort = sortOptions[which]
+                binding.tvSortStatus.text = "Sorted by: $selectedSort"
                 currentComparator = when (which) {
                     0 -> compareBy { it.pricePerNight }
                     1 -> compareByDescending { it.pricePerNight }
-                    2 -> compareBy { it.hotelName }
+                    2 -> compareByDescending { it.averageRating }
+                    3 -> compareBy { it.hotelName }
                     else -> null
                 }
 
-                // Áp lại filter/search
                 if (searchQuery.isBlank()) filterHotels("") else filterHotels(searchQuery)
             }
             .show()
     }
 
     // ====================================
-    // LOAD FACILITIES & SERVICES
+    // Utilities
+    // ====================================
+    private fun getHotelWithRoomPrice(hotel: Hotel): Hotel {
+        val roomTypes = roomTypesCache[hotel.hotelId] ?: emptyList()
+        val lowestPrice = roomTypes.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
+        val highestPrice = roomTypes.maxOfOrNull { it.pricePerNight }
+
+        return hotel.copy(
+            pricePerNight = lowestPrice,
+            lowestPricePerNight = if (roomTypes.isNotEmpty()) lowestPrice else null,
+            highestPricePerNight = highestPrice
+        )
+    }
+
+    // ====================================
+    // Load Services / Facilities
     // ====================================
     private fun loadAllServices() {
         lifecycleScope.launch(Dispatchers.IO) {

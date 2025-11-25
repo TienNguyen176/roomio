@@ -67,8 +67,9 @@ class DiscountActivity : AppCompatActivity() {
     // ---------------------- REALTIME ----------------------
 
     private fun listenRealtime() {
-        db.collection("discounts")
-            .whereEqualTo("hotelId", hotelId)
+        db.collection("hotels")
+            .document(hotelId!!)
+            .collection("discounts")
             .addSnapshotListener { snapshot, _ ->
 
                 if (snapshot == null) return@addSnapshotListener
@@ -79,10 +80,7 @@ class DiscountActivity : AppCompatActivity() {
                     val item = doc.toObject(Diiiiiscount::class.java)
                     if (item != null) {
                         item.id = doc.id
-
-                        // Auto reset infinite discount
                         checkAndResetInfiniteDiscount(item)
-
                         discountList.add(item)
                     }
                 }
@@ -94,6 +92,7 @@ class DiscountActivity : AppCompatActivity() {
                 adapter.notifyDataSetChanged()
             }
     }
+
 
     // ---------------------- RESET LOGIC ----------------------
 
@@ -110,13 +109,13 @@ class DiscountActivity : AppCompatActivity() {
             "lastResetDate" to today
         )
 
-        db.collection("discounts")
+        db.collection("hotels")
+            .document(hotelId!!)
+            .collection("discounts")
             .document(dc.id!!)
             .update(updates)
-            .addOnSuccessListener {
-                Log.d("DISCOUNT", "Reset ${dc.discountName} về ${dc.dailyReset}")
-            }
     }
+
 
     // ---------------------- DELETE LOGIC ----------------------
 
@@ -134,16 +133,16 @@ class DiscountActivity : AppCompatActivity() {
     private fun deleteDiscount(item: Diiiiiscount) {
         if (item.id.isNullOrEmpty()) return
 
-        db.collection("discounts")
+        db.collection("hotels")
+            .document(hotelId!!)
+            .collection("discounts")
             .document(item.id!!)
             .delete()
             .addOnSuccessListener {
                 Toast.makeText(this, "Đã xóa mã giảm giá", Toast.LENGTH_SHORT).show()
             }
-            .addOnFailureListener {
-                Toast.makeText(this, "Lỗi khi xóa!", Toast.LENGTH_SHORT).show()
-            }
     }
+
 
     // ---------------------- ADD / EDIT DIALOG ----------------------
 
@@ -246,10 +245,18 @@ class DiscountActivity : AppCompatActivity() {
             )
 
             if (edit == null) {
-                db.collection("discounts").add(data)
+                db.collection("hotels")
+                    .document(hotelId!!)
+                    .collection("discounts")
+                    .add(data)
             } else {
-                db.collection("discounts").document(edit.id!!).update(data)
+                db.collection("hotels")
+                    .document(hotelId!!)
+                    .collection("discounts")
+                    .document(edit.id!!)
+                    .update(data)
             }
+
 
             dialog.dismiss()
         }

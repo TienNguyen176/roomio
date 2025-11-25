@@ -74,7 +74,7 @@
     <string name="back">Back</string>
     <string name="sort">Sort</string>
     <string name="filter">Filter</string>
-    <string name="sort_by_price_increasing">Sort by price increasing</string>
+    <string name="sort_by_price_increasing">Sorted by: Price: Low to High</string>
     <string name="hotel_image">Hotel Image</string>
     <string name="location">Location</string>
     <string name="star">Star</string>
@@ -118,4 +118,14 @@
     <string name="confirm_payment">Confirm payment?</string>
     <string name="notification">Notification</string>
     <string name="available_rooms_format">%1$d rooms left</string>
+
+    <!-- Cleaner Screen -->
+    <string name="cleaner_tasks">Cleaner | Tasks</string>
+    <string name="room_to_clean">Room to clean</string>
+    <string name="dirty">Dirty</string>
+    <string name="in_progress">In progress</string>
+    <string name="start">Start</string>
+    <string name="complete">Complete</string>
+    <string name="cleaning_reservation_placeholder">Reservation information unavailable</string>
+    <string name="cleaning_amount_placeholder">Reservation amount: -</string>
 </resources>

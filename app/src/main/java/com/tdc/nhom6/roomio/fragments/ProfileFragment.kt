@@ -7,9 +7,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
@@ -19,10 +17,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.activities.admin.AdminHomeActivity
 import com.tdc.nhom6.roomio.activities.auth.LoginActivity
+import com.tdc.nhom6.roomio.activities.cleaner.CleanerActivity
 import com.tdc.nhom6.roomio.activities.owner.AdminHotelActivity
 import com.tdc.nhom6.roomio.activities.owner.BusinessRegistrationActivity
 import com.tdc.nhom6.roomio.activities.profile.EditProfileActivity
 import com.tdc.nhom6.roomio.activities.profile.ManageBanksActivity
+import com.tdc.nhom6.roomio.activities.receptionist.ReceptionActivity
 import com.tdc.nhom6.roomio.databinding.ProfileLayoutBinding
 import com.tdc.nhom6.roomio.models.User
 
@@ -33,15 +33,33 @@ class ProfileFragment : Fragment() {
 
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+
     private val prefs by lazy {
         requireContext().getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
     }
 
-    private var userRoleId: String = "user"
-    private var roleName: String = "User"
-
     private var isBalanceVisible = true
     private var currentBalance: Long = 0L
+    private var userRoleId = "user"
+
+    companion object {
+        private val ROLE_COLORS = mapOf(
+            "admin" to R.color.red,
+            "owner" to R.color.orange,
+            "letan" to R.color.green,
+            "donphong" to R.color.light_blue,
+            "xulydon" to R.color.purple,
+            "user" to R.color.gray
+        )
+
+        private val MENU_MAPPING = mapOf(
+            "admin" to R.id.navAdmin,
+            "owner" to R.id.navChuKS,
+            "letan" to R.id.navLeTan,
+            "donphong" to R.id.navDonPhong,
+            "xulydon" to R.id.navXuLy
+        )
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -53,50 +71,146 @@ class ProfileFragment : Fragment() {
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
         binding.bottomNav.visibility = View.GONE
         binding.topAppBar.title = "Roomio"
 
         checkSession()
         setupActions()
         setupWalletToggle()
-        updateRoleMenu()
+
+        // Load realtime
+        loadUserDataRealtime()
+        loadWalletRealtime()
     }
 
+    // -----------------------------
+    // SESSION CHECK
+    // -----------------------------
     private fun checkSession() {
         val firebaseUser = auth.currentUser
         val savedUid = prefs.getString("uid", null)
 
         if (firebaseUser == null && savedUid == null) {
-            Toast.makeText(
-                requireContext(),
-                "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại",
-                Toast.LENGTH_SHORT
-            ).show()
-            startActivity(Intent(requireContext(), LoginActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            })
-            requireActivity().finish()
-            return
+            logoutForce()
         }
+    }
 
-        loadUserData()
-        loadWalletData()
+    private fun logoutForce() {
+        Toast.makeText(requireContext(), "Phiên đăng nhập hết hạn", Toast.LENGTH_SHORT).show()
+        startActivity(Intent(requireContext(), LoginActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        })
+        requireActivity().finish()
+    }
+
+    // -----------------------------
+    // REALTIME: WALLET
+    // -----------------------------
+    private fun loadWalletRealtime() {
+        val uid = auth.currentUser?.uid ?: prefs.getString("uid", null) ?: return
+
+        db.collection("users").document(uid)
+            .addSnapshotListener { doc, error ->
+                if (error != null || doc == null || !doc.exists() || !isAdded) return@addSnapshotListener
+
+                currentBalance = doc.getLong("walletBalance") ?: 0L
+                binding.tvBalance.text =
+                    if (isBalanceVisible) formatMoney(currentBalance) else "•••••••••"
+            }
     }
 
     private fun setupWalletToggle() {
+        binding.imgEye.setImageResource(R.drawable.ic_eye_show)
+
         binding.imgEye.setOnClickListener {
             isBalanceVisible = !isBalanceVisible
-            if (isBalanceVisible) {
-                binding.tvBalance.text = formatMoney(currentBalance)
-                binding.imgEye.setImageResource(R.drawable.eye)
-            } else {
-                binding.tvBalance.text = "•••••••••"
-                binding.imgEye.setImageResource(R.drawable.eye)
-            }
+
+            binding.tvBalance.text =
+                if (isBalanceVisible) formatMoney(currentBalance) else "•••••••••"
+
+            binding.imgEye.setImageResource(
+                if (isBalanceVisible) R.drawable.ic_eye_show else R.drawable.ic_eye_close
+            )
         }
     }
 
+    // -----------------------------
+    // REALTIME: USER DATA
+    // -----------------------------
+    private fun loadUserDataRealtime() {
+        val uid = auth.currentUser?.uid ?: prefs.getString("uid", null) ?: return
+
+        db.collection("users").document(uid)
+            .addSnapshotListener { doc, error ->
+                if (error != null || doc == null || !doc.exists() || !isAdded) return@addSnapshotListener
+
+                val user = doc.toObject(User::class.java) ?: return@addSnapshotListener
+
+                binding.tvUsername.text = user.username.ifEmpty { "Người dùng" }
+
+                Glide.with(this)
+                    .load(user.avatar.takeIf { it.isNotEmpty() } ?: R.drawable.user)
+                    .circleCrop()
+                    .into(binding.imgAvatar)
+
+                userRoleId = user.roleId.ifEmpty { "user" }
+
+                updateRoleRealtime(userRoleId)
+            }
+    }
+
+    private fun updateRoleRealtime(roleId: String) {
+        db.collection("userRoles").document(roleId)
+            .addSnapshotListener { doc, _ ->
+                if (!isAdded || doc == null) return@addSnapshotListener
+
+                val roleName = doc.getString("role_name")
+                    ?: roleId.replaceFirstChar { it.uppercase() }
+
+                binding.tvRank.text = roleName
+
+                updateRoleColor(roleId)
+                updateRoleMenu()
+            }
+    }
+
+    // -----------------------------
+    // ROLE UI
+    // -----------------------------
+    private fun updateRoleColor(roleId: String) {
+        val colorRes = ROLE_COLORS[roleId] ?: R.color.gray
+        val targetColor = ContextCompat.getColor(requireContext(), colorRes)
+
+        val bg = (binding.tvRank.background as? GradientDrawable)
+            ?: GradientDrawable().apply { cornerRadius = 25f }
+
+        val currentColor = bg.color?.defaultColor ?: targetColor
+
+        ValueAnimator.ofObject(ArgbEvaluator(), currentColor, targetColor).apply {
+            duration = 400
+            addUpdateListener { animator ->
+                bg.setColor(animator.animatedValue as Int)
+            }
+        }.start()
+
+        binding.tvRank.background = bg
+    }
+
+    private fun updateRoleMenu() {
+        val menu = binding.topAppBar.menu
+
+        MENU_MAPPING.values.forEach { id ->
+            menu.findItem(id)?.isVisible = false
+        }
+
+        MENU_MAPPING[userRoleId]?.let { menuId ->
+            menu.findItem(menuId)?.isVisible = true
+        }
+    }
+
+    // -----------------------------
+    // ACTIONS
+    // -----------------------------
     private fun setupActions() {
         binding.showDangKyKD.setOnClickListener {
             startActivity(Intent(requireContext(), BusinessRegistrationActivity::class.java))
@@ -114,201 +228,27 @@ class ProfileFragment : Fragment() {
             auth.signOut()
             prefs.edit().clear().apply()
 
-            Toast.makeText(requireContext(), "Đã đăng xuất thành công", Toast.LENGTH_SHORT).show()
-            startActivity(Intent(requireContext(), LoginActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            })
-            requireActivity().finish()
+            Toast.makeText(requireContext(), "Đã đăng xuất", Toast.LENGTH_SHORT).show()
+            logoutForce()
         }
 
         binding.topAppBar.setOnMenuItemClickListener { item ->
-            when(item.itemId) {
-                R.id.navAdmin -> {
-                    startActivity(Intent(requireContext(), AdminHomeActivity::class.java))
-                    true
-                }
-                R.id.navChuKS -> {
-                    startActivity(Intent(requireContext(), AdminHotelActivity::class.java))
-                    true
-                }
-                /*
-                R.id.navLeTan -> {
-                    startActivity(Intent(requireContext(), AdminHomeActivity::class.java))
-                    true
-                }
-                R.id.navDonPhong -> {
-                    startActivity(Intent(requireContext(), AdminHomeActivity::class.java))
-                    true
-                }
-                */
-                else -> false
+            when (item.itemId) {
+                R.id.navAdmin -> startActivity(Intent(requireContext(), AdminHomeActivity::class.java))
+                R.id.navChuKS -> startActivity(Intent(requireContext(), AdminHotelActivity::class.java))
+                R.id.navLeTan -> startActivity(Intent(requireContext(), ReceptionActivity::class.java))
+                R.id.navDonPhong -> startActivity(Intent(requireContext(), CleanerActivity::class.java))
+                //R.id.navXuLy -> startActivity(Intent(requireContext(), AdminHotelActivity::class.java))
             }
+            true
         }
     }
 
-    private fun loadUserData() {
-        val uid = auth.currentUser?.uid ?: prefs.getString("uid", null) ?: return
-
-        db.collection("users").document(uid)
-            .get()
-            .addOnSuccessListener { doc ->
-                if (!isAdded || _binding == null) return@addOnSuccessListener
-                if (doc.exists()) {
-                    val user = doc.toObject(User::class.java)
-                    if (user != null) {
-                        binding.tvUsername.text = user.username.ifEmpty { "Người dùng" }
-
-                        if (user.avatar.isNotEmpty()) {
-                            Glide.with(this)
-                                .load(user.avatar)
-                                .circleCrop()
-                                .placeholder(R.drawable.user)
-                                .into(binding.imgAvatar)
-                        } else {
-                            binding.imgAvatar.setImageResource(R.drawable.user)
-                        }
-
-                        userRoleId = user.roleId.ifEmpty { "user" }
-
-                        db.collection("userRoles").document(userRoleId)
-                            .get()
-                            .addOnSuccessListener { roleDoc ->
-                                if (!isAdded || _binding == null) return@addOnSuccessListener
-                                roleName =
-                                    roleDoc.getString("role_name") ?: userRoleId.replaceFirstChar { it.uppercase() }
-                                binding.tvRank.text = roleName
-                                updateRoleUI(userRoleId)
-                                animateRoleColor(userRoleId)
-                                updateRoleMenu()
-                            }
-                            .addOnFailureListener {
-                                if (!isAdded || _binding == null) return@addOnFailureListener
-                                binding.tvRank.text = "User"
-                                updateRoleUI("user")
-                                animateRoleColor("user")
-                                updateRoleMenu()
-                            }
-                    }
-                } else {
-                    Toast.makeText(
-                        requireContext(),
-                        "Không tìm thấy thông tin người dùng",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-            .addOnFailureListener {
-                if (!isAdded || _binding == null) return@addOnFailureListener
-                Toast.makeText(
-                    requireContext(),
-                    "Lỗi tải dữ liệu: ${it.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-    }
-
-    private fun loadWalletData() {
-        val uid = auth.currentUser?.uid ?: prefs.getString("uid", null) ?: return
-        db.collection("users").document(uid)
-            .get()
-            .addOnSuccessListener { doc ->
-                if (!isAdded || _binding == null) return@addOnSuccessListener
-                currentBalance = doc.getLong("balance") ?: 0L
-                binding.tvBalance.text =
-                    if (isBalanceVisible) formatMoney(currentBalance) else "•••••••••"
-            }
-            .addOnFailureListener {
-                if (!isAdded || _binding == null) return@addOnFailureListener
-                Toast.makeText(
-                    requireContext(),
-                    "Lỗi tải ví: ${it.message}",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-    }
-
-    private fun updateRoleUI(roleId: String) {
-        val colorRes = when (roleId.lowercase()) {
-            "admin" -> R.color.red
-            "owner" -> R.color.orange
-            "letan" -> R.color.green
-            "donphong" -> R.color.light_blue
-            "xulydon" -> R.color.purple
-            else -> R.color.gray
-        }
-
-        val bgColor = ContextCompat.getColor(requireContext(), colorRes)
-        val shape = GradientDrawable().apply {
-            cornerRadius = 25f
-            setColor(bgColor)
-        }
-        binding.tvRank.background = shape
-
-        binding.tvRank.animate()
-            .scaleX(1.1f).scaleY(1.1f)
-            .setDuration(250)
-            .withEndAction {
-                binding.tvRank.animate().scaleX(1f).scaleY(1f).duration = 250
-            }
-            .start()
-    }
-
-    private fun animateRoleColor(roleId: String) {
-        val colorMap = mapOf(
-            "admin" to Color.parseColor("#FF4C4C"),
-            "owner" to Color.parseColor("#FFA500"),
-            "letan" to Color.parseColor("#4CAF50"),
-            "donphong" to Color.parseColor("#03A9F4"),
-            "xulydon" to Color.parseColor("#9C27B0"),
-            "user" to Color.parseColor("#BDBDBD")
-        )
-
-        val targetColor = colorMap[roleId.lowercase()] ?: Color.parseColor("#BDBDBD")
-        val bg = (binding.tvRank.background as? GradientDrawable) ?: GradientDrawable()
-        val currentColor = bg.color?.defaultColor ?: Color.WHITE
-
-        val colorAnim = ValueAnimator.ofObject(ArgbEvaluator(), currentColor, targetColor)
-        colorAnim.duration = 600
-        colorAnim.addUpdateListener { animator ->
-            val color = animator.animatedValue as Int
-            bg.setColor(color)
-            binding.tvRank.background = bg
-        }
-        colorAnim.start()
-    }
-
-    private fun updateRoleMenu() {
-        val menu = binding.topAppBar.menu
-        menu.findItem(R.id.navAdmin)?.isVisible = false
-        menu.findItem(R.id.navChuKS)?.isVisible = false
-        menu.findItem(R.id.navLeTan)?.isVisible = false
-        menu.findItem(R.id.navDonPhong)?.isVisible = false
-        menu.findItem(R.id.navXuLy)?.isVisible = false
-
-        when (userRoleId.lowercase()) {
-            "admin" -> menu.findItem(R.id.navAdmin)?.isVisible = true
-            "owner" -> menu.findItem(R.id.navChuKS)?.isVisible = true
-            "letan" -> menu.findItem(R.id.navLeTan)?.isVisible = true
-            "donphong" -> menu.findItem(R.id.navDonPhong)?.isVisible = true
-            "xulydon" -> menu.findItem(R.id.navXuLy)?.isVisible = true
-        }
-    }
-
-    private fun formatMoney(amount: Long): String {
-        return String.format("%,d VNĐ", amount).replace(",", ".")
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (_binding != null) {
-            loadUserData()
-            loadWalletData()
-        }
-    }
+    private fun formatMoney(amount: Long): String =
+        "%,d VNĐ".format(amount).replace(",", ".")
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
     }
 }
-

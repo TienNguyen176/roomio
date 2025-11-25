@@ -7,7 +7,6 @@ import android.os.Looper
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import at.favre.lib.crypto.bcrypt.BCrypt
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
@@ -20,153 +19,123 @@ class EmailVerifyActivity : AppCompatActivity() {
     private lateinit var binding: VerifyEmailLayoutBinding
     private val auth = Firebase.auth
     private val db = FirebaseFirestore.getInstance()
-    private var checkVerifyHandler: Handler? = null
+    private var handler: Handler? = null
 
-    // Dữ liệu đăng ký
     private lateinit var username: String
     private lateinit var email: String
     private lateinit var phone: String
-    private lateinit var gender: String
+    private lateinit var genderId: String
     private lateinit var birthDate: String
     private lateinit var password: String
     private var roleId: String = "user"
-    private var balance: Double = 0.0
+    private var walletBalance: Double = 0.0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = VerifyEmailLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        receiveDataFromSignUp()
+        loadData()
         setupUI()
-        createAccountAndSendVerify()
+        createAccountAndSendEmail()
     }
 
-    /** ------------------ NHẬN DỮ LIỆU ------------------ **/
-    private fun receiveDataFromSignUp() = with(intent) {
+    private fun loadData() = with(intent) {
         username = getStringExtra("username") ?: ""
         email = getStringExtra("email") ?: ""
         phone = getStringExtra("phone") ?: ""
-        gender = getStringExtra("gender") ?: ""
+        genderId = getStringExtra("genderId") ?: ""
         birthDate = getStringExtra("birthDate") ?: ""
         password = getStringExtra("password") ?: ""
         roleId = getStringExtra("roleId") ?: "user"
-        balance = getDoubleExtra("balance", 0.0)
+        walletBalance = getDoubleExtra("walletBalance", 0.0)
     }
 
-    /** ------------------ GIAO DIỆN ------------------ **/
     private fun setupUI() = binding.apply {
         edtEmailVerify.text = email
 
         btnResendEmail.setOnClickListener {
             auth.currentUser?.sendEmailVerification()
-                ?.addOnSuccessListener { toast("Đã gửi lại email xác minh 📩") }
-                ?.addOnFailureListener { toast("Lỗi gửi email: ${it.message}") }
+                ?.addOnSuccessListener { toast("Đã gửi lại email xác minh") }
+                ?.addOnFailureListener { toast("Lỗi: ${it.message}") }
         }
     }
 
-    /** ------------------ TẠO ACCOUNT + GỬI EMAIL ------------------ **/
-    private fun createAccountAndSendVerify() {
+    private fun createAccountAndSendEmail() {
         toggleLoading(true, "Đang gửi email xác minh...")
 
         auth.createUserWithEmailAndPassword(email, password)
             .addOnSuccessListener {
                 auth.currentUser?.sendEmailVerification()
-                    ?.addOnSuccessListener {
-                        toast("Đã gửi email xác minh 📩")
-                        toggleLoading(true, "⏳ Đang chờ xác minh...")
-                        startAutoCheckVerification()
-                    }
-                    ?.addOnFailureListener {
-                        toast("Gửi email thất bại: ${it.message}")
-                        toggleLoading(false)
-                    }
+                startVerifyChecking()
             }
             .addOnFailureListener {
-                val msg = if (it.message?.contains("already in use", true) == true)
-                    "Email này đã được đăng ký ❌"
-                else "Lỗi tạo tài khoản: ${it.message}"
-                toast(msg)
+                toast("Lỗi tạo tài khoản: ${it.message}")
                 finish()
             }
     }
 
-    /** ------------------ KIỂM TRA XÁC MINH TỰ ĐỘNG ------------------ **/
-    private fun startAutoCheckVerification() {
-        checkVerifyHandler = Handler(Looper.getMainLooper())
-        checkVerifyHandler?.postDelayed(object : Runnable {
+    private fun startVerifyChecking() {
+        toggleLoading(true, "Đang chờ xác minh...")
+
+        handler = Handler(Looper.getMainLooper())
+        handler?.postDelayed(object : Runnable {
             override fun run() {
                 auth.currentUser?.reload()?.addOnSuccessListener {
                     if (auth.currentUser?.isEmailVerified == true) {
-                        toast("✅ Email đã được xác minh!")
-                        saveAccountAndUser(auth.currentUser!!.uid)
-                        checkVerifyHandler?.removeCallbacks(this)
+                        saveUserToFirestore(auth.currentUser!!.uid)
+                        handler?.removeCallbacks(this)
                     } else {
-                        checkVerifyHandler?.postDelayed(this, 3000)
+                        handler?.postDelayed(this, 2000)
                     }
                 }
             }
-        }, 3000)
+        }, 2000)
     }
 
-    /** ------------------ LƯU FIRESTORE ------------------ **/
-    private fun saveAccountAndUser(uid: String) {
-        val formattedTime = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
-            .format(Date(System.currentTimeMillis()))
-        val hashedPassword = BCrypt.withDefaults().hashToString(12, password.toCharArray())
-
-        val accountData = mapOf(
-            "email" to email,
-            "phone" to phone,
-            "password" to hashedPassword,
-            "createdAt" to formattedTime
-        )
+    private fun saveUserToFirestore(uid: String) {
+        val time = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
+            .format(Date())
 
         val userData = mapOf(
             "avatar" to "",
             "username" to username,
             "email" to email,
             "phone" to phone,
-            "gender" to gender,
+            "genderId" to genderId,
             "birthDate" to birthDate,
-            "accountId" to uid,
             "roleId" to roleId,
-            "balance" to balance,
-            "createdAt" to formattedTime
+            "walletBalance" to walletBalance,
+            "createdAt" to time
         )
 
-        db.collection("accounts").document(uid).set(accountData)
-            .continueWithTask { db.collection("users").document(uid).set(userData) }
+        db.collection("users").document(uid).set(userData)
             .addOnSuccessListener {
-                toast("🎉 Đăng ký thành công!")
-                navigateToLogin()
+                toast("Đăng ký thành công!")
+                goToLogin()
             }
             .addOnFailureListener {
                 toast("Lỗi lưu dữ liệu: ${it.message}")
-                toggleLoading(false)
             }
+
     }
 
-    /** ------------------ CHUYỂN MÀN HÌNH ------------------ **/
-    private fun navigateToLogin() {
-        startActivity(Intent(this, LoginActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        })
+    private fun goToLogin() {
+        startActivity(Intent(this, LoginActivity::class.java))
         finish()
     }
 
-    /** ------------------ TIỆN ÍCH ------------------ **/
-    private fun toggleLoading(isLoading: Boolean, message: String = "") = binding.apply {
-        progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-        txtStatus.text = message
-        txtStatus.visibility = if (isLoading) View.VISIBLE else View.GONE
+    private fun toggleLoading(active: Boolean, msg: String = "") = binding.apply {
+        progressBar.visibility = if (active) View.VISIBLE else View.GONE
+        txtStatus.visibility = if (active) View.VISIBLE else View.GONE
+        txtStatus.text = msg
     }
 
-    private fun toast(msg: String) =
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    private fun toast(message: String) =
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
 
     override fun onDestroy() {
         super.onDestroy()
-        checkVerifyHandler?.removeCallbacksAndMessages(null)
+        handler?.removeCallbacksAndMessages(null)
     }
 }

@@ -80,18 +80,26 @@ class AdminAccountManagerActivity : AppCompatActivity() {
 
         dialogBinding.tvDialogUsername.text = account.fullName
 
+        val allowedRoles = listOf("admin", "owner", "user")
+
         // Lấy danh sách role từ Firestore
         db.collection("userRoles").get().addOnSuccessListener { snapshot ->
             val roles = mutableListOf<String>()
             val roleNames = mutableListOf<String>()
             var currentIndex = 0
 
-            for ((index, doc) in snapshot.documents.withIndex()) {
+            for (doc in snapshot.documents) {
                 val roleId = doc.id
+
+                if (roleId !in allowedRoles) continue
+
                 val roleName = doc.getString("role_name") ?: roleId
+
+                val thisIndex = roles.size
                 roles.add(roleId)
                 roleNames.add(roleName)
-                if (roleId == account.roleId) currentIndex = index
+
+                if (roleId == account.roleId) currentIndex = thisIndex
             }
 
             // Set adapter cho spinner

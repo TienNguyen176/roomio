@@ -203,33 +203,6 @@
                     android:fontFamily="@font/josefinsans_bold" />
             </LinearLayout>
 
-            <LinearLayout
-                android:id="@+id/btnFacebook"
-                android:layout_width="250dp"
-                android:layout_height="50dp"
-                android:layout_gravity="center"
-                android:layout_marginTop="10dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/bg_social_outline"
-                android:paddingHorizontal="20dp">
-
-                <ImageView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@drawable/facebook"
-                    android:contentDescription="Facebook logo" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Đăng nhập bằng Facebook"
-                    android:textColor="#FFFFFF"
-                    android:textSize="12sp"
-                    android:layout_marginStart="20dp"
-                    android:fontFamily="@font/josefinsans_bold" />
-            </LinearLayout>
-
             <TextView
                 android:id="@+id/tvRegister"
                 android:layout_width="wrap_content"

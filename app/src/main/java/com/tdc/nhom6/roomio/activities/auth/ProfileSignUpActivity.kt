@@ -22,33 +22,28 @@ class ProfileSignUpActivity : AppCompatActivity() {
         binding = ProfileSignUpLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // ⬅️ Quay lại Login
         binding.btnBack.setOnClickListener {
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
         }
 
-        // 📅 Chọn ngày sinh
         binding.edtBirthDate.setOnClickListener { showDatePicker() }
-
-        // 📝 Đăng ký
         binding.btnSignUp.setOnClickListener { validateAndContinue() }
     }
 
-    /** 🧠 Kiểm tra và xử lý đăng ký **/
     private fun validateAndContinue() {
         val username = binding.edtUsername.text.toString().trim()
         val email = binding.edtEmail.text.toString().trim()
         val phone = binding.edtPhone.text.toString().trim()
         val password = binding.edtPassword.text.toString().trim()
         val confirm = binding.edtConfirmPassword.text.toString().trim()
-        val gender = when {
-            binding.radioMale.isChecked -> "Nam"
-            binding.radioFemale.isChecked -> "Nữ"
+
+        val genderId = when {
+            binding.radioMale.isChecked -> "male"
+            binding.radioFemale.isChecked -> "female"
             else -> ""
         }
 
-// 🔹 Kiểm tra hợp lệ cơ bản
         when {
             username.isEmpty() -> {
                 binding.edtUsername.error = "Vui lòng nhập tên"
@@ -66,7 +61,7 @@ class ProfileSignUpActivity : AppCompatActivity() {
                 binding.edtPhone.error = "Vui lòng nhập số điện thoại"
                 return
             }
-            gender.isEmpty() -> {
+            genderId.isEmpty() -> {
                 toast("Vui lòng chọn giới tính")
                 return
             }
@@ -84,12 +79,10 @@ class ProfileSignUpActivity : AppCompatActivity() {
             }
         }
 
-
-        // 🔹 Kiểm tra email có tồn tại chưa
         auth.fetchSignInMethodsForEmail(email)
             .addOnSuccessListener { result ->
                 if (result.signInMethods.isNullOrEmpty()) {
-                    goToEmailVerify(username, email, phone, gender, password)
+                    goToEmailVerify(username, email, phone, genderId, password)
                 } else {
                     binding.edtEmail.error = "Email này đã được đăng ký"
                 }
@@ -99,12 +92,12 @@ class ProfileSignUpActivity : AppCompatActivity() {
             }
     }
 
-    /** 📧 Chuyển qua màn EmailVerifyActivity **/
+
     private fun goToEmailVerify(
         username: String,
         email: String,
         phone: String,
-        gender: String,
+        genderId: String,
         password: String
     ) {
         val createdAt = SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault())
@@ -114,32 +107,32 @@ class ProfileSignUpActivity : AppCompatActivity() {
             putExtra("username", username)
             putExtra("email", email)
             putExtra("phone", phone)
-            putExtra("gender", gender)
+            putExtra("genderId", genderId)
             putExtra("birthDate", selectedBirthDate)
             putExtra("password", password)
             putExtra("roleId", "user")
             putExtra("createdAt", createdAt)
-            putExtra("balance", 0.0) // 👈 Thêm số dư mặc định
+            putExtra("walletBalance", 0.0)
         }
         startActivity(intent)
     }
 
-    /** 📆 Chọn ngày sinh **/
     private fun showDatePicker() {
         val c = Calendar.getInstance()
-        val datePicker = DatePickerDialog(
+        val picker = DatePickerDialog(
             this,
             { _, y, m, d ->
                 selectedBirthDate = "%02d/%02d/%d".format(d, m + 1, y)
                 binding.edtBirthDate.setText(selectedBirthDate)
             },
-            c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)
+            c.get(Calendar.YEAR),
+            c.get(Calendar.MONTH),
+            c.get(Calendar.DAY_OF_MONTH)
         )
-        datePicker.datePicker.maxDate = System.currentTimeMillis()
-        datePicker.show()
+        picker.datePicker.maxDate = System.currentTimeMillis()
+        picker.show()
     }
 
-    /** ✅ Kiểm tra hợp lệ ngày sinh **/
     private fun isBirthDateValid(birthDate: String): Boolean {
         return try {
             val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())

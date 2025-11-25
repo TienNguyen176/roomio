@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/btnBack"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_arrow_back"
+                android:contentDescription="Back" />
+
+            <TextView
+                android:id="@+id/tvReservationInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Reservation ID: XXXXX"
+                android:textColor="#164B8A"
+                android:textStyle="bold"
+                android:paddingTop="8dp"/>
+
+            <TextView
+                android:id="@+id/tvReservationAmount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Reservation amount: 450,000VND"
+                android:textColor="#164B8A"
+                android:textStyle="bold"
+                android:paddingBottom="8dp"/>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#E0E0E0"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Lost items:"
+                android:textStyle="bold"
+                android:paddingTop="12dp"/>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvLostItems"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Broken furniture:"
+                android:textStyle="bold"
+                android:paddingTop="12dp"/>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvBrokenFurniture"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Mini bars:"
+                android:textStyle="bold"
+                android:paddingTop="12dp"/>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvMiniBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"/>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="8dp"
+                android:background="#E0E0E0"/>
+
+            <TextView
+                android:id="@+id/tvTotalCharges"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Total additional chargers: 0VND"
+                android:paddingTop="8dp"/>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnDone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Done"
+        android:textColor="#FFFFFF"
+        app:cornerRadius="20dp"
+        app:backgroundTint="#2D6C8C"
+        android:layout_marginTop="8dp"/>
+
+</LinearLayout>
+
+
