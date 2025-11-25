@@ -1,6 +1,7 @@
 package com.tdc.nhom6.roomio.activities
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
@@ -8,10 +9,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.type.DateTime
 import com.tdc.nhom6.roomio.activities.HotelDetailActivity.Companion.db
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter
 import com.tdc.nhom6.roomio.databinding.ActivityPaymentBinding
@@ -20,26 +21,32 @@ import com.tdc.nhom6.roomio.models.Booking
 import com.tdc.nhom6.roomio.models.HotelModel
 import com.tdc.nhom6.roomio.models.Invoice
 import com.tdc.nhom6.roomio.models.RoomType
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import com.google.firebase.firestore.Query
 
 class PaymentActivity : AppCompatActivity() {
     private lateinit var binding: ActivityPaymentBinding
     private lateinit var bookingId: String
+    private lateinit var invoiceId: String
     private lateinit var countDownTimer: CountDownTimer
+
     private var currentHotel: HotelModel? = null
     private var currentBooking: Booking?= null
-    private val invoices: MutableList<Invoice> = mutableListOf()
     private var currentRoomType: RoomType? = null
+    private var currentOwnerBankInfo: BankInfo? = null
+
     private var bookingListener: ListenerRegistration? = null
-    private var invoicesListener: ListenerRegistration? = null
+    private var invoiceDetailListener: ListenerRegistration? = null
     private var roomTypeListener: ListenerRegistration? = null
     private var hotelListener: ListenerRegistration? = null
-    private var currentOwnerBankInfo: BankInfo? = null
+
     private val DURATION_24_HOURS_MS = 86400000L
     private val INTERVAL_MS = 1000L
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding=ActivityPaymentBinding.inflate(layoutInflater)
@@ -54,60 +61,108 @@ class PaymentActivity : AppCompatActivity() {
         initial()
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        bookingListener?.remove()
+        invoiceDetailListener?.remove()
+        roomTypeListener?.remove()
+        hotelListener?.remove()
+        if (::countDownTimer.isInitialized) {
+            countDownTimer.cancel()
+        }
+    }
+
     @SuppressLint("SetTextI18n")
     private fun initial() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = "Payment"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        binding.toolbar.setNavigationOnClickListener {
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("NAVIGATE_TO_BOOKING", true)
+            }
+            startActivity(intent)
+            finish()
+        }
 
         bookingId = intent.getStringExtra("BOOKING_ID").toString()
+        invoiceId = intent.getStringExtra("INVOICE_ID").toString()
+
 
         loadBooking(bookingId) {
-            loadInvoice(bookingId) {
-                val loadedBooking = currentBooking
-                if (loadedBooking == null) {
-                    Log.e("PaymentActivity", "Booking data was null after listener finished.")
-                    return@loadInvoice
-                }
-                val startDate = loadedBooking.checkInDate?.toDate()?.time ?: 0L
-                val endDate = loadedBooking.checkOutDate?.toDate()?.time ?: 0L
-                val diff = endDate - startDate
-                val numberOfNights = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS)
+            val loadedBooking = currentBooking
+            if (loadedBooking == null) {
+                Log.e("PaymentActivity", "Booking data was null after loading chain finished.")
+                return@loadBooking
+            }
 
-                binding.tvHotelName.text = currentHotel?.hotelName ?: ""
-                binding.ratingBar.rating = (currentHotel?.averageRating ?: 0).toFloat()
+            updateBookingDetailsUI(loadedBooking)
 
-                val roomTypeName = currentRoomType?.typeName
-                val guestCount = loadedBooking.numberGuest
-                binding.tvBookingDetail.text =  "${roomTypeName} (${numberOfNights} night, ${guestCount} people )"
-
-                binding.tvTotalAfter.text ="Total: ${RoomTypeAdapter.Format.formatCurrency(loadedBooking.totalFinal)}"
-
-                if (invoices.isNotEmpty()) {
-                    val invoice:Invoice = invoices.first()
-                    binding.tvInvoiceId.text = "#ID: ${invoice.invoiceId}"
-                    binding.tvCreateAt.text = convertTimestampToString(invoice.createdAt)
-
-                    val bookingTotal = loadedBooking.totalFinal
-                    val invoiceAmount = invoice.totalAmount
-
-                    val percentagePaid = if (bookingTotal > 0) {
-                        (invoiceAmount?.div(bookingTotal))!! * 100.0
-                    } else 0.0
-
-                    val formattedPercent = String.format("%.2f", percentagePaid)
-                    binding.tvAmountPayment.text = "Payment: ${RoomTypeAdapter.Format.formatCurrency(
-                        invoice.totalAmount!!
-                    )} (${formattedPercent}%)"
-
-                    setupTimer(invoice.createdAt)
-                    generateQRPayment(invoice)
+            lifecycleScope.launch {
+                if (!invoiceId.isNullOrEmpty() && invoiceId != "null") {
+                    getInvoice(invoiceId) { fetchedInvoice ->
+                        handleInvoiceResult(fetchedInvoice, loadedBooking)
+                    }
                 } else {
-                    Log.w("PaymentActivity", "No invoices found for Booking ID: $bookingId.")
-                    binding.tvInvoiceId.text = "N/A"
-                    binding.tvAmountPayment.text = "Payment required"
+                    Log.w("PaymentActivity", "Invoice ID is missing. Finding latest invoice for Booking: $bookingId")
+                    getLatestInvoice(bookingId) { fetchedInvoice ->
+                        handleInvoiceResult(fetchedInvoice, loadedBooking)
+                    }
                 }
             }
+
+            binding.btnDone.setOnClickListener{
+                val intent= Intent(this,BookingDetailActivity::class.java).apply {
+                    flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+                intent.putExtra("BOOKING_ID",bookingId)
+                startActivity(intent)
+            }
+        }
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun updateBookingDetailsUI(loadedBooking: Booking) {
+        val startDate = loadedBooking.checkInDate?.toDate()?.time ?: 0L
+        val endDate = loadedBooking.checkOutDate?.toDate()?.time ?: 0L
+        val diff = endDate - startDate
+        val numberOfNights = TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS)
+
+        binding.tvHotelName.text = currentHotel?.hotelName ?: ""
+        binding.ratingBar.rating = (currentHotel?.averageRating ?: 0).toFloat()
+        binding.tvReviews.text = "${currentHotel?.totalReviews} reviews"
+
+        val roomTypeName = currentRoomType?.typeName
+        val guestCount = loadedBooking.numberGuest
+        binding.tvBookingDetail.text =  "${roomTypeName} (${numberOfNights} night, ${guestCount} people )"
+        binding.tvTotalAfter.text ="Total: ${RoomTypeAdapter.Format.formatCurrency(loadedBooking.totalFinal)}"
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun handleInvoiceResult(fetchedInvoice: Invoice?, loadedBooking: Booking) {
+        if (fetchedInvoice != null) {
+            val invoice: Invoice = fetchedInvoice
+
+            binding.tvInvoiceId.text = "#ID: ${invoice.invoiceId}"
+            binding.tvCreateAt.text = convertTimestampToString(invoice.createdAt)
+
+            val bookingTotal = loadedBooking.totalFinal
+            val invoiceAmount = invoice.totalAmount
+
+            val percentagePaid = if (bookingTotal > 0 && invoiceAmount != null) {
+                (invoiceAmount / bookingTotal) * 100.0
+            } else 0.0
+
+            val formattedPercent = String.format("%.2f", percentagePaid)
+            binding.tvAmountPayment.text = "Payment: ${RoomTypeAdapter.Format.formatCurrency(
+                invoice.totalAmount ?: 0.0
+            )} (${formattedPercent}%)"
+
+            setupTimer(invoice.createdAt)
+            generateQRPayment(invoice)
+        } else {
+            Log.e("PaymentActivity", "Invoice data was null after fallback/direct lookup finished.")
         }
     }
 
@@ -120,7 +175,7 @@ class PaymentActivity : AppCompatActivity() {
                 .addSnapshotListener { snapShot, error ->
 
                     if (error != null) {
-                        Log.e("Firebase", "Lỗi lắng nghe Bank Info: ", error)
+                        Log.e("Firebase", "Error listening to Bank Info: ", error)
                         return@addSnapshotListener
                     }
 
@@ -132,7 +187,7 @@ class PaymentActivity : AppCompatActivity() {
                             currentOwnerBankInfo = documentSnapshot?.toObject(BankInfo::class.java)
 
                             currentOwnerBankInfo?.let { info ->
-                                 val QR_URL =
+                                val QR_URL =
                                     "https://img.vietqr.io/image/${info.bank_code}-${info.account_number}-compact.png" +
                                             "?amount=${invoice.totalAmount}" +
                                             "&addInfo=Roomio_${invoice.invoiceId}" +
@@ -145,10 +200,10 @@ class PaymentActivity : AppCompatActivity() {
                                 binding.tvContent.text = "Roomio_${invoice.invoiceId}"
                             }
                         } catch (ex: Exception) {
-                            Log.e("Firebase", "Lỗi chuyển đổi dữ liệu cho BankInfo", ex)
+                            Log.e("Firebase", "Error converting BankInfo data", ex)
                         }
                     } else {
-                        Log.w("Firebase", "BankInfo không tồn tại.")
+                        Log.w("Firebase", "BankInfo not found.")
                     }
                 }
         }
@@ -159,6 +214,11 @@ class PaymentActivity : AppCompatActivity() {
         val now = System.currentTimeMillis()
         val createdAtMs = createdAt.toDate().time
         val elapsedTimeMs = DURATION_24_HOURS_MS - (now - createdAtMs)
+
+        if (::countDownTimer.isInitialized) {
+            countDownTimer.cancel()
+        }
+
         countDownTimer = object : CountDownTimer(elapsedTimeMs, INTERVAL_MS){
             override fun onTick(millisUntilFinished: Long) {
                 val seconds = TimeUnit.MILLISECONDS.toSeconds(millisUntilFinished)
@@ -170,7 +230,6 @@ class PaymentActivity : AppCompatActivity() {
                 val formattedTime = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, remainingSeconds)
 
                 binding.tvTimer.text = formattedTime
-                Log.d("Timer", formattedTime)
             }
 
             override fun onFinish() {
@@ -181,7 +240,7 @@ class PaymentActivity : AppCompatActivity() {
         countDownTimer.start()
     }
 
-    private fun loadBooking(bookingId: String, onComplete: () -> Unit) { // MODIFIED: onComplete instead of onLoaded(Booking)
+    private fun loadBooking(bookingId: String, onComplete: () -> Unit) {
         bookingListener?.remove()
 
         bookingListener = db.collection("bookings")
@@ -197,43 +256,73 @@ class PaymentActivity : AppCompatActivity() {
                             loadRoomType(currentBooking!!.roomTypeId, onComplete)
                         }
                     } catch (ex: Exception) {
-                        Log.e("Firebase", "Lỗi chuyển đổi dữ liệu cho Booking: ${dataSnapshot.id}", ex)
+                        Log.e("Firebase", "Error converting data for Booking: ${dataSnapshot.id}", ex)
                     }
                 } else {
-                    Log.w("Firebase", "Booking ID: $bookingId không tồn tại.")
+                    Log.w("Firebase", "Booking ID: $bookingId not found.")
                 }
             }
     }
-    private fun loadInvoice(bookingId: String, onComplete: () -> Unit) {
-        invoicesListener?.remove()
 
-        invoicesListener = db.collection("invoices")
-            .whereEqualTo("bookingId",bookingId)
-            .addSnapshotListener { result, exception ->
+    private fun getLatestInvoice(bookingId: String, onComplete: (invoice: Invoice?) -> Unit) {
+        db.collection("invoices")
+            .whereEqualTo("bookingId", bookingId)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(1)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                val document = querySnapshot.documents.firstOrNull()
+                val latestInvoiceId = document?.id
 
-                if (result != null) {
-                    invoices.clear()
-                    for (document in result) {
-                        try {
-                            val invoice = document.toObject(Invoice::class.java)
-                            invoices.add(invoice)
-                        } catch (ex: Exception) {
-                            Log.e("Firebase", "Lỗi chuyển đổi dữ liệu cho Invoice: ${document.id}", ex)
-                        }
+                if (latestInvoiceId != null) {
+                    Log.d("Firebase", "Found latest invoice ID: $latestInvoiceId")
+                    getInvoice(latestInvoiceId, onComplete)
+                } else {
+                    Log.w("Firebase", "No invoice found for Booking ID: $bookingId")
+                    onComplete(null)
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("Firebase", "Error finding latest invoice: ${e.message}", e)
+                onComplete(null)
+            }
+    }
+
+    private fun getInvoice(invoiceId: String, onComplete: (invoice: Invoice?) -> Unit) {
+        invoiceDetailListener?.remove()
+
+        invoiceDetailListener = db.collection("invoices")
+            .document(invoiceId)
+            .addSnapshotListener { documentSnapshot, exception ->
+
+                if (exception != null) {
+                    Log.e("Firebase", "Error listening to invoice: ${exception.message}", exception)
+                    onComplete(null)
+                    return@addSnapshotListener
+                }
+
+                if (documentSnapshot != null && documentSnapshot.exists()) {
+                    try {
+                        val invoice = documentSnapshot.toObject(Invoice::class.java)
+                        onComplete(invoice)
+                    } catch (ex: Exception) {
+                        Log.e("Firebase", "Error converting Invoice data: ${documentSnapshot.id}", ex)
+                        onComplete(null)
                     }
-                    onComplete()
+                } else {
+                    onComplete(null)
                 }
             }
     }
 
-    private fun loadRoomType(roomTypeId: String, onComplete: () -> Unit) { // ADDED CALLBACK
+    private fun loadRoomType(roomTypeId: String, onComplete: () -> Unit) {
         roomTypeListener?.remove()
 
         roomTypeListener = db.collection("roomTypes")
             .document(roomTypeId)
             .addSnapshotListener { dataSnapshot, exception ->
                 if (exception != null) {
-                    Log.e("Firestore", "Lỗi khi lắng nghe RoomType: ", exception)
+                    Log.e("Firestore", "Error listening to RoomType: ", exception)
                     return@addSnapshotListener
                 }
 
@@ -242,27 +331,25 @@ class PaymentActivity : AppCompatActivity() {
                         val roomType = dataSnapshot.toObject(RoomType::class.java)
                         if (roomType != null) {
                             currentRoomType = roomType
-
-                            // *** PASS THE CALLBACK TO THE NEXT STEP ***
                             loadHotel(roomType.hotelId, onComplete)
                         }
                     } catch (ex: Exception) {
-                        Log.e("Firebase", "Lỗi chuyển đổi dữ liệu cho RoomType: ${dataSnapshot.id}", ex)
+                        Log.e("Firebase", "Error converting data for RoomType: ${dataSnapshot.id}", ex)
                     }
                 } else {
-                    Log.w("Firebase", "RoomType ID: $roomTypeId không tồn tại.")
+                    Log.w("Firebase", "RoomType ID: $roomTypeId not found.")
                 }
             }
     }
 
-    private fun loadHotel(hotelId: String, onComplete: () -> Unit) { // ADDED CALLBACK
+    private fun loadHotel(hotelId: String, onComplete: () -> Unit) {
         hotelListener?.remove()
 
         hotelListener = db.collection("hotels")
             .document(hotelId)
             .addSnapshotListener { dataSnapshot, exception ->
                 if (exception != null) {
-                    Log.e("Firestore", "Lỗi khi lắng nghe Hotel: ", exception)
+                    Log.e("Firestore", "Error listening to Hotel: ", exception)
                     return@addSnapshotListener
                 }
 
@@ -271,27 +358,21 @@ class PaymentActivity : AppCompatActivity() {
                         val hotel = dataSnapshot.toObject(HotelModel::class.java)
                         if (hotel != null) {
                             currentHotel = hotel
-
-                            // *** DATA LOAD COMPLETE: EXECUTE THE FINAL CALLBACK ***
                             onComplete()
                         }
                     } catch (ex: Exception) {
-                        Log.e("Firebase", "Lỗi chuyển đổi dữ liệu cho Hotel: ${dataSnapshot.id}", ex)
+                        Log.e("Firebase", "Error converting data for Hotel: ${dataSnapshot.id}", ex)
                     }
                 } else {
-                    Log.w("Firebase", "Hotel ID: $hotelId không tồn tại.")
+                    Log.w("Firebase", "Hotel ID: $hotelId not found.")
                 }
             }
     }
 
     fun convertTimestampToString(timestamp: Timestamp): String {
-        // 1. Chuyển Timestamp thành đối tượng Date
         val date: Date = timestamp.toDate()
 
-        // 2. Tạo đối tượng SimpleDateFormat với định dạng và Locale (ngôn ngữ) mong muốn
         val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-
-        // 3. Định dạng Date thành String
         return dateFormat.format(date)
     }
 }

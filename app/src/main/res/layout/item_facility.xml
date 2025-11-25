@@ -5,7 +5,8 @@
     android:orientation="horizontal"
     android:id="@+id/itemFacility"
     android:layout_weight="1"
-    android:layout_gravity="center">
+    android:layout_gravity="center"
+    android:layout_margin="4dp">
     <ImageView
         android:id="@+id/iconFacility"
         android:layout_width="24dp"

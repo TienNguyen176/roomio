@@ -15,17 +15,16 @@
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            />
+            android:layout_height="?attr/actionBarSize" />
     </com.google.android.material.appbar.AppBarLayout>
 
     <TextView
-        android:id="@+id/tv_reservation_status"
+        android:id="@+id/tvBookingStatus"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="#FFA500"
+        android:background="@color/yellow"
         android:padding="12dp"
-        android:text="Reservation is pending confirmation."
+        android:text="Reservation is pending confirmation"
         android:textColor="@android:color/white"
         android:textSize="16sp"
         android:textStyle="bold"
@@ -36,10 +35,10 @@
     <ScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@id/btn_payment_complete"
+        app:layout_constraintBottom_toTopOf="@id/btnAction"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tv_reservation_status">
+        app:layout_constraintTop_toBottomOf="@id/tvBookingStatus">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -48,43 +47,56 @@
             android:paddingHorizontal="16dp">
 
             <TextView
+                android:id="@+id/tvDescriptionStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="If you have not yet paid, please continue to complete your booking."
                 android:textSize="14sp"
                 android:textColor="@color/dark"
-                android:layout_marginBottom="16dp"/>
+                android:layout_marginTop="16dp"
+                android:visibility="gone"/>
 
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="16dp"
+                android:layout_marginTop="8dp">
 
                 <TextView
-                    android:id="@+id/tv_booking_id_label"
+                    android:id="@+id/lblBookingId"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Booking ID:"
                     android:textColor="@android:color/black"
-                    android:textSize="18sp"
+                    android:textSize="16sp"
                     android:textStyle="bold" />
 
                 <TextView
-                    android:id="@+id/tv_booking_id"
+                    android:id="@+id/tvBookingId"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_toEndOf="@id/tv_booking_id_label"
+                    android:layout_toEndOf="@id/lblBookingId"
                     android:layout_marginStart="4dp"
                     android:text="250803001"
                     android:textColor="@android:color/black"
-                    android:textSize="18sp"
+                    android:textSize="16sp"
                     android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/lblCreateAt"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/tvBookingId"
+                    android:text="Date created: "
+                    android:textColor="@android:color/black"
+                    android:textSize="14sp" />
 
                 <TextView
                     android:id="@+id/tvCreateAt"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_alignParentEnd="true"
+                    android:layout_below="@id/tvBookingId"
+                    android:layout_toEndOf="@+id/lblCreateAt"
                     android:text="5 Oct 2025"
                     android:textColor="@android:color/black"
                     android:textSize="14sp" />
@@ -93,11 +105,12 @@
                     android:id="@+id/tvHotelName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_below="@id/tv_booking_id_label"
+                    android:layout_below="@id/lblCreateAt"
                     android:text="Ares Home"
                     android:textColor="@android:color/black"
                     android:textSize="22sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:layout_marginTop="8dp"/>
 
                 <LinearLayout
                     android:id="@+id/rating_layout"
@@ -149,6 +162,7 @@
                 android:layout_marginBottom="8dp"/>
 
             <TextView
+                android:id="@+id/tvBookingDetail"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Standard room"
@@ -158,6 +172,7 @@
                 android:layout_marginBottom="8dp"/>
 
             <TextView
+                android:id="@+id/tvNumberGuest"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Guest: 2 people"
@@ -185,14 +200,15 @@
                         android:textSize="14sp" />
 
                     <TextView
+                        android:id="@+id/tvCheckInTime"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="12:00 AM"
                         android:textColor="@android:color/black"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
+                        android:textSize="14sp"/>
 
                     <TextView
+                        android:id="@+id/tvCheckInDate"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Mon 6 Oct 2025"
@@ -214,14 +230,15 @@
                         android:textSize="14sp" />
 
                     <TextView
+                        android:id="@+id/tvCheckOutTime"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="12:00 AM"
                         android:textColor="@android:color/black"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
+                        android:textSize="14sp" />
 
                     <TextView
+                        android:id="@+id/tvCheckOutDate"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Tues 7 Oct 2025"
@@ -240,8 +257,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp">
+                android:orientation="horizontal">
 
                 <TextView
                     android:layout_width="0dp"
@@ -253,12 +269,54 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/tvTotalOrigin"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="VND 700.000"
-                    android:textColor="#F44336"
+                    android:textColor="@color/black"
                     android:textSize="18sp"
                     android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutTotalFinal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp"
+                android:weightSum="5">
+                <TextView
+                    android:id="@+id/tvDiscountName"
+                    android:layout_weight="3"
+                    android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:text="3% discount for first time booking with e-wallet"
+                    android:textSize="11sp"
+                    android:textColor="@color/green"
+                    android:layout_gravity="center_vertical"
+                    android:textStyle="bold"/>
+
+                <LinearLayout
+                    android:layout_width="0dp" android:layout_weight="2"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    >
+                    <TextView
+                        android:id="@+id/tvDiscountPrice"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="- VND 21.000"
+                        android:textSize="13sp"
+                        android:textColor="@color/red"
+                        android:textStyle="bold"
+                        android:gravity="end"/> <TextView
+                    android:id="@+id/tvTotalAfter"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="VND 700.000"
+                    android:textSize="16sp"
+                    android:textColor="@color/green"
+                    android:textStyle="bold"
+                    android:gravity="end"/> </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
@@ -276,9 +334,62 @@
                     android:textSize="16sp" />
 
                 <TextView
+                    android:id="@+id/tvFundAmount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="VND 70.000 (10%)"
+                    android:layout_marginStart="8dp"
+                    android:textColor="@android:color/black"
+                    android:textSize="16sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:id="@+id/layoutExtraFeeContainer" android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Extra fee"
+                    android:textColor="@android:color/black"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/tvExtraFee"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="VND 0"
+                    android:layout_marginStart="8dp"
+                    android:textColor="@android:color/black"
+                    android:textSize="16sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutTotalPaidContainer" android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Total Payment"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/black"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/tvTotalPaidAmount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="VND 70.000"
+                    android:textStyle="bold"
+                    android:layout_marginStart="8dp"
                     android:textColor="@android:color/black"
                     android:textSize="16sp" />
             </LinearLayout>
@@ -287,7 +398,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="4dp">
 
                 <TextView
                     android:layout_width="0dp"
@@ -295,16 +406,27 @@
                     android:layout_weight="1"
                     android:text="Payment method"
                     android:textColor="@android:color/black"
-                    android:textSize="16sp" />
+                    android:textSize="14sp"/>
 
                 <TextView
+                    android:id="@+id/tvPaymentMethod"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Transfer payment"
+                    android:layout_marginStart="8dp"
                     android:textColor="@android:color/black"
-                    android:textSize="16sp" />
+                    android:textSize="14sp" />
             </LinearLayout>
-
+            <TextView
+                android:id="@+id/tvPaymentStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:text="Paid"
+                android:textColor="@color/green"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp"/>
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
@@ -314,7 +436,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Special Request"
+                android:text="Special Request (Optional)"
                 android:textColor="@android:color/black"
                 android:textSize="18sp"
                 android:textStyle="bold"
@@ -327,37 +449,100 @@
                 android:textSize="14sp"
                 android:layout_marginBottom="8dp"/>
 
-            <EditText
+            <TextView
+                android:id="@+id/tvSpecialRequest"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Rooms with nice views (sea, mountains, city), near elevator or quieter."
-                android:padding="8dp"
-                android:minLines="3"
                 android:gravity="top|start"
                 android:textSize="14sp"
-                android:importantForAutofill="no"
-                android:inputType="textMultiLine"/>
+                android:background="@drawable/shape_foreground_radius"
+                android:padding="8dp"
+                android:backgroundTint="@color/gray"/>
 
             <TextView
+                android:id="@+id/tvCancelPolicy"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Cancellation policy"
-                android:textColor="#F44336"
+                android:textColor="@color/red"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:layout_marginTop="16dp"/>
+                android:layout_marginVertical="16dp"/>
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="@android:color/darker_gray"
+                android:layout_marginBottom="16dp"/>
 
+            <LinearLayout
+                android:id="@+id/layoutOwnerContact"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginBottom="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Owner Contact"
+                    android:textColor="@color/text_dark_gray"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Representative:"
+                        android:textSize="14sp"
+                        android:textColor="@android:color/black"/>
+                    <TextView
+                        android:id="@+id/tvOwnerName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="Mr. Nguyen Van A"
+                        android:textSize="14sp"
+                        android:textColor="@android:color/black"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="2dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Direct Phone:"
+                        android:textSize="14sp"
+                        android:textColor="@android:color/black"/>
+                    <TextView
+                        android:id="@+id/tvOwnerPhone"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="0901 XXX XXX"
+                        android:textSize="14sp"
+                        android:textColor="?attr/colorPrimary"
+                        android:autoLink="phone"/>
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
 
     <Button
-        android:id="@+id/btn_payment_complete"
+        android:id="@+id/btnAction"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
-        android:backgroundTint="#2196F3"
+        android:backgroundTint="@color/yellow"
         android:text="Payment to complete"
         android:textColor="@android:color/white"
         android:textStyle="bold"
@@ -366,4 +551,15 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:indeterminateTint="?attr/colorPrimary"
+        style="?android:attr/progressBarStyleLarge" />
 </androidx.constraintlayout.widget.ConstraintLayout>

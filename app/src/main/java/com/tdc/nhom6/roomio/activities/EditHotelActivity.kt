@@ -175,12 +175,12 @@ class EditHotelActivity : AppCompatActivity() {
     // ----------------------------------------------------
     // REMOVE IMAGE
     // ----------------------------------------------------
-    private fun removeImage(url: String) {
+    private fun removeImage(url: Int) {
         AlertDialog.Builder(this)
             .setTitle("Xác nhận xóa ảnh")
             .setMessage("Bạn có chắc chắn muốn xóa ảnh này không?")
             .setPositiveButton("Xóa") { _, _ ->
-                currentImageUrls.remove(url)
+                currentImageUrls.removeAt(url)
                 (binding.rvCurrentImages.adapter as? ImageListAdapter)?.notifyDataSetChanged()
                 Toast.makeText(this, "Đã xóa ảnh khỏi danh sách tạm", Toast.LENGTH_SHORT).show()
             }

@@ -146,8 +146,10 @@ class HomeFragment : Fragment() {
      * This replaces sample data with real Firebase data
      */
     private fun loadDataFromFirebase() {
-        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
 
+
+        val hasPlay = firebaseRepository.isPlayServicesAvailable(requireActivity())
+        Log.d("Firebase", "HomeFragment: hasPlay=$hasPlay")
         if (hasPlay) {
             // Observe hot reviews (realtime)
             hotReviewsListener?.remove()
@@ -159,12 +161,12 @@ class HomeFragment : Fragment() {
 
             // Observe deals (realtime)
             dealsListener?.remove()
-            dealsListener = firebaseRepository.observeDeals { deals ->
-                if (::dealsAdapter.isInitialized) {
-                    dealsAdapter.updateData(deals.map { it.toDealItem() })
-                    Log.d("Firebase", "Realtime: ${deals.size} deals")
-                }
-            }
+//            dealsListener = firebaseRepository.observeDeals { deals ->
+//                if (::dealsAdapter.isInitialized) {
+//                    dealsAdapter.updateData(deals.map { it.toDealItem() })
+//                    Log.d("Firebase", "Realtime: ${deals.size} deals")
+//                }
+//            }
         } else {
             // Fallback to one-shot loads when Play Services missing
             firebaseRepository.getHotReviews { hotels ->
@@ -172,12 +174,12 @@ class HomeFragment : Fragment() {
                 hotReviewAdapter.updateData(hotReviews)
                 Log.d("Firebase", "One-shot: ${hotReviews.size} hot reviews")
             }
-            firebaseRepository.getDeals { deals ->
-                if (::dealsAdapter.isInitialized) {
-                    dealsAdapter.updateData(deals.map { it.toDealItem() })
-                    Log.d("Firebase", "One-shot: ${deals.size} deals")
-                }
-            }
+//            firebaseRepository.getDeals { deals ->
+//                if (::dealsAdapter.isInitialized) {
+//                    dealsAdapter.updateData(deals.map { it.toDealItem() })
+//                    Log.d("Firebase", "One-shot: ${deals.size} deals")
+//                }
+//            }
         }
     }
 
