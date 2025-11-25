@@ -19,4 +19,7 @@
         android:id="@+id/btnUpdateRoomName"
         android:title="Đổi tên chung" />
 
+    <item
+        android:id="@+id/btnDeleteRoomType"
+        android:title="Xóa loại phòng" />
 </menu>

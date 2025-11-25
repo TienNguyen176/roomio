@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:id="@+id/dialogRoot"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Tên loại phòng -->
+        <EditText
+            android:id="@+id/edtRoomTypeName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Tên loại phòng"
+            android:inputType="textPersonName"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Diện tích -->
+        <EditText
+            android:id="@+id/edtRoomTypeArea"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Diện tích (m²)"
+            android:inputType="number"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Số người tối đa -->
+        <EditText
+            android:id="@+id/edtRoomTypePeople"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Số người tối đa"
+            android:inputType="number"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Giá mỗi đêm -->
+        <EditText
+            android:id="@+id/edtRoomTypePrice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Giá mỗi đêm (VND)"
+            android:inputType="number"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Mô tả loại phòng -->
+        <EditText
+            android:id="@+id/edtRoomTypeDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Mô tả loại phòng"
+            android:inputType="textMultiLine"
+            android:minLines="3"
+            android:gravity="top|start"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Ảnh loại phòng -->
+        <TextView
+            android:id="@+id/tvSelectedImages"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Chưa chọn ảnh nào"
+            android:textSize="14sp"
+            android:textColor="#666"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btnSelectRoomImages"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Chọn ảnh loại phòng"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Tiện ích & giá -->
+        <TextView
+            android:id="@+id/tvSelectedFacilities"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Chưa chọn tiện ích nào"
+            android:textSize="14sp"
+            android:textColor="#666"
+            android:layout_marginBottom="8dp" />
+
+        <Button
+            android:id="@+id/btnSelectFacilities"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Chọn tiện ích và giá"
+            android:layout_marginBottom="12dp" />
+
+    </LinearLayout>
+</ScrollView>

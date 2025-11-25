@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <!-- ===========================
+         REVIEW (NGƯỜI ĐÁNH GIÁ)
+         =========================== -->
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:id="@+id/imgAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_user"
+            android:layout_marginEnd="10dp" />
+
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <!-- Người bình luận -->
+            <TextView
+                android:id="@+id/tvUserName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Nguyễn Văn A"
+                android:textStyle="bold"
+                android:textSize="16sp" />
+
+            <!-- Rating chỉ cho người đánh giá -->
+            <RatingBar
+                android:id="@+id/ratingBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:numStars="5"
+                android:stepSize="1.0"
+                android:isIndicator="true"
+                android:rating="4" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Comment -->
+    <TextView
+        android:id="@+id/tvComment"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Khách sạn rất sạch sẽ!"
+        android:textSize="15sp"
+        android:layout_marginTop="6dp" />
+
+    <!-- Ngày -->
+    <TextView
+        android:id="@+id/tvDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="22/10/2025"
+        android:textSize="12sp"
+        android:textColor="#888"
+        android:layout_marginTop="4dp" />
+
+
+
+    <!-- ===========================
+         DANH SÁCH PHẢN HỒI
+         =========================== -->
+
+    <LinearLayout
+        android:id="@+id/layoutReplies"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp">
+
+        <!-- Reply sẽ được add bằng code nên phần này để trống -->
+    </LinearLayout>
+
+
+
+    <!-- ===========================
+         Ô NHẬP PHẢN HỒI
+         =========================== -->
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="8dp">
+
+        <EditText
+            android:id="@+id/edtReply"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="Phản hồi đánh giá..."
+            android:padding="10dp"
+            android:background="@android:drawable/edit_text" />
+
+        <ImageView
+            android:id="@+id/btnSendReply"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_send"
+            app:tint="#2196F3"
+            android:layout_marginStart="10dp" />
+    </LinearLayout>
+
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#DDDDDD"
+        android:layout_marginTop="12dp" />
+
+</LinearLayout>

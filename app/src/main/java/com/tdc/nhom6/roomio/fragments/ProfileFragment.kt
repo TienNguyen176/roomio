@@ -19,6 +19,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.activities.admin.AdminHomeActivity
 import com.tdc.nhom6.roomio.activities.auth.LoginActivity
+import com.tdc.nhom6.roomio.activities.owner.AdminHotelActivity
 import com.tdc.nhom6.roomio.activities.owner.BusinessRegistrationActivity
 import com.tdc.nhom6.roomio.activities.profile.EditProfileActivity
 import com.tdc.nhom6.roomio.activities.profile.ManageBanksActivity
@@ -126,11 +127,11 @@ class ProfileFragment : Fragment() {
                     startActivity(Intent(requireContext(), AdminHomeActivity::class.java))
                     true
                 }
-                /*
                 R.id.navChuKS -> {
                     startActivity(Intent(requireContext(), AdminHotelActivity::class.java))
                     true
                 }
+                /*
                 R.id.navLeTan -> {
                     startActivity(Intent(requireContext(), AdminHomeActivity::class.java))
                     true

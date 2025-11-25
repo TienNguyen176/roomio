@@ -183,7 +183,7 @@ class AdminListHotelRequestActivity : AppCompatActivity() {
     }
 
     private fun setupTabs() {
-        tabTitles.forEachIndexed { index, title ->
+        tabTitles.forEachIndexed { _, title ->
             val tabBinding = TabCustomBinding.inflate(LayoutInflater.from(this))
 
             tabBinding.tvTab.text = title

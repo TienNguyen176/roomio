@@ -44,8 +44,11 @@ class SearchResultsFragment : Fragment() {
     private val hotelsCache = mutableListOf<Hotel>()
     private var currentComparator: Comparator<Hotel>? = null
 
-    private var allTienIch: List<Facility> = emptyList()
+    //private var allTienIch: List<Facility> = emptyList()
     private var allServices: List<Service> = emptyList()
+
+    private var appliedServiceIds = mutableSetOf<String>()
+    private var appliedFacilityIds = mutableSetOf<String>()
 
     companion object {
         fun newInstance(query: String, location: String): SearchResultsFragment {
@@ -77,13 +80,29 @@ class SearchResultsFragment : Fragment() {
         setupSearchRealtime()
 
         loadAllServices()
-        loadAllTienIch()
+        //loadAllTienIch()
 
         loadHotelsFromFirebase()
 
 
         // Tự động focus vào thanh tìm kiếm sau khi màn hình được tạo
         binding.edtSearchQuery.requestFocus()
+        binding.edtSearchQuery.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
+
+                // Chạy filter
+                filterHotels(binding.edtSearchQuery.text.toString().trim())
+
+                // Ẩn bàn phím
+                val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(binding.edtSearchQuery.windowToken, 0)
+
+                true
+            } else {
+                false
+            }
+        }
+
     }
 
     override fun onDestroyView() {
@@ -105,39 +124,51 @@ class SearchResultsFragment : Fragment() {
 
         binding.btnSort.setOnClickListener { showSortOptions() }
 
+//        binding.btnFilter.setOnClickListener {
+//            val filterFragment = FilterBottomSheetFragment()
+//            filterFragment.setAmenities(allServices)
+//            //filterFragment.setTienIch(allTienIch)
+//
+//            // NHẬN KẾT QUẢ LỌC TỪ FILTER BOTTOM SHEET
+//            filterFragment.setOnApplyFilterListener { min, max, selectedServices, selectedFacilities ->
+//                Log.d(TAG, "Filter applied: min=$min max=$max services=${selectedServices.size} facilities=${selectedFacilities.size}")
+//                applyFilter(min, max, selectedServices, selectedFacilities)
+//            }
+//
+//            filterFragment.show(parentFragmentManager, FilterBottomSheetFragment::class.java.simpleName)
+//        }
+
+        //Loc
         binding.btnFilter.setOnClickListener {
             val filterFragment = FilterBottomSheetFragment()
-            filterFragment.setAmenities(allServices)
-            filterFragment.setTienIch(allTienIch)
 
-            // ⭐ NHẬN KẾT QUẢ LỌC TỪ FILTER BOTTOM SHEET
+            filterFragment.setAmenities(allServices)
+            //filterFragment.setTienIch(allTienIch)
+
+            // Truyền lại lựa chọn đã áp dụng
+            filterFragment.setSelectedServices(appliedServiceIds)
+            filterFragment.setSelectedFacilities(appliedFacilityIds)
+            filterFragment.setSelectedPrice(minPrice, maxPrice)
+
+            // Nhận kết quả sau khi Apply
             filterFragment.setOnApplyFilterListener { min, max, selectedServices, selectedFacilities ->
-                Log.d(TAG, "Filter applied: min=$min max=$max services=${selectedServices.size} facilities=${selectedFacilities.size}")
+                minPrice = min
+                maxPrice = max
+                appliedServiceIds = selectedServices.toMutableSet()
+                appliedFacilityIds = selectedFacilities.toMutableSet()
+
                 applyFilter(min, max, selectedServices, selectedFacilities)
             }
 
-            filterFragment.show(parentFragmentManager, FilterBottomSheetFragment::class.java.simpleName)
+            filterFragment.show(parentFragmentManager, "FilterBottomSheetFragment")
         }
 
         // Cho phép focus và show keyboard khi cần
         binding.searchBar.isFocusableInTouchMode = true
 
-        binding.edtSearchQuery.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
 
-                // Chạy filter
-                filterHotels(binding.edtSearchQuery.text.toString().trim())
-
-                // Ẩn bàn phím
-                val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                imm.hideSoftInputFromWindow(binding.edtSearchQuery.windowToken, 0)
-
-                true
-            } else {
-                false
-            }
-        }
     }
+
 
     private fun setupRecyclerView() {
         binding.rvSearchResults.layoutManager = LinearLayoutManager(requireContext())
@@ -316,17 +347,17 @@ class SearchResultsFragment : Fragment() {
         }
     }
 
-    private fun loadAllTienIch() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val snap = db.collection("facilities").get().await()
-                allTienIch = snap.toObjects(Facility::class.java)
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(requireContext(), "Failed facilities load!", Toast.LENGTH_SHORT).show()
-                    Log.e(TAG, "loadAllTienIch error: ${e.message}")
-                }
-            }
-        }
-    }
+//    private fun loadAllTienIch() {
+//        lifecycleScope.launch(Dispatchers.IO) {
+//            try {
+//                val snap = db.collection("facilities").get().await()
+//                allTienIch = snap.toObjects(Facility::class.java)
+//            } catch (e: Exception) {
+//                withContext(Dispatchers.Main) {
+//                    Toast.makeText(requireContext(), "Failed facilities load!", Toast.LENGTH_SHORT).show()
+//                    Log.e(TAG, "loadAllTienIch error: ${e.message}")
+//                }
+//            }
+//        }
+//    }
 }

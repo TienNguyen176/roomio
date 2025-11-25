@@ -15,7 +15,7 @@ class FilterServiceAdapter(
     inner class ViewHolder(val binding: ItemFilterServiceBinding) :
         RecyclerView.ViewHolder(binding.root)
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder{
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemFilterServiceBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
@@ -27,21 +27,25 @@ class FilterServiceAdapter(
     override fun getItemCount() = items.size
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val facility = items[position]
+        val service = items[position]
         val b = holder.binding
 
-        b.tvName.text = facility.service_name
-        b.cbSelected.isChecked = selectedIds.contains(facility.id)
+        b.tvName.text = service.service_name
 
-        // Toggle khi click vào cả layout
+        // Gỡ listener cũ trước khi set isChecked
+        b.cbSelected.setOnCheckedChangeListener(null)
+        b.cbSelected.isChecked = selectedIds.contains(service.id)
+
+        // Click vào layout -> toggle checkbox
         b.root.setOnClickListener {
             b.cbSelected.isChecked = !b.cbSelected.isChecked
         }
 
-        // Cập nhật lựa chọn
+        // Gán listener mới
         b.cbSelected.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) selectedIds.add(facility.id)
-            else selectedIds.remove(facility.id)
+            if (isChecked) selectedIds.add(service.id)
+            else selectedIds.remove(service.id)
         }
     }
 }
+

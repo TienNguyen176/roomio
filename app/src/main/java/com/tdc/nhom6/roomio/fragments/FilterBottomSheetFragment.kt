@@ -1,3 +1,4 @@
+// FilterBottomSheetFragment.kt
 package com.tdc.nhom6.roomio.fragments
 
 import android.os.Bundle
@@ -14,7 +15,6 @@ import com.tdc.nhom6.roomio.models.Facility
 import com.tdc.nhom6.roomio.models.Service
 import com.mohammedalaa.seekbar.DoubleValueSeekBarView
 import com.mohammedalaa.seekbar.OnDoubleValueSeekBarChangeListener
-import com.mohammedalaa.seekbar.OnRangeSeekBarChangeListener
 
 class FilterBottomSheetFragment : BottomSheetDialogFragment() {
 
@@ -24,188 +24,151 @@ class FilterBottomSheetFragment : BottomSheetDialogFragment() {
     private var amenities: List<Service> = emptyList()
     private val selectedAmenityIds = mutableSetOf<String>()
 
-    private var tienIch: List<Facility> = emptyList()
+    //private var tienIch: List<Facility> = emptyList()
     private val tienIchIds = mutableSetOf<String>()
 
-    // Giá mặc định
     private val DEFAULT_MIN_PRICE = 1_000_000
     private val DEFAULT_MAX_PRICE = 10_000_000
     private var currentMinPrice = DEFAULT_MIN_PRICE
     private var currentMaxPrice = DEFAULT_MAX_PRICE
 
-    // Callback gửi filter ra ngoài
     private var onApplyFilter: ((minPrice: Int, maxPrice: Int,
                                  selectedServiceIds: Set<String>,
                                  selectedFacilityIds: Set<String>) -> Unit)? = null
 
-    fun setAmenities(list: List<Service>) {
-        amenities = list
-    }
+    fun setAmenities(list: List<Service>) { amenities = list }
 
-    fun setTienIch(list: List<Facility>) {
-        tienIch = list
-    }
+    //fun setTienIch(list: List<Facility>) { tienIch = list }
 
-    fun setOnApplyFilterListener(
-        listener: (minPrice: Int, maxPrice: Int,
-                   selectedServiceIds: Set<String>,
-                   selectedFacilityIds: Set<String>) -> Unit
-    ) {
+    fun setOnApplyFilterListener(listener: (Int, Int, Set<String>, Set<String>) -> Unit) {
         onApplyFilter = listener
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        _binding = FragmentBottomSheetFilterBinding.inflate(inflater, container, false)
-        return binding.root
-    }
+
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?) =
+        FragmentBottomSheetFilterBinding.inflate(inflater, container, false).also { _binding = it }.root
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         setupAmenityList()
-        //setupTienIchList()
+        // setupTienIchList()
         setupPriceControls()
 
         binding.btnClose.setOnClickListener { dismiss() }
-
-        binding.btnReset.setOnClickListener {
-            resetFilters()
-        }
-
+        binding.btnReset.setOnClickListener { resetFilters() }
         binding.btnApply.setOnClickListener {
-            val min = parsePrice(binding.edtMinPrice.text.toString(), DEFAULT_MIN_PRICE)
-            val max = parsePrice(binding.edtMaxPrice.text.toString(), DEFAULT_MAX_PRICE)
-
-            currentMinPrice = min
-            currentMaxPrice = max
-
-            onApplyFilter?.invoke(
-                min,
-                max,
-                selectedAmenityIds,
-                tienIchIds
-            )
+            onApplyFilter?.invoke(currentMinPrice, currentMaxPrice, selectedAmenityIds, tienIchIds)
             dismiss()
         }
     }
 
-    // --------------------------
-    // List Dịch vụ & Tiện ích
-    // --------------------------
     private fun setupAmenityList() {
-        val adapter = FilterServiceAdapter(amenities, selectedAmenityIds)
-        binding.rvDichVu.adapter = adapter
+        binding.rvDichVu.adapter = FilterServiceAdapter(amenities, selectedAmenityIds)
     }
-    //
-//    private fun setupTienIchList() {
-//        val adapter = FilterTienIchAdapter(tienIch, tienIchIds)
-//        binding.rvTienIch.adapter = adapter
-//    }
 
-    // --------------------------
-    // Giá + Slider
-    // --------------------------
+    /*
+    private fun setupTienIchList() {
+        binding.rvTienIch.adapter = FilterTienIchAdapter(tienIch, tienIchIds)
+    }
+    */
+
     private fun setupPriceControls() {
-        // Set giá mặc định vào EditText
-        binding.edtMinPrice.setText(DEFAULT_MIN_PRICE.toString())
-        binding.edtMaxPrice.setText(DEFAULT_MAX_PRICE.toString())
+        binding.edtMinPrice.setText(formatMoney(currentMinPrice.toDouble()))
+        binding.edtMaxPrice.setText(formatMoney(currentMaxPrice.toDouble()))
+        binding.doubleRangeSeekbar.currentMinValue = currentMinPrice
+        binding.doubleRangeSeekbar.currentMaxValue = currentMaxPrice
 
-        // 1) Lắng nghe sự thay đổi từ thanh trượt → cập nhật EditText
+        // Slider → EditText
         binding.doubleRangeSeekbar.setOnRangeSeekBarViewChangeListener(object : OnDoubleValueSeekBarChangeListener {
             override fun onValueChanged(seekBar: DoubleValueSeekBarView?, min: Int, max: Int, fromUser: Boolean) {
-                // Cập nhật giá trị vào EditText khi thanh trượt thay đổi
-                var newMin = min
-                var newMax = max
-
-                // Nếu kéo min vượt max → đẩy max theo
-                if (newMin > newMax) {
-                    newMax = newMin
-                    binding.doubleRangeSeekbar.currentMaxValue = newMax
-                }
-
-                // Nếu kéo max xuống dưới min → đẩy min theo
-                if (newMax < newMin) {
-                    newMin = newMax
-                    binding.doubleRangeSeekbar.currentMinValue = newMin
-                }
-
-                currentMinPrice = newMin
-                currentMaxPrice = newMax
-
-                binding.edtMinPrice.setText(currentMinPrice.toString())
-                binding.edtMaxPrice.setText(currentMaxPrice.toString())
-
+                currentMinPrice = min.coerceAtMost(max)
+                currentMaxPrice = max.coerceAtLeast(min)
+                binding.edtMinPrice.setText(formatMoney(currentMinPrice.toDouble()))
+                binding.edtMaxPrice.setText(formatMoney(currentMaxPrice.toDouble()))
             }
-
-            override fun onStartTrackingTouch(seekBar: DoubleValueSeekBarView?, min: Int, max: Int) {
-                // Bạn có thể làm gì đó khi người dùng bắt đầu kéo thanh trượt
-            }
-
-            override fun onStopTrackingTouch(seekBar: DoubleValueSeekBarView?, min: Int, max: Int) {
-                // Bạn có thể làm gì đó khi người dùng dừng kéo thanh trượt
-            }
+            override fun onStartTrackingTouch(seekBar: DoubleValueSeekBarView?, min: Int, max: Int) {}
+            override fun onStopTrackingTouch(seekBar: DoubleValueSeekBarView?, min: Int, max: Int) {}
         })
 
-        // 2) Lắng nghe sự thay đổi từ EditText → cập nhật thanh trượt
-        binding.edtMinPrice.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-
-            override fun afterTextChanged(s: Editable?) {
-                val value = parsePrice(s?.toString(), DEFAULT_MIN_PRICE)
-                currentMinPrice = value
-
-                // Cập nhật thanh trượt với giá trị mới
-                binding.doubleRangeSeekbar.currentMinValue = currentMinPrice
-            }
+        // EditText → Slider
+        binding.edtMinPrice.addTextChangedListener(MoneyTextWatcher(binding.edtMinPrice,
+            DEFAULT_MIN_PRICE, DEFAULT_MAX_PRICE) { value ->
+            currentMinPrice = value
+            binding.doubleRangeSeekbar.currentMinValue = currentMinPrice
         })
 
-        binding.edtMaxPrice.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-
-            override fun afterTextChanged(s: Editable?) {
-                val value = parsePrice(s?.toString(), DEFAULT_MAX_PRICE)
-                currentMaxPrice = value
-
-                // Cập nhật thanh trượt với giá trị mới
-                binding.doubleRangeSeekbar.currentMaxValue = currentMaxPrice
-            }
+        binding.edtMaxPrice.addTextChangedListener(MoneyTextWatcher(binding.edtMaxPrice,
+            DEFAULT_MIN_PRICE, DEFAULT_MAX_PRICE) { value ->
+            currentMaxPrice = value
+            binding.doubleRangeSeekbar.currentMaxValue = currentMaxPrice
         })
 
     }
-
 
     private fun resetFilters() {
         currentMinPrice = DEFAULT_MIN_PRICE
         currentMaxPrice = DEFAULT_MAX_PRICE
-
-        binding.edtMinPrice.setText(DEFAULT_MIN_PRICE.toString())
-        binding.edtMaxPrice.setText(DEFAULT_MAX_PRICE.toString())
-
-        // ⚠️ Reset slider cũng phải dùng đúng hàm của lib:
-        // Ví dụ:
-        // binding.doubleRangeSeekbar.setCurrentMinValue(DEFAULT_MIN_PRICE.toFloat())
-        // binding.doubleRangeSeekbar.setCurrentMaxValue(DEFAULT_MAX_PRICE.toFloat())
-
+        binding.edtMinPrice.setText(formatMoney(currentMinPrice.toDouble()))
+        binding.edtMaxPrice.setText(formatMoney(currentMaxPrice.toDouble()))
+        binding.doubleRangeSeekbar.currentMinValue = currentMinPrice
+        binding.doubleRangeSeekbar.currentMaxValue = currentMaxPrice
         selectedAmenityIds.clear()
         tienIchIds.clear()
-
         (binding.rvDichVu.adapter as? FilterServiceAdapter)?.notifyDataSetChanged()
         //(binding.rvTienIch.adapter as? FilterTienIchAdapter)?.notifyDataSetChanged()
     }
 
-    private fun parsePrice(text: String?, defaultValue: Int): Int {
-        if (text.isNullOrBlank()) return defaultValue
-        return text.replace(".", "").replace(",", "")
-            .filter { it.isDigit() }
-            .toIntOrNull() ?: defaultValue
+    private fun parsePrice(text: String?, defaultValue: Int) =
+        text?.replace("[^\\d]".toRegex(), "")?.toIntOrNull() ?: defaultValue
+
+    private fun formatMoney(amount: Double) = String.format("%,dđ", amount.toLong()).replace(',', '.')
+
+    private class MoneyTextWatcher(
+        private val editText: android.widget.EditText,
+        private val minValue: Int,
+        private val maxValue: Int,
+        private val onValueChanged: (Int) -> Unit
+    ) : TextWatcher {
+        private var current = ""
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        override fun afterTextChanged(s: Editable?) {
+            val str = s.toString()
+            if (str != current) {
+                // Lấy số từ chuỗi
+                var value = str.replace("[^\\d]".toRegex(), "").toIntOrNull() ?: minValue
+                // Giới hạn min/max
+                if (value < minValue) value = minValue
+                if (value > maxValue) value = maxValue
+
+                current = String.format("%,dđ", value).replace(',', '.')
+                editText.removeTextChangedListener(this)
+                editText.setText(current)
+                editText.setSelection(current.length - 1)
+                editText.addTextChangedListener(this)
+                onValueChanged(value)
+            }
+        }
     }
+
+    //Ham nhan lua chon ban dau cua loc
+    fun setSelectedServices(ids: Set<String>) {
+        selectedAmenityIds.clear()
+        selectedAmenityIds.addAll(ids)
+    }
+
+    fun setSelectedFacilities(ids: Set<String>) {
+        tienIchIds.clear()
+        tienIchIds.addAll(ids)
+    }
+
+    fun setSelectedPrice(min: Int, max: Int) {
+        currentMinPrice = min
+        currentMaxPrice = max
+    }
+
 
     override fun onDestroyView() {
         super.onDestroyView()

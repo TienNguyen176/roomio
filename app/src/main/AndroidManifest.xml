@@ -63,9 +63,39 @@
         <activity
             android:name=".activities.admin.AdminHotelManagerActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".activities.owner.AdminHotelActivity"
+            android:theme="@style/Theme.Roomio.M3"
+            android:exported="false" />
+        <activity
+            android:name=".activities.owner.EditHotelActivity"
+            android:theme="@style/Theme.Roomio.M3"
+            android:exported="false" />
+        <activity
+            android:name=".activities.owner.MinibarActivity"
+            android:theme="@style/Theme.Roomio.M3"
+            android:exported="false" />
+        <activity
+            android:name=".activities.owner.DiscountActivity"
+            android:theme="@style/Theme.Roomio.M3"
+            android:exported="false" />
+        <activity
+            android:name=".activities.owner.RoomHotelActivity"
+            android:theme="@style/Theme.Roomio.M3"
+            android:exported="false" />
+        <activity
+            android:name=".activities.owner.RoleManagerActivity"
+            android:theme="@style/Theme.Roomio.M3"
+            android:exported="false" />
+        <activity
+            android:name=".activities.owner.HotelReviewActivity"
+            android:theme="@style/Theme.Roomio.M3"
+            android:exported="false" />
         <activity
             android:name=".activities.owner.BusinessRegistrationActivity"
             android:exported="false" />
+
         <activity
             android:name=".activities.auth.LoginActivity"
             android:exported="false" />
@@ -81,9 +111,11 @@
         <activity
             android:name=".activities.auth.ResetPasswordActivity"
             android:exported="false" />
+
         <activity
             android:name=".activities.home.HomeActivity"
             android:exported="false" />
+
         <activity
             android:name=".activities.booking.PaymentActivity"
             android:exported="false" />
@@ -93,9 +125,11 @@
         <activity
             android:name=".activities.booking.GuestDetailActivity"
             android:exported="false" />
+
         <activity
             android:name=".activities.hotel.HotelDetailActivity"
             android:exported="false" />
+
         <activity
             android:name=".activities.profile.EditProfileActivity"
             android:exported="false" />
@@ -105,6 +139,7 @@
         <activity
             android:name=".activities.profile.LinkBankActivity"
             android:exported="false" />
+
         <activity
             android:name=".activities.MainActivity"
             android:exported="true">
