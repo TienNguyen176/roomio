@@ -62,24 +62,28 @@ class CleanerTaskAdapter(
                     btnAction.isEnabled = true
                     btnAction.alpha = 1.0f
                     btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#639DBA")))
+                    btnAction.setTextColor(android.graphics.Color.WHITE)
                 }
                 TaskStatus.IN_PROGRESS -> {
                     btnAction.text = "Complete"
                     btnAction.isEnabled = true
                     btnAction.alpha = 1.0f
                     btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#2970A8")))
+                    btnAction.setTextColor(android.graphics.Color.WHITE)
                 }
                 TaskStatus.CLEAN -> {
                     btnAction.text = "Completed"
                     btnAction.isEnabled = false
-                    btnAction.alpha = 0.6f
-                    btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#4CAF50")))
+                    btnAction.alpha = 1.0f
+                    btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#F2F2F2")))
+                    btnAction.setTextColor(android.graphics.Color.parseColor("#65C488"))
                 }
                 else -> {
                     btnAction.text = "Start"
                     btnAction.isEnabled = true
                     btnAction.alpha = 1.0f
                     btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#639DBA")))
+                    btnAction.setTextColor(android.graphics.Color.WHITE)
                 }
             }
 

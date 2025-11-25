@@ -174,7 +174,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
 
     private fun formatDateTimeOrEmpty(millis: Long): String = FormatUtils.formatDateTimeOrEmpty(millis)
 
-    private fun computeNights(checkInMillis: Long, checkOutMillis: Long): Int = 
+    private fun computeNights(checkInMillis: Long, checkOutMillis: Long): Int =
         FormatUtils.computeNights(checkInMillis, checkOutMillis)
 
     private fun formatCurrency(value: Double): String = FormatUtils.formatCurrency(value)
@@ -229,13 +229,13 @@ class PaymentDetailsActivity : AppCompatActivity() {
                         else -> null
                     }
                     customerId?.let { loadWalletBalance(it) }
-                    
+
                     // Read discount information from booking
                     val discountId = snapshot.getString("discountId")
                     val discountPaymentMethodId = snapshot.getString("discountPaymentMethodId")
                         ?: snapshot.getString("discountPaymentMethod")
                         ?: snapshot.getString("discount_payment_method_id")
-                    
+
                     if (!discountPaymentMethodId.isNullOrBlank()) {
                         loadDiscountDetails(discountPaymentMethodId)
                     } else if (!discountId.isNullOrBlank()) {
@@ -249,7 +249,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
     private fun observeInvoiceTotals(bookingId: String, reservationId: String) {
         invoiceListener?.remove()
         val invoices = firestore.collection("invoices")
-        
+
         // Try direct document lookup first
         invoices.document(bookingId).get()
             .addOnSuccessListener { doc ->
@@ -259,7 +259,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
                     // Try queries using utility
                     val queries = InvoiceQueryUtils.createInvoiceQueries(firestore, bookingId, reservationId)
                     var listenerSet = false
-                    
+
                     for (query in queries) {
                         query.limit(1).get().addOnSuccessListener { result ->
                             if (!result.isEmpty && !listenerSet) {
@@ -268,14 +268,14 @@ class PaymentDetailsActivity : AppCompatActivity() {
                             }
                         }
                     }
-                    
+
                     // Fallback: listen to all invoices and filter
                     if (!listenerSet) {
                         invoiceListener = invoices.addSnapshotListener { snapshots, error ->
                             if (error != null) {
                                 android.util.Log.e("PaymentDetails", "Invoice listener error", error)
-                                invoicePaidAmount = 0.0
-                                updatePaymentSummary()
+                            invoicePaidAmount = 0.0
+                            updatePaymentSummary()
                                 return@addSnapshotListener
                             }
                             val filtered = InvoiceQueryUtils.filterInvoicesInMemory(
@@ -286,7 +286,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
                             invoicePaidAmount = filtered.sumOf { InvoiceQueryUtils.extractTotalAmount(it) }
                             updatePaymentSummary()
                         }
-                    }
+                        }
                 }
             }
             .addOnFailureListener {
@@ -342,7 +342,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
                     val discountDescription = doc.getString("discountDescription") ?: ""
                     val discountPercent = doc.getDouble("discountPercent")
                     val discountAmount = doc.getDouble("discountAmount")
-                    
+
                     val displayText = when {
                         discountName.isNotBlank() -> discountName
                         discountDescription.isNotBlank() -> discountDescription
@@ -369,7 +369,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
                     val discountName = doc.getString("discountName") ?: ""
                     val discountPercent = doc.getLong("discountPercent")?.toInt() ?: 0
                     val maxDiscount = doc.getLong("maxDiscount") ?: 0L
-                    
+
                     val displayText = when {
                         discountName.isNotBlank() -> discountName
                         discountPercent > 0 -> "${discountPercent}% discount"
@@ -391,8 +391,8 @@ class PaymentDetailsActivity : AppCompatActivity() {
                 if (isFinishing || isDestroyed) {
                     return@runOnUiThread
                 }
-                val isEmpty = paymentMethods.isEmpty()
-                tvPaymentEmpty.visibility = if (isEmpty) View.VISIBLE else View.GONE
+        val isEmpty = paymentMethods.isEmpty()
+        tvPaymentEmpty.visibility = if (isEmpty) View.VISIBLE else View.GONE
             } catch (e: Exception) {
                 android.util.Log.e("PaymentDetails", "Error updating empty state: ${e.message}", e)
             }

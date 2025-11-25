@@ -9,7 +9,7 @@ import android.app.Activity
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.tdc.nhom6.roomio.models.Deal
-import com.tdc.nhom6.roomio.models.DiscountHotel
+//import com.tdc.nhom6.roomio.models.DiscountHotel
 import com.tdc.nhom6.roomio.models.Hotel
 import com.tdc.nhom6.roomio.models.RoomType
 import kotlinx.coroutines.Dispatchers
@@ -340,430 +340,430 @@ class FirebaseRepository {
             }
     }
 
-    fun getDeals(callback: (List<Deal>) -> Unit) {
-        Log.d("Firebase", "getDeals called")
-        try {
-            // 1) Load discounts
-            db.collectionGroup("discounts")
-                .get()
-                .addOnSuccessListener { discountResult ->
-                    val discounts = mutableListOf<DiscountHotel>()
-                    for (document in discountResult) {
-                        try {
-                            var discount: DiscountHotel = document.toObject<DiscountHotel>()
-                            if (discount.hotelId.isEmpty()) {
-                                val parentId = document.reference.parent.parent?.id
-                                if (!parentId.isNullOrEmpty()) {
-                                    discount = discount.copy(hotelId = parentId)
-                                }
-                            }
-                            discounts.add(discount)
-                        } catch (e: Exception) {
-                            Log.e("Firebase", "Error converting discount ${document.id}: ${e.message}")
-                        }
-                    }
-
-                    // 2) Load hotels
-                    db.collection("hotels")
-                        .get()
-                        .addOnSuccessListener { hotelsResult ->
-                            val hotelMap = mutableMapOf<String, Hotel>()
-                            for (document in hotelsResult) {
-                                try {
-                                    val hotel: Hotel = document.toObject<Hotel>()
-                                    hotelMap[hotel.hotelId] = hotel
-                                } catch (e: Exception) {
-                                    Log.e("Firebase", "Error converting hotel ${document.id}: ${e.message}")
-                                }
-                            }
-
-                            // 3) Load room types
-                            db.collection("roomTypes")
-                                .get()
-                                .addOnSuccessListener { roomTypesResult ->
-                                    val roomTypeMap = mutableMapOf<String, RoomType>()
-                                    val hotelIdToRoomTypes = mutableMapOf<String, MutableList<RoomType>>()
-                                    for (document in roomTypesResult) {
-                                        try {
-                                            val rt: RoomType = document.toObject<RoomType>()
-                                            roomTypeMap[rt.roomTypeId] = rt
-                                            if (!hotelIdToRoomTypes.containsKey(rt.hotelId)) {
-                                                hotelIdToRoomTypes[rt.hotelId] = mutableListOf()
-                                            }
-                                            hotelIdToRoomTypes[rt.hotelId]?.add(rt)
-                                        } catch (e: Exception) {
-                                            Log.e("Firebase", "Error converting room type ${document.id}: ${e.message}")
-                                        }
-                                    }
-
-                                    val now = System.currentTimeMillis()
-
-                                    // 4) Build deals derived from discounts + hotel + room type
-                                    val deals = discounts.mapNotNull { d ->
-                                        val hotel = hotelMap[d.hotelId] ?: return@mapNotNull null
-                                        val roomType = d.roomTypeId?.let { roomTypeMap[it] }
-                                        val basePrice = when {
-                                            roomType != null -> roomType.pricePerNight
-                                            else -> {
-                                                val list = hotelIdToRoomTypes[hotel.hotelId] ?: emptyList()
-                                                list.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
-                                            }
-                                        }
-
-                                        // Compute discounted price
-                                        val discounted = when {
-                                            d.discountPercent != null -> basePrice * (1 - d.discountPercent / 100.0)
-                                            d.discountAmount != null -> basePrice - d.discountAmount
-                                            else -> basePrice
-                                        }.coerceAtLeast(0.0)
-
-                                        val startMs = toMillisHeuristic(d.startDate)
-                                        val endMs = toMillisHeuristic(d.endDate)
-                                        val withinDate = now in startMs..endMs
-                                        
-                                        Log.d("Firebase", "Checking deal ${d.discountId}: hotel=${hotel.hotelName}, active=${d.isActive}, dates=$withinDate ($startMs..$endMs vs $now)")
-
-                                        if (!(d.isActive && withinDate)) {
-                                            Log.w("Firebase", "Deal ignored: Not active or out of date")
-                                            return@mapNotNull null
-                                        }
-
-                                        val percent = when {
-                                            d.discountPercent != null -> d.discountPercent
-                                            d.discountAmount != null && basePrice > 0 -> (d.discountAmount / basePrice) * 100.0
-                                            else -> 0.0
-                                        }
-
-                                        Deal(
-                                            dealId = d.discountId,
-                                            hotelName = hotel.hotelName,
-                                            hotelLocation = hotel.hotelAddress,
-                                            description = if (d.description.isNotBlank()) d.description else d.title,
-                                            imageUrl = hotel.images.firstOrNull() ?: "hotel_64260231_1",
-                                            originalPricePerNight = basePrice,
-                                            discountPricePerNight = discounted,
-                                            discountPercentage = percent.toInt(),
-                                            validFrom = startMs,
-                                            validTo = endMs,
-                                            isActive = d.isActive,
-                                            hotelId = hotel.hotelId,
-                                            roomType = roomType?.typeName ?: "",
-                                            amenities = emptyList<String>(),
-                                            rating = hotel.averageRating,
-                                            totalReviews = hotel.totalReviews,
-                                            createdAt = d.createdAt
-                                        )
-                                    }
-
-                                    Log.d("Firebase", "Load ${deals.size} deals from discounts=${discounts.size}; hotels=${hotelMap.size}")
-                                    callback(deals)
-                                }
-                                .addOnFailureListener { e ->
-                                    Log.w("Firebase", "Error loading room types: ${e.message}")
-                                    callback(emptyList())
-                                }
-                        }
-                        .addOnFailureListener { e ->
-                            Log.w("Firebase", "Error loading hotels: ${e.message}")
-                            callback(emptyList())
-                        }
-                }
-                .addOnFailureListener { exception ->
-                    Log.w("Firebase", "Error getting discounts.", exception)
-                    callback(emptyList())
-                }
-        } catch (e: Exception) {
-            Log.e("Firebase", "Exception in getDeals: ${e.message}")
-            callback(emptyList())
-        }
-    }
-
-    fun observeDeals(callback: (List<Deal>) -> Unit): ListenerRegistration {
-        Log.d("Firebase", "observeDeals called")
-        // Cache for discounts, hotels, and room types
-        val discountsCache = mutableListOf<DiscountHotel>()
-        val hotelMapCache = mutableMapOf<String, Hotel>()
-        val roomTypeMapCache = mutableMapOf<String, RoomType>()
-        val hotelIdToRoomTypesCache = mutableMapOf<String, MutableList<RoomType>>()
-
-        // Helper function to recompute deals when any data changes
-        fun recomputeDeals() {
-            val now = System.currentTimeMillis()
-            val deals = discountsCache.mapNotNull { d ->
-                val hotel = hotelMapCache[d.hotelId] ?: return@mapNotNull null
-                val roomType = d.roomTypeId?.let { roomTypeMapCache[it] }
-                val basePrice = when {
-                    roomType != null -> roomType.pricePerNight
-                    else -> {
-                        val list = hotelIdToRoomTypesCache[hotel.hotelId] ?: emptyList()
-                        list.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
-                    }
-                }
-                val discounted = when {
-                    d.discountPercent != null -> basePrice * (1 - d.discountPercent / 100.0)
-                    d.discountAmount != null -> basePrice - d.discountAmount
-                    else -> basePrice
-                }.coerceAtLeast(0.0)
-                val startMs = toMillisHeuristic(d.startDate)
-                val endMs = toMillisHeuristic(d.endDate)
-                val withinDate = now in startMs..endMs
-                if (!(d.isActive && withinDate)) return@mapNotNull null
-                val percent = when {
-                    d.discountPercent != null -> d.discountPercent
-                    d.discountAmount != null && basePrice > 0 -> (d.discountAmount / basePrice) * 100.0
-                    else -> 0.0
-                }
-                Deal(
-                    dealId = d.discountId,
-                    hotelName = hotel.hotelName,
-                    hotelLocation = hotel.hotelAddress,
-                    description = if (d.description.isNotBlank()) d.description else d.title,
-                    imageUrl = hotel.images.firstOrNull() ?: "hotel_64260231_1",
-                    originalPricePerNight = basePrice,
-                    discountPricePerNight = discounted,
-                    discountPercentage = percent.toInt(),
-                    validFrom = startMs,
-                    validTo = endMs,
-                    isActive = d.isActive,
-                    hotelId = hotel.hotelId,
-                    roomType = roomType?.typeName ?: "",
-                    amenities = emptyList<String>(),
-                    rating = hotel.averageRating,
-                    totalReviews = hotel.totalReviews,
-                    createdAt = d.createdAt
-                )
-            }
-            Log.d("Firebase", "Realtime deals=${deals.size} from discounts=${discountsCache.size}; hotels=${hotelMapCache.size}")
-            callback(deals)
-        }
-
-        // Observe discounts in real-time
-        val discountsListener = db.collection("discounts")
-            .addSnapshotListener { discountResult, error ->
-                if (error != null) {
-                    Log.w("Firebase", "observeDeals: discounts error: ${error.message}")
-                    callback(emptyList())
-                    return@addSnapshotListener
-                }
-                discountsCache.clear()
-                if (discountResult != null) {
-                    for (document in discountResult) {
-                        try {
-                            var discount: DiscountHotel = document.toObject<DiscountHotel>()
-                            if (discount.hotelId.isEmpty()) {
-                                val parentId = document.reference.parent.parent?.id
-                                if (!parentId.isNullOrEmpty()) {
-                                    discount = discount.copy(hotelId = parentId)
-                                }
-                            }
-                            discountsCache.add(discount)
-                        } catch (e: Exception) {
-                            Log.e("Firebase", "Error converting discount ${document.id}: ${e.message}")
-                        }
-                    }
-                }
-                recomputeDeals()
-            }
-
-        // Observe hotels in real-time
-        val hotelsListener = db.collection("hotels")
-            .addSnapshotListener { hotelsResult, error ->
-                if (error != null) {
-                    Log.w("Firebase", "observeDeals: hotels error: ${error.message}")
-                    return@addSnapshotListener
-                }
-                hotelMapCache.clear()
-                if (hotelsResult != null) {
-                    for (document in hotelsResult) {
-                        try {
-                            val hotel: Hotel = document.toObject<Hotel>()
-                            hotelMapCache[hotel.hotelId] = hotel
-                        } catch (e: Exception) {
-                            Log.e("Firebase", "Error converting hotel ${document.id}: ${e.message}")
-                        }
-                    }
-                }
-                recomputeDeals()
-            }
-
-        // Observe room types in real-time
-        val roomTypesListener = db.collection("roomTypes")
-            .addSnapshotListener { roomTypesResult, error ->
-                if (error != null) {
-                    Log.w("Firebase", "observeDeals: roomTypes error: ${error.message}")
-                    return@addSnapshotListener
-                }
-                roomTypeMapCache.clear()
-                hotelIdToRoomTypesCache.clear()
-                if (roomTypesResult != null) {
-                    for (document in roomTypesResult) {
-                        try {
-                            val rt: RoomType = document.toObject<RoomType>()
-                            roomTypeMapCache[rt.roomTypeId] = rt
-                            if (!hotelIdToRoomTypesCache.containsKey(rt.hotelId)) {
-                                hotelIdToRoomTypesCache[rt.hotelId] = mutableListOf()
-                            }
-                            hotelIdToRoomTypesCache[rt.hotelId]?.add(rt)
-                        } catch (e: Exception) {
-                            Log.e("Firebase", "Error converting room type ${document.id}: ${e.message}")
-                        }
-                    }
-                }
-                recomputeDeals()
-            }
-
-        // Return a combined listener that removes all three when called
-        return object : ListenerRegistration {
-            override fun remove() {
-                discountsListener.remove()
-                hotelsListener.remove()
-                roomTypesListener.remove()
-            }
-        }
-    }
-
-    fun observeDeals(activity: Activity, callback: (List<Deal>) -> Unit): ListenerRegistration {
-        // Cache for discounts, hotels, and room types
-        val discountsCache = mutableListOf<DiscountHotel>()
-        val hotelMapCache = mutableMapOf<String, Hotel>()
-        val roomTypeMapCache = mutableMapOf<String, RoomType>()
-        val hotelIdToRoomTypesCache = mutableMapOf<String, MutableList<RoomType>>()
-
-        // Helper function to recompute deals when any data changes
-        fun recomputeDeals() {
-            val now = System.currentTimeMillis()
-            val deals = discountsCache.mapNotNull { d ->
-                val hotel = hotelMapCache[d.hotelId] ?: return@mapNotNull null
-                val roomType = d.roomTypeId?.let { roomTypeMapCache[it] }
-                val basePrice = when {
-                    roomType != null -> roomType.pricePerNight
-                    else -> {
-                        val list = hotelIdToRoomTypesCache[hotel.hotelId] ?: emptyList()
-                        list.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
-                    }
-                }
-                val discounted = when {
-                    d.discountPercent != null -> basePrice * (1 - d.discountPercent / 100.0)
-                    d.discountAmount != null -> basePrice - d.discountAmount
-                    else -> basePrice
-                }.coerceAtLeast(0.0)
-                val startMs = toMillisHeuristic(d.startDate)
-                val endMs = toMillisHeuristic(d.endDate)
-                val withinDate = now in startMs..endMs
-                if (!(d.isActive && withinDate)) return@mapNotNull null
-                val percent = when {
-                    d.discountPercent != null -> d.discountPercent
-                    d.discountAmount != null && basePrice > 0 -> (d.discountAmount / basePrice) * 100.0
-                    else -> 0.0
-                }
-                Deal(
-                    dealId = d.discountId,
-                    hotelName = hotel.hotelName,
-                    hotelLocation = hotel.hotelAddress,
-                    description = if (d.description.isNotBlank()) d.description else d.title,
-                    imageUrl = hotel.images.firstOrNull() ?: "hotel_64260231_1",
-                    originalPricePerNight = basePrice,
-                    discountPricePerNight = discounted,
-                    discountPercentage = percent.toInt(),
-                    validFrom = startMs,
-                    validTo = endMs,
-                    isActive = d.isActive,
-                    hotelId = hotel.hotelId,
-                    roomType = roomType?.typeName ?: "",
-                    amenities = emptyList<String>(),
-                    rating = hotel.averageRating,
-                    totalReviews = hotel.totalReviews,
-                    createdAt = d.createdAt
-                )
-            }
-            Log.d("Firebase", "Realtime(owner) deals=${deals.size} from discounts=${discountsCache.size}; hotels=${hotelMapCache.size}")
-            callback(deals)
-        }
-
-        // Observe discounts in real-time
-        val discountsListener = db.collection("discounts")
-            .addSnapshotListener(activity) { discountResult, error ->
-                if (error != null) {
-                    Log.w("Firebase", "observeDeals(activity): discounts error: ${error.message}")
-                    callback(emptyList())
-                    return@addSnapshotListener
-                }
-                discountsCache.clear()
-                if (discountResult != null) {
-                    for (document in discountResult) {
-                        try {
-                            var discount: DiscountHotel = document.toObject<DiscountHotel>()
-                            if (discount.hotelId.isEmpty()) {
-                                val parentId = document.reference.parent.parent?.id
-                                if (!parentId.isNullOrEmpty()) {
-                                    discount = discount.copy(hotelId = parentId)
-                                }
-                            }
-                            discountsCache.add(discount)
-                        } catch (e: Exception) {
-                            Log.e("Firebase", "Error converting discount ${document.id}: ${e.message}")
-                        }
-                    }
-                }
-                recomputeDeals()
-            }
-
-        // Observe hotels in real-time
-        val hotelsListener = db.collection("hotels")
-            .addSnapshotListener(activity) { hotelsResult, error ->
-                if (error != null) {
-                    Log.w("Firebase", "observeDeals(activity): hotels error: ${error.message}")
-                    return@addSnapshotListener
-                }
-                hotelMapCache.clear()
-                if (hotelsResult != null) {
-                    for (document in hotelsResult) {
-                        try {
-                            val hotel: Hotel = document.toObject<Hotel>()
-                            hotelMapCache[hotel.hotelId] = hotel
-                        } catch (e: Exception) {
-                            Log.e("Firebase", "Error converting hotel ${document.id}: ${e.message}")
-                        }
-                    }
-                }
-                recomputeDeals()
-            }
-
-        // Observe room types in real-time
-        val roomTypesListener = db.collection("roomTypes")
-            .addSnapshotListener(activity) { roomTypesResult, error ->
-                if (error != null) {
-                    Log.w("Firebase", "observeDeals(activity): roomTypes error: ${error.message}")
-                    return@addSnapshotListener
-                }
-                roomTypeMapCache.clear()
-                hotelIdToRoomTypesCache.clear()
-                if (roomTypesResult != null) {
-                    for (document in roomTypesResult) {
-                        try {
-                            val rt: RoomType = document.toObject<RoomType>()
-                            roomTypeMapCache[rt.roomTypeId] = rt
-                            if (!hotelIdToRoomTypesCache.containsKey(rt.hotelId)) {
-                                hotelIdToRoomTypesCache[rt.hotelId] = mutableListOf()
-                            }
-                            hotelIdToRoomTypesCache[rt.hotelId]?.add(rt)
-                        } catch (e: Exception) {
-                            Log.e("Firebase", "Error converting room type ${document.id}: ${e.message}")
-                        }
-                    }
-                }
-                recomputeDeals()
-            }
-
-        // Return a combined listener that removes all three when called
-        return object : ListenerRegistration {
-            override fun remove() {
-                discountsListener.remove()
-                hotelsListener.remove()
-                roomTypesListener.remove()
-            }
-        }
-    }
+//    fun getDeals(callback: (List<Deal>) -> Unit) {
+//        Log.d("Firebase", "getDeals called")
+//        try {
+//            // 1) Load discounts
+//            db.collectionGroup("discounts")
+//                .get()
+//                .addOnSuccessListener { discountResult ->
+//                    val discounts = mutableListOf<DiscountHotel>()
+//                    for (document in discountResult) {
+//                        try {
+//                            var discount: DiscountHotel = document.toObject<DiscountHotel>()
+//                            if (discount.hotelId.isEmpty()) {
+//                                val parentId = document.reference.parent.parent?.id
+//                                if (!parentId.isNullOrEmpty()) {
+//                                    discount = discount.copy(hotelId = parentId)
+//                                }
+//                            }
+//                            discounts.add(discount)
+//                        } catch (e: Exception) {
+//                            Log.e("Firebase", "Error converting discount ${document.id}: ${e.message}")
+//                        }
+//                    }
+//
+//                    // 2) Load hotels
+//                    db.collection("hotels")
+//                        .get()
+//                        .addOnSuccessListener { hotelsResult ->
+//                            val hotelMap = mutableMapOf<String, Hotel>()
+//                            for (document in hotelsResult) {
+//                                try {
+//                                    val hotel: Hotel = document.toObject<Hotel>()
+//                                    hotelMap[hotel.hotelId] = hotel
+//                                } catch (e: Exception) {
+//                                    Log.e("Firebase", "Error converting hotel ${document.id}: ${e.message}")
+//                                }
+//                            }
+//
+//                            // 3) Load room types
+//                            db.collection("roomTypes")
+//                                .get()
+//                                .addOnSuccessListener { roomTypesResult ->
+//                                    val roomTypeMap = mutableMapOf<String, RoomType>()
+//                                    val hotelIdToRoomTypes = mutableMapOf<String, MutableList<RoomType>>()
+//                                    for (document in roomTypesResult) {
+//                                        try {
+//                                            val rt: RoomType = document.toObject<RoomType>()
+//                                            roomTypeMap[rt.roomTypeId] = rt
+//                                            if (!hotelIdToRoomTypes.containsKey(rt.hotelId)) {
+//                                                hotelIdToRoomTypes[rt.hotelId] = mutableListOf()
+//                                            }
+//                                            hotelIdToRoomTypes[rt.hotelId]?.add(rt)
+//                                        } catch (e: Exception) {
+//                                            Log.e("Firebase", "Error converting room type ${document.id}: ${e.message}")
+//                                        }
+//                                    }
+//
+//                                    val now = System.currentTimeMillis()
+//
+//                                    // 4) Build deals derived from discounts + hotel + room type
+//                                    val deals = discounts.mapNotNull { d ->
+//                                        val hotel = hotelMap[d.hotelId] ?: return@mapNotNull null
+//                                        val roomType = d.roomTypeId?.let { roomTypeMap[it] }
+//                                        val basePrice = when {
+//                                            roomType != null -> roomType.pricePerNight
+//                                            else -> {
+//                                                val list = hotelIdToRoomTypes[hotel.hotelId] ?: emptyList()
+//                                                list.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
+//                                            }
+//                                        }
+//
+//                                        // Compute discounted price
+//                                        val discounted = when {
+//                                            d.discountPercent != null -> basePrice * (1 - d.discountPercent / 100.0)
+//                                            d.discountAmount != null -> basePrice - d.discountAmount
+//                                            else -> basePrice
+//                                        }.coerceAtLeast(0.0)
+//
+//                                        val startMs = toMillisHeuristic(d.startDate)
+//                                        val endMs = toMillisHeuristic(d.endDate)
+//                                        val withinDate = now in startMs..endMs
+//
+//                                        Log.d("Firebase", "Checking deal ${d.discountId}: hotel=${hotel.hotelName}, active=${d.isActive}, dates=$withinDate ($startMs..$endMs vs $now)")
+//
+//                                        if (!(d.isActive && withinDate)) {
+//                                            Log.w("Firebase", "Deal ignored: Not active or out of date")
+//                                            return@mapNotNull null
+//                                        }
+//
+//                                        val percent = when {
+//                                            d.discountPercent != null -> d.discountPercent
+//                                            d.discountAmount != null && basePrice > 0 -> (d.discountAmount / basePrice) * 100.0
+//                                            else -> 0.0
+//                                        }
+//
+//                                        Deal(
+//                                            dealId = d.discountId,
+//                                            hotelName = hotel.hotelName,
+//                                            hotelLocation = hotel.hotelAddress,
+//                                            description = if (d.description.isNotBlank()) d.description else d.title,
+//                                            imageUrl = hotel.images.firstOrNull() ?: "hotel_64260231_1",
+//                                            originalPricePerNight = basePrice,
+//                                            discountPricePerNight = discounted,
+//                                            discountPercentage = percent.toInt(),
+//                                            validFrom = startMs,
+//                                            validTo = endMs,
+//                                            isActive = d.isActive,
+//                                            hotelId = hotel.hotelId,
+//                                            roomType = roomType?.typeName ?: "",
+//                                            amenities = emptyList<String>(),
+//                                            rating = hotel.averageRating,
+//                                            totalReviews = hotel.totalReviews,
+//                                            createdAt = d.createdAt
+//                                        )
+//                                    }
+//
+//                                    Log.d("Firebase", "Load ${deals.size} deals from discounts=${discounts.size}; hotels=${hotelMap.size}")
+//                                    callback(deals)
+//                                }
+//                                .addOnFailureListener { e ->
+//                                    Log.w("Firebase", "Error loading room types: ${e.message}")
+//                                    callback(emptyList())
+//                                }
+//                        }
+//                        .addOnFailureListener { e ->
+//                            Log.w("Firebase", "Error loading hotels: ${e.message}")
+//                            callback(emptyList())
+//                        }
+//                }
+//                .addOnFailureListener { exception ->
+//                    Log.w("Firebase", "Error getting discounts.", exception)
+//                    callback(emptyList())
+//                }
+//        } catch (e: Exception) {
+//            Log.e("Firebase", "Exception in getDeals: ${e.message}")
+//            callback(emptyList())
+//        }
+//    }
+//
+//    fun observeDeals(callback: (List<Deal>) -> Unit): ListenerRegistration {
+//        Log.d("Firebase", "observeDeals called")
+//        // Cache for discounts, hotels, and room types
+//        val discountsCache = mutableListOf<DiscountHotel>()
+//        val hotelMapCache = mutableMapOf<String, Hotel>()
+//        val roomTypeMapCache = mutableMapOf<String, RoomType>()
+//        val hotelIdToRoomTypesCache = mutableMapOf<String, MutableList<RoomType>>()
+//
+//        // Helper function to recompute deals when any data changes
+//        fun recomputeDeals() {
+//            val now = System.currentTimeMillis()
+//            val deals = discountsCache.mapNotNull { d ->
+//                val hotel = hotelMapCache[d.hotelId] ?: return@mapNotNull null
+//                val roomType = d.roomTypeId?.let { roomTypeMapCache[it] }
+//                val basePrice = when {
+//                    roomType != null -> roomType.pricePerNight
+//                    else -> {
+//                        val list = hotelIdToRoomTypesCache[hotel.hotelId] ?: emptyList()
+//                        list.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
+//                    }
+//                }
+//                val discounted = when {
+//                    d.discountPercent != null -> basePrice * (1 - d.discountPercent / 100.0)
+//                    d.discountAmount != null -> basePrice - d.discountAmount
+//                    else -> basePrice
+//                }.coerceAtLeast(0.0)
+//                val startMs = toMillisHeuristic(d.startDate)
+//                val endMs = toMillisHeuristic(d.endDate)
+//                val withinDate = now in startMs..endMs
+//                if (!(d.isActive && withinDate)) return@mapNotNull null
+//                val percent = when {
+//                    d.discountPercent != null -> d.discountPercent
+//                    d.discountAmount != null && basePrice > 0 -> (d.discountAmount / basePrice) * 100.0
+//                    else -> 0.0
+//                }
+//                Deal(
+//                    dealId = d.discountId,
+//                    hotelName = hotel.hotelName,
+//                    hotelLocation = hotel.hotelAddress,
+//                    description = if (d.description.isNotBlank()) d.description else d.title,
+//                    imageUrl = hotel.images.firstOrNull() ?: "hotel_64260231_1",
+//                    originalPricePerNight = basePrice,
+//                    discountPricePerNight = discounted,
+//                    discountPercentage = percent.toInt(),
+//                    validFrom = startMs,
+//                    validTo = endMs,
+//                    isActive = d.isActive,
+//                    hotelId = hotel.hotelId,
+//                    roomType = roomType?.typeName ?: "",
+//                    amenities = emptyList<String>(),
+//                    rating = hotel.averageRating,
+//                    totalReviews = hotel.totalReviews,
+//                    createdAt = d.createdAt
+//                )
+//            }
+//            Log.d("Firebase", "Realtime deals=${deals.size} from discounts=${discountsCache.size}; hotels=${hotelMapCache.size}")
+//            callback(deals)
+//        }
+//
+//        // Observe discounts in real-time
+//        val discountsListener = db.collection("discounts")
+//            .addSnapshotListener { discountResult, error ->
+//                if (error != null) {
+//                    Log.w("Firebase", "observeDeals: discounts error: ${error.message}")
+//                    callback(emptyList())
+//                    return@addSnapshotListener
+//                }
+//                discountsCache.clear()
+//                if (discountResult != null) {
+//                    for (document in discountResult) {
+//                        try {
+//                            var discount: DiscountHotel = document.toObject<DiscountHotel>()
+//                            if (discount.hotelId.isEmpty()) {
+//                                val parentId = document.reference.parent.parent?.id
+//                                if (!parentId.isNullOrEmpty()) {
+//                                    discount = discount.copy(hotelId = parentId)
+//                                }
+//                            }
+//                            discountsCache.add(discount)
+//                        } catch (e: Exception) {
+//                            Log.e("Firebase", "Error converting discount ${document.id}: ${e.message}")
+//                        }
+//                    }
+//                }
+//                recomputeDeals()
+//            }
+//
+//        // Observe hotels in real-time
+//        val hotelsListener = db.collection("hotels")
+//            .addSnapshotListener { hotelsResult, error ->
+//                if (error != null) {
+//                    Log.w("Firebase", "observeDeals: hotels error: ${error.message}")
+//                    return@addSnapshotListener
+//                }
+//                hotelMapCache.clear()
+//                if (hotelsResult != null) {
+//                    for (document in hotelsResult) {
+//                        try {
+//                            val hotel: Hotel = document.toObject<Hotel>()
+//                            hotelMapCache[hotel.hotelId] = hotel
+//                        } catch (e: Exception) {
+//                            Log.e("Firebase", "Error converting hotel ${document.id}: ${e.message}")
+//                        }
+//                    }
+//                }
+//                recomputeDeals()
+//            }
+//
+//        // Observe room types in real-time
+//        val roomTypesListener = db.collection("roomTypes")
+//            .addSnapshotListener { roomTypesResult, error ->
+//                if (error != null) {
+//                    Log.w("Firebase", "observeDeals: roomTypes error: ${error.message}")
+//                    return@addSnapshotListener
+//                }
+//                roomTypeMapCache.clear()
+//                hotelIdToRoomTypesCache.clear()
+//                if (roomTypesResult != null) {
+//                    for (document in roomTypesResult) {
+//                        try {
+//                            val rt: RoomType = document.toObject<RoomType>()
+//                            roomTypeMapCache[rt.roomTypeId] = rt
+//                            if (!hotelIdToRoomTypesCache.containsKey(rt.hotelId)) {
+//                                hotelIdToRoomTypesCache[rt.hotelId] = mutableListOf()
+//                            }
+//                            hotelIdToRoomTypesCache[rt.hotelId]?.add(rt)
+//                        } catch (e: Exception) {
+//                            Log.e("Firebase", "Error converting room type ${document.id}: ${e.message}")
+//                        }
+//                    }
+//                }
+//                recomputeDeals()
+//            }
+//
+//        // Return a combined listener that removes all three when called
+//        return object : ListenerRegistration {
+//            override fun remove() {
+//                discountsListener.remove()
+//                hotelsListener.remove()
+//                roomTypesListener.remove()
+//            }
+//        }
+//    }
+//
+//    fun observeDeals(activity: Activity, callback: (List<Deal>) -> Unit): ListenerRegistration {
+//        // Cache for discounts, hotels, and room types
+//        val discountsCache = mutableListOf<DiscountHotel>()
+//        val hotelMapCache = mutableMapOf<String, Hotel>()
+//        val roomTypeMapCache = mutableMapOf<String, RoomType>()
+//        val hotelIdToRoomTypesCache = mutableMapOf<String, MutableList<RoomType>>()
+//
+//        // Helper function to recompute deals when any data changes
+//        fun recomputeDeals() {
+//            val now = System.currentTimeMillis()
+//            val deals = discountsCache.mapNotNull { d ->
+//                val hotel = hotelMapCache[d.hotelId] ?: return@mapNotNull null
+//                val roomType = d.roomTypeId?.let { roomTypeMapCache[it] }
+//                val basePrice = when {
+//                    roomType != null -> roomType.pricePerNight
+//                    else -> {
+//                        val list = hotelIdToRoomTypesCache[hotel.hotelId] ?: emptyList()
+//                        list.minOfOrNull { it.pricePerNight } ?: hotel.pricePerNight
+//                    }
+//                }
+//                val discounted = when {
+//                    d.discountPercent != null -> basePrice * (1 - d.discountPercent / 100.0)
+//                    d.discountAmount != null -> basePrice - d.discountAmount
+//                    else -> basePrice
+//                }.coerceAtLeast(0.0)
+//                val startMs = toMillisHeuristic(d.startDate)
+//                val endMs = toMillisHeuristic(d.endDate)
+//                val withinDate = now in startMs..endMs
+//                if (!(d.isActive && withinDate)) return@mapNotNull null
+//                val percent = when {
+//                    d.discountPercent != null -> d.discountPercent
+//                    d.discountAmount != null && basePrice > 0 -> (d.discountAmount / basePrice) * 100.0
+//                    else -> 0.0
+//                }
+//                Deal(
+//                    dealId = d.discountId,
+//                    hotelName = hotel.hotelName,
+//                    hotelLocation = hotel.hotelAddress,
+//                    description = if (d.description.isNotBlank()) d.description else d.title,
+//                    imageUrl = hotel.images.firstOrNull() ?: "hotel_64260231_1",
+//                    originalPricePerNight = basePrice,
+//                    discountPricePerNight = discounted,
+//                    discountPercentage = percent.toInt(),
+//                    validFrom = startMs,
+//                    validTo = endMs,
+//                    isActive = d.isActive,
+//                    hotelId = hotel.hotelId,
+//                    roomType = roomType?.typeName ?: "",
+//                    amenities = emptyList<String>(),
+//                    rating = hotel.averageRating,
+//                    totalReviews = hotel.totalReviews,
+//                    createdAt = d.createdAt
+//                )
+//            }
+//            Log.d("Firebase", "Realtime(owner) deals=${deals.size} from discounts=${discountsCache.size}; hotels=${hotelMapCache.size}")
+//            callback(deals)
+//        }
+//
+//        // Observe discounts in real-time
+//        val discountsListener = db.collection("discounts")
+//            .addSnapshotListener(activity) { discountResult, error ->
+//                if (error != null) {
+//                    Log.w("Firebase", "observeDeals(activity): discounts error: ${error.message}")
+//                    callback(emptyList())
+//                    return@addSnapshotListener
+//                }
+//                discountsCache.clear()
+//                if (discountResult != null) {
+//                    for (document in discountResult) {
+//                        try {
+//                            var discount: DiscountHotel = document.toObject<DiscountHotel>()
+//                            if (discount.hotelId.isEmpty()) {
+//                                val parentId = document.reference.parent.parent?.id
+//                                if (!parentId.isNullOrEmpty()) {
+//                                    discount = discount.copy(hotelId = parentId)
+//                                }
+//                            }
+//                            discountsCache.add(discount)
+//                        } catch (e: Exception) {
+//                            Log.e("Firebase", "Error converting discount ${document.id}: ${e.message}")
+//                        }
+//                    }
+//                }
+//                recomputeDeals()
+//            }
+//
+//        // Observe hotels in real-time
+//        val hotelsListener = db.collection("hotels")
+//            .addSnapshotListener(activity) { hotelsResult, error ->
+//                if (error != null) {
+//                    Log.w("Firebase", "observeDeals(activity): hotels error: ${error.message}")
+//                    return@addSnapshotListener
+//                }
+//                hotelMapCache.clear()
+//                if (hotelsResult != null) {
+//                    for (document in hotelsResult) {
+//                        try {
+//                            val hotel: Hotel = document.toObject<Hotel>()
+//                            hotelMapCache[hotel.hotelId] = hotel
+//                        } catch (e: Exception) {
+//                            Log.e("Firebase", "Error converting hotel ${document.id}: ${e.message}")
+//                        }
+//                    }
+//                }
+//                recomputeDeals()
+//            }
+//
+//        // Observe room types in real-time
+//        val roomTypesListener = db.collection("roomTypes")
+//            .addSnapshotListener(activity) { roomTypesResult, error ->
+//                if (error != null) {
+//                    Log.w("Firebase", "observeDeals(activity): roomTypes error: ${error.message}")
+//                    return@addSnapshotListener
+//                }
+//                roomTypeMapCache.clear()
+//                hotelIdToRoomTypesCache.clear()
+//                if (roomTypesResult != null) {
+//                    for (document in roomTypesResult) {
+//                        try {
+//                            val rt: RoomType = document.toObject<RoomType>()
+//                            roomTypeMapCache[rt.roomTypeId] = rt
+//                            if (!hotelIdToRoomTypesCache.containsKey(rt.hotelId)) {
+//                                hotelIdToRoomTypesCache[rt.hotelId] = mutableListOf()
+//                            }
+//                            hotelIdToRoomTypesCache[rt.hotelId]?.add(rt)
+//                        } catch (e: Exception) {
+//                            Log.e("Firebase", "Error converting room type ${document.id}: ${e.message}")
+//                        }
+//                    }
+//                }
+//                recomputeDeals()
+//            }
+//
+//        // Return a combined listener that removes all three when called
+//        return object : ListenerRegistration {
+//            override fun remove() {
+//                discountsListener.remove()
+//                hotelsListener.remove()
+//                roomTypesListener.remove()
+//            }
+//        }
+//    }
 
 
 

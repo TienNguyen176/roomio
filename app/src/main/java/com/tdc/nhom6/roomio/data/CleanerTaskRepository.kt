@@ -32,16 +32,34 @@ object CleanerTaskRepository {
         bookingDocId: String? = null,
         roomTypeId: String? = null,
         hotelId: String? = null,
-        createdAt: Long = System.currentTimeMillis()
+        createdAt: Long = System.currentTimeMillis(),
+        initialStatus: TaskStatus = TaskStatus.DIRTY
     ) {
-        if (bookingDocId != null && tasksInternal.any { it.bookingDocId == bookingDocId }) {
-            return
+        if (bookingDocId != null) {
+            val idx = tasksInternal.indexOfFirst { it.bookingDocId == bookingDocId }
+            if (idx >= 0) {
+                val existing = tasksInternal[idx]
+                val updated = existing.copy(
+                    roomId = if (roomId.isNotBlank()) roomId else existing.roomId,
+                    status = initialStatus,
+                    roomTypeId = roomTypeId ?: existing.roomTypeId,
+                    hotelId = hotelId ?: existing.hotelId
+                )
+                if (updated != existing) {
+                    tasksInternal[idx] = updated
+                    tasksLiveData.postValue(tasksInternal.toList())
+                    if (existing.status != initialStatus) {
+                        persistCleanerStatus(updated)
+                    }
+                }
+                return
+            }
         }
         val displayTime = SimpleDateFormat("d MMM hh.mm a", Locale.getDefault()).format(Date(createdAt))
         val task = CleanerTask(
             id = UUID.randomUUID().toString(),
             roomId = roomId,
-            status = TaskStatus.DIRTY,
+            status = initialStatus,
             timestamp = displayTime,
             bookingDocId = bookingDocId,
             roomTypeId = roomTypeId,

@@ -84,24 +84,18 @@ class CleaningInspectionActivity : AppCompatActivity() {
                 if (bookingId != null) {
                     val cleaningTimestamp = com.google.firebase.firestore.FieldValue.serverTimestamp()
                     lifecycleScope.launch {
-                        // Save cleaning fee to invoice (only cleaning fee, not room fees)
+                        // Prepare invoice reference; will update after computing room fees
                         val invoiceRef = resolveInvoiceDocument(bookingId)
-                        invoiceRef
-                            .set(
-                                mapOf(
-                                    "cleaningCompletedAt" to cleaningTimestamp,
-                                    "cleaningFee" to fee
-                                ),
-                                SetOptions.merge()
-                            )
-                            .addOnFailureListener { e ->
-                                android.util.Log.e("CleaningInspection", "Failed to update invoice cleaning fee", e)
-                            }
 
                         // Save room fees to subcollections (NOT to invoices)
                         // 1. Save lost items and broken furniture to facilitiesUsed
                         val checkedLostItems = lostAdapter.getCheckedItems()
                         val checkedBrokenItems = brokenAdapter.getCheckedItems()
+                        val checkedMiniBarItems = miniBarAdapter.getCheckedItems()
+
+                        val lostFeePayload = mutableListOf<Map<String, Any>>()
+                        val brokenFeePayload = mutableListOf<Map<String, Any>>()
+                        val minibarFeePayload = mutableListOf<Map<String, Any>>()
 
                         checkedLostItems.forEach { item ->
                             if (item.checked && item.quantity > 0 && item.facilityId.isNotEmpty()) {
@@ -122,6 +116,14 @@ class CleaningInspectionActivity : AppCompatActivity() {
                                     .addOnFailureListener { e ->
                                         android.util.Log.e("CleaningInspection", "Failed to save lost item: ${e.message}", e)
                                     }
+                                lostFeePayload.add(
+                                    mapOf(
+                                        "name" to item.name,
+                                        "pricePerItem" to item.pricePerItem,
+                                        "quantity" to item.quantity,
+                                        "iconUrl" to ""
+                                    )
+                                )
                             }
                         }
 
@@ -144,11 +146,19 @@ class CleaningInspectionActivity : AppCompatActivity() {
                                     .addOnFailureListener { e ->
                                         android.util.Log.e("CleaningInspection", "Failed to save broken item: ${e.message}", e)
                                     }
+                                brokenFeePayload.add(
+                                    mapOf(
+                                        "name" to item.name,
+                                        "pricePerItem" to item.pricePerItem,
+                                        "quantity" to 1,
+                                        "iconUrl" to "",
+                                        "description" to item.description
+                                    )
+                                )
                             }
                         }
 
                         // 2. Save minibar items to miniBarUsed
-                        val checkedMiniBarItems = miniBarAdapter.getCheckedItems()
                         checkedMiniBarItems.forEach { item ->
                             val minibarId = minibarIdLookup[item.name] ?: ""
                             if (item.checked && item.quantity > 0 && minibarId.isNotEmpty()) {
@@ -168,25 +178,74 @@ class CleaningInspectionActivity : AppCompatActivity() {
                                     .addOnFailureListener { e ->
                                         android.util.Log.e("CleaningInspection", "Failed to save minibar item: ${e.message}", e)
                                     }
+                                minibarFeePayload.add(
+                                    mapOf(
+                                        "name" to item.name,
+                                        "pricePerItem" to item.pricePerItem,
+                                        "quantity" to item.quantity,
+                                        "iconUrl" to ""
+                                    )
+                                )
                             }
                         }
 
                         // 3. Save cleaner data to cleaner subcollection (status and cleaning fee only)
-                        val cleanerData = mapOf(
+                        val cleanerData = mutableMapOf<String, Any>(
                             "cleaningFee" to fee,
                             "status" to "in_progress", // Status is in_progress after inspection, will be completed after photos
                             "images" to emptyList<String>(),
-                            "updatedAt" to cleaningTimestamp
+                            "updatedAt" to cleaningTimestamp,
+                            "inspectionCompletedAt" to cleaningTimestamp,
+                            "cleaningCompletedAt" to cleaningTimestamp
                         )
+                        val roomFeesPayload = mutableMapOf<String, Any>()
+                        if (lostFeePayload.isNotEmpty()) {
+                            roomFeesPayload["lostItems"] = lostFeePayload
+                        }
+                        if (brokenFeePayload.isNotEmpty()) {
+                            roomFeesPayload["brokenItems"] = brokenFeePayload
+                        }
+                        if (minibarFeePayload.isNotEmpty()) {
+                            roomFeesPayload["miniBarItems"] = minibarFeePayload
+                        }
+                        if (roomFeesPayload.isNotEmpty()) {
+                            cleanerData["roomFees"] = roomFeesPayload
+                        }
+
+                        // Save cleaning fee + room fees to invoice for receptionist view
+                        val invoiceData = mutableMapOf<String, Any>(
+                            "cleaningCompletedAt" to cleaningTimestamp,
+                            "cleaningFee" to fee
+                        )
+                        if (roomFeesPayload.isNotEmpty()) {
+                            invoiceData["roomFees"] = roomFeesPayload
+                        }
+                        invoiceRef.set(invoiceData, SetOptions.merge())
+                            .addOnFailureListener { e ->
+                                android.util.Log.e("CleaningInspection", "Failed to update invoice with cleaning data", e)
+                            }
 
                         val cleanerDocRef = firestore.collection("bookings")
                             .document(bookingId)
                             .collection("cleaner")
                             .document() // Auto-generate document ID
+                        val snapshot = firestore.collection("bookings")
+                            .document(bookingId)
+                            .collection("cleaner")
+                            .orderBy("updatedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                            .limit(1)
+                            .get()
+                            .await()
+                        val targetDocRef = if (!snapshot.isEmpty) {
+                            snapshot.documents.first().reference
+                        } else {
+                            cleanerDocRef
+                        }
 
-                        cleanerDocRef.set(cleanerData)
+                        targetDocRef.set(cleanerData, SetOptions.merge())
                             .addOnSuccessListener {
                                 android.util.Log.d("CleaningInspection", "Saved cleaner data to cleaner subcollection: ${cleanerDocRef.id}")
+                                notifyReceptionInspectionComplete(bookingId)
                                 markCleanerTaskClean(bookingId)
                             }
                             .addOnFailureListener { e ->
@@ -654,6 +713,24 @@ class CleaningInspectionActivity : AppCompatActivity() {
         } catch (e: Exception) {
             android.util.Log.e("CleaningInspection", "Failed to mark cleaner task clean for $bookingId", e)
         }
+    }
+
+    private fun notifyReceptionInspectionComplete(bookingId: String) {
+        firestore.collection("bookings")
+            .document(bookingId)
+            .update(
+                mapOf(
+                    "cleanerStatusLatest" to "in_progress",
+                    "cleanerStatusUpdatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                    "cleaningCompletedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                )
+            )
+            .addOnSuccessListener {
+                android.util.Log.d("CleaningInspection", "Updated booking $bookingId to notify reception")
+            }
+            .addOnFailureListener { e ->
+                android.util.Log.e("CleaningInspection", "Failed to notify reception for $bookingId", e)
+            }
     }
 
     private suspend fun resolveInvoiceDocument(bookingId: String): com.google.firebase.firestore.DocumentReference {

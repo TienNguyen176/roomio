@@ -12,9 +12,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
-
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.ServiceFeeAdapter
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
@@ -172,7 +172,6 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
     private fun updateExtraTotal(total: Double) {
         extraTotal = total
-        tvExtraFee.text = "Total additional charges: ${formatCurrency(extraTotal)}"
         refreshPriceSummary()
     }
 
@@ -182,7 +181,9 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
     private fun refreshPriceSummary() {
         lastExtraTotal = extraTotal
-        val grandTotal = max(0.0, reservationAmount + extraTotal  - paidAmount)
+        val totalAdditional = cleaningFee // cleaningFee already includes lost/broken/minibar fees
+        tvExtraFee.text = "Total additional charges: ${formatCurrency(totalAdditional)}"
+        val grandTotal = max(0.0, reservationAmount + totalAdditional - paidAmount)
         tvGrandTotal.text = "Total amount: ${formatCurrency(grandTotal)}"
     }
     
@@ -251,7 +252,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         cleaningFeeListener = firestore.collection("bookings")
             .document(bookingId)
             .collection("cleaner")
-            .orderBy("cleaningCompletedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .orderBy("updatedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
             .limit(1)
             .addSnapshotListener { snapshots, error ->
                 if (error != null) {
@@ -296,12 +297,12 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
     }
 
 
-    private fun loadServiceRates(hotel_id: String) {
+    private fun loadServiceRates(hotelId: String) {
         serviceFetchJob?.cancel()
         serviceFetchJob = lifecycleScope.launch {
             try {
                 val serviceItems = withContext(Dispatchers.IO) {
-                    fetchServiceRates(hotel_id)
+                    fetchServiceRates(hotelId)
                 }
                 val currentSelections = serviceAdapter.getServiceItems()
                 serviceAdapter.replaceItems(currentRoomFeeItems + currentSelections)
@@ -321,13 +322,13 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
     ) {
     }
 
-    private suspend fun fetchServiceRates(hotel_id: String): List<ServiceFeeAdapter.ServiceItem> {
-        val docs = mutableListOf<com.google.firebase.firestore.DocumentSnapshot>()
-        android.util.Log.d("ServiceExtraFee", "Fetching serviceRates for hotel_id=$hotel_id")
+    private suspend fun fetchServiceRates(hotelId: String): List<ServiceFeeAdapter.ServiceItem> {
+        val docs = mutableListOf<DocumentSnapshot>()
+        android.util.Log.d("ServiceExtraFee", "Fetching serviceRates for hotelId=$hotelId")
         val collection = firestore.collection("serviceRates")
         val serviceRef = firestore.collection("services")
         val queries = mutableListOf<com.google.firebase.firestore.Query>()
-        queries += collection.whereEqualTo("hotel_id", hotel_id)
+        queries += collection.whereEqualTo("hotelId", hotelId)
 
         for (query in queries) {
             val snap = query.get().await()
@@ -338,7 +339,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         }
 
         val docCount = docs.size
-        android.util.Log.d("ServiceExtraFee", "Found $docCount serviceRate docs for hotel_id=$hotel_id")
+        android.util.Log.d("ServiceExtraFee", "Found $docCount serviceRate docs for hotelId=$hotelId")
         if (docs.isEmpty()) {
             return emptyList()
         }
@@ -357,7 +358,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
             android.util.Log.d(
                 "ServiceExtraFee",
-                "serviceRate doc=${doc.id} hotel_id=$hotel_id service_id=$serviceId price=$price name=$serviceName"
+                "serviceRate doc=${doc.id} hotelId=$hotelId service_id=$serviceId price=$price name=$serviceName"
             )
             ServiceRateEntry(serviceId,serviceIcon, serviceName, price)
         }
@@ -376,7 +377,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         FormatUtils.computeNights(checkInMillis, checkOutMillis)
 
     private fun extractServiceId(
-        doc: com.google.firebase.firestore.DocumentSnapshot,
+        doc: DocumentSnapshot,
         serviceRef: DocumentReference?
     ): String? {
         return doc.getString("service_id")
@@ -414,7 +415,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadRoomFeesThenServices(bookingId: String, hotel_id: String) {
+    private fun loadRoomFeesThenServices(bookingId: String, hotelId: String) {
         lifecycleScope.launch {
             val roomFees = withContext(Dispatchers.IO) {
                 runCatching { fetchRoomFees(bookingId) }.getOrElse { emptyList() }
@@ -425,7 +426,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             // Then load services
             try {
                 val serviceItems = withContext(Dispatchers.IO) {
-                     fetchServiceRates(hotel_id)
+                     fetchServiceRates(hotelId)
                 }
                 android.util.Log.d("ServiceExtraFee", "Loaded ${serviceItems.size} service items")
                 val currentSelections = serviceAdapter.getServiceItems()
@@ -448,13 +449,13 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             applyRoomFees(roomFees)
             
             // Then resolve hotel and load services
-            val hotel_id = withContext(Dispatchers.IO) {
+            val hotelId = withContext(Dispatchers.IO) {
                 runCatching { fetchHotelIdFromBooking(bookingId) }.getOrNull()
             }
-            if (!hotel_id.isNullOrBlank()) {
+            if (!hotelId.isNullOrBlank()) {
                 try {
                     val serviceItems = withContext(Dispatchers.IO) {
-                        fetchServiceRates(hotel_id)
+                        fetchServiceRates(hotelId)
                     }
                     val currentSelections = serviceAdapter.getServiceItems()
                     val mergedServices = mergeServiceSelections(serviceItems, currentSelections)
@@ -473,18 +474,21 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
     private suspend fun fetchRoomFees(bookingId: String): List<ServiceFeeAdapter.ServiceItem> {
         val invoiceDoc = findInvoiceDocument(bookingId)
-        val roomFees = when {
-            invoiceDoc != null && invoiceDoc.get("roomFees") is Map<*, *> -> {
-                android.util.Log.d("ServiceExtraFee", "Found roomFees in invoice ${invoiceDoc.id}")
-                invoiceDoc.get("roomFees") as Map<*, *>
-            }
-            else -> {
-                android.util.Log.d("ServiceExtraFee", "No roomFees found in invoice for bookingId=$bookingId")
-                emptyMap<Any, Any>()
-            }
+        val invoiceFees = if (invoiceDoc != null && invoiceDoc.get("roomFees") is Map<*, *>) {
+            android.util.Log.d("ServiceExtraFee", "Found roomFees in invoice ${invoiceDoc.id}")
+            invoiceDoc.get("roomFees") as Map<*, *>
+        } else {
+            emptyMap<Any, Any>()
         }
 
-        return buildRoomFeeItems(roomFees)
+        val sourceMap = if (invoiceFees.isNotEmpty()) {
+            invoiceFees
+        } else {
+            android.util.Log.d("ServiceExtraFee", "Invoice missing roomFees; using cleaner data for bookingId=$bookingId")
+            fetchRoomFeesFromCleaner(bookingId)
+        }
+
+        return buildRoomFeeItems(sourceMap)
     }
 
     private suspend fun findInvoiceDocument(bookingId: String): com.google.firebase.firestore.DocumentSnapshot? {
@@ -493,6 +497,18 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         if (direct.exists()) return direct
         val query = invoices.whereEqualTo("bookingId", bookingId).limit(1).get().await()
         return query.documents.firstOrNull()
+    }
+
+    private suspend fun fetchRoomFeesFromCleaner(bookingId: String): Map<*, *> {
+        val snapshot = firestore.collection("bookings")
+            .document(bookingId)
+            .collection("cleaner")
+            .orderBy("updatedAt", Query.Direction.DESCENDING)
+            .limit(1)
+            .get()
+            .await()
+        val cleanerDoc = snapshot.documents.firstOrNull()
+        return cleanerDoc?.get("roomFees") as? Map<*, *> ?: emptyMap<Any, Any>()
     }
 
     private fun buildRoomFeeItems(roomFees: Map<*, *>): List<ServiceFeeAdapter.ServiceItem> {
@@ -574,13 +590,13 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
     private fun resolveHotelIdFromBooking(bookingId: String) {
         lifecycleScope.launch {
-            val hotel_id = withContext(Dispatchers.IO) {
+            val hotelId = withContext(Dispatchers.IO) {
                 runCatching { fetchHotelIdFromBooking(bookingId) }.getOrNull()
             }
-            if (!hotel_id.isNullOrBlank()) {
+            if (!hotelId.isNullOrBlank()) {
                 try {
                     val serviceItems = withContext(Dispatchers.IO) {
-                       fetchServiceRates(hotel_id)
+                       fetchServiceRates(hotelId)
                     }
                     val currentSelections = serviceAdapter.getServiceItems()
                     val mergedServices = mergeServiceSelections(serviceItems, currentSelections)
@@ -598,7 +614,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         val bookingDoc = firestore.collection("bookings").document(bookingId).get().await()
         if (bookingDoc.exists()) {
 
-            bookingDoc.getString("hotel_id")?.let { return it }
+            bookingDoc.getString("hotelId")?.let { return it }
         }
         val query = firestore.collection("bookings")
             .whereEqualTo("reservationId", bookingId)
@@ -606,7 +622,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             .get()
             .await()
         val snapshot = query.documents.firstOrNull() ?: return null
-        return snapshot.getString("hotel_id") ?: snapshot.getString("hotel_id")
+        return snapshot.getString("hotelId") ?: snapshot.getString("hotelId")
     }
 }
 
