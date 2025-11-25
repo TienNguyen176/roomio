@@ -15,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.tdc.nhom6.roomio.R
@@ -25,12 +26,16 @@ import com.tdc.nhom6.roomio.fragments.TaskStatus
 import com.tdc.nhom6.roomio.utils.CleanerStatusUtils
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.launch
 
 class CleanerTaskDetailActivity : AppCompatActivity() {
     private val firestore = FirebaseFirestore.getInstance()
     private lateinit var cloudinaryRepo: CloudinaryRepository
     private lateinit var imageAdapter: CleaningImageAdapter
+    private lateinit var tvCheckedOut: TextView
     private var bookingId: String = ""
     private var cameraImageUri: Uri? = null
     private var currentPhotoFile: File? = null
@@ -126,7 +131,6 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
 
         val roomId = intent.getStringExtra("ROOM_ID") ?: ""
         bookingId = intent.getStringExtra("BOOKING_ID") ?: ""
-        val checkoutTime = intent.getStringExtra("CHECKOUT_TIME") ?: "11.00 PM"
         val notes = intent.getStringExtra("NOTES") ?: "Replace bedding and towels"
 
         // Back button
@@ -160,7 +164,13 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         tvStatus.setBackgroundResource(R.drawable.bg_tab_chip)
 
         // Checked-out time
-        findViewById<TextView>(R.id.tvCheckedOut).text = "Checked-out : $checkoutTime"
+        tvCheckedOut = findViewById(R.id.tvCheckedOut)
+        tvCheckedOut.text = "Checked-out : Loading..."
+        if (bookingId.isNotEmpty()) {
+            loadCheckoutTime(bookingId)
+        } else {
+            tvCheckedOut.text = "Checked-out : Not available"
+        }
 
         // Notes
         findViewById<TextView>(R.id.tvNotes).text = notes
@@ -226,12 +236,12 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
                     ),
                     SetOptions.merge()
                 )
-                .addOnSuccessListener {
-                    android.util.Log.d("CleanerTaskDetail", "✓ Status updated to $statusValue in Firebase")
-                }
-                .addOnFailureListener { e ->
-                    android.util.Log.e("CleanerTaskDetail", "Failed to update status: ${e.message}", e)
-                }
+                    .addOnSuccessListener {
+                        android.util.Log.d("CleanerTaskDetail", "✓ Status updated to $statusValue in Firebase")
+                    }
+                    .addOnFailureListener { e ->
+                        android.util.Log.e("CleanerTaskDetail", "Failed to update status: ${e.message}", e)
+                    }
 
                 // Also update parent booking document
                 firestore.collection("bookings").document(bookingId)
@@ -268,6 +278,60 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         } catch (e: Exception) {
             android.util.Log.e("CleanerTaskDetail", "Error updating mark as clean button: ${e.message}", e)
             // Don't crash - just log
+        }
+    }
+
+    private fun loadCheckoutTime(bookingDocId: String) {
+        firestore.collection("bookings")
+            .document(bookingDocId)
+            .get()
+            .addOnSuccessListener { doc ->
+                if (!doc.exists()) {
+                    runOnUiThread {
+                        tvCheckedOut.text = "Checked-out : Not available"
+                    }
+                    return@addOnSuccessListener
+                }
+                val checkoutValue = doc.get("checkOutDateActual")
+                    ?: doc.get("checkOutDate")
+                    ?: doc.get("checkOut")
+                    ?: doc.get("checkOutText")
+                val formatted = formatCheckoutDisplay(checkoutValue)
+                runOnUiThread {
+                    tvCheckedOut.text = "Checked-out : ${formatted.ifBlank { "Not available" }}"
+                }
+            }
+            .addOnFailureListener { err ->
+                android.util.Log.e("CleanerTaskDetail", "Failed to load checkout time: ${err.message}", err)
+                runOnUiThread {
+                    tvCheckedOut.text = "Checked-out : Not available"
+                }
+            }
+    }
+
+    private fun formatCheckoutDisplay(value: Any?): String {
+        if (value == null) return ""
+        val formatter = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
+        return try {
+            when (value) {
+                is Timestamp -> formatter.format(value.toDate())
+                is Date -> formatter.format(value)
+                is Number -> formatter.format(Date(value.toLong()))
+                is Map<*, *> -> {
+                    val seconds = (value["seconds"] as? Number)?.toLong()
+                    val nanoseconds = (value["nanoseconds"] as? Number)?.toLong()
+                    if (seconds != null) {
+                        val millis = seconds * 1000 + (nanoseconds ?: 0L) / 1_000_000
+                        formatter.format(Date(millis))
+                    } else {
+                        ""
+                    }
+                }
+                else -> value.toString()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("CleanerTaskDetail", "Failed to format checkout time: ${e.message}", e)
+            value.toString()
         }
     }
 
@@ -494,7 +558,8 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
                     firestore.collection("bookings").document(bookingId)
                         .update(
                             "cleanerStatusLatest", statusValue,
-                            "cleanerStatusUpdatedAt", com.google.firebase.firestore.FieldValue.serverTimestamp()
+                            "cleanerStatusUpdatedAt", com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                            "cleaningCompletedAt", com.google.firebase.firestore.FieldValue.serverTimestamp()
                         )
                         .addOnSuccessListener {
                             android.util.Log.d("CleanerTaskDetail", "✓ Updated booking cleanerStatusLatest to: $statusValue")

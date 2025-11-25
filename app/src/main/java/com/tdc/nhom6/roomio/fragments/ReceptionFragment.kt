@@ -199,6 +199,7 @@ class ReceptionFragment : Fragment() {
         val checkOutTimestamp = valueToTimestamp(checkOutValue)
         val checkInText = valueToDateTimeString(checkInValue)
         val checkOutText = valueToDateTimeString(checkOutValue)
+        val cleaningCompletedTimestamp = valueToTimestamp(doc.get("cleaningCompletedAt"))
 
         val hasCheckedIn = doc.get("checkInDateActual") != null
         val hasCheckedOut = doc.get("checkOutDateActual") != null
@@ -273,7 +274,7 @@ class ReceptionFragment : Fragment() {
                 ?: doc.getString("discountDescription")
                 ?: doc.getString("promotion")
                 ?: "-",
-            cleaningCompletedAtMillis = null
+            cleaningCompletedAtMillis = cleaningCompletedTimestamp
         )
 
         val meta = ReservationMeta(

@@ -11,6 +11,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import androidx.core.graphics.drawable.DrawableCompat
 import com.google.firebase.Firebase
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.firestore
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.activities.ServiceExtraFeeActivity
@@ -120,13 +121,14 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) :
 
         btnOk.setOnClickListener {
             val dateTimeText = etDateTime.text.toString()
-            val actualCheckInTime = try {
+            val actualCheckInTimeMillis = try {
                 val formatterInstance = java.text.SimpleDateFormat("HH:mm:ss/dd/MM/yyyy", java.util.Locale.getDefault())
                 val date = formatterInstance.parse(dateTimeText)
                 date?.time ?: System.currentTimeMillis()
             } catch (_: Exception) {
                 System.currentTimeMillis()
             }
+            val actualCheckInTimestamp = Timestamp(java.util.Date(actualCheckInTimeMillis))
 
             advanceState(position)
             try {
@@ -135,7 +137,7 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) :
                     .update(
                         mapOf(
                             "status" to "checked_in",
-                            "checkInDateActual" to actualCheckInTime
+                            "checkInDateActual" to actualCheckInTimestamp
                         )
                     )
             } catch (_: Exception) {

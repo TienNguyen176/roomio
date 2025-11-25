@@ -17,6 +17,7 @@ import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.tdc.nhom6.roomio.utils.CleanerStatusUtils
 
 class CleanerFragment : Fragment() {
     private lateinit var taskAdapter: CleanerTaskAdapter
@@ -110,11 +111,17 @@ class CleanerFragment : Fragment() {
                     val hotelId = doc.getString("hotelId")
                         ?: (doc.get("hotelRef") as? DocumentReference)?.id
 
+                    val cleanerStatus = CleanerStatusUtils.fromFirebaseStatus(
+                        doc.getString("cleanerStatusLatest")
+                            ?: doc.getString("cleanerStatusEnum")
+                    )
+
                     CleanerTaskRepository.addDirtyTask(
                         roomId = roomId,
                         bookingDocId = bookingId,
                         roomTypeId = roomTypeId,
-                        hotelId = hotelId
+                        hotelId = hotelId,
+                        initialStatus = cleanerStatus
                     )
 
                     val reservationLabel = doc.getString("reservationId") ?: roomId

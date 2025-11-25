@@ -15,6 +15,18 @@ object CleanerStatusUtils {
     }
 
     /**
+     * Maps Firebase status string back to TaskStatus, defaults to DIRTY if unknown.
+     */
+    fun fromFirebaseStatus(status: String?): TaskStatus {
+        val normalized = status?.lowercase(Locale.getDefault()) ?: return TaskStatus.DIRTY
+        return when (normalized) {
+            "in_progress", "in-progress" -> TaskStatus.IN_PROGRESS
+            "completed", "complete", "clean", "cleaned" -> TaskStatus.CLEAN
+            else -> TaskStatus.DIRTY
+        }
+    }
+
+    /**
      * Gets display text for TaskStatus
      */
     fun getStatusText(status: TaskStatus): String = when (status) {

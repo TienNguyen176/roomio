@@ -9,7 +9,7 @@ import android.app.Activity
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.tdc.nhom6.roomio.models.Deal
-import com.tdc.nhom6.roomio.models.Discount
+//import com.tdc.nhom6.roomio.models.DiscountHotel
 import com.tdc.nhom6.roomio.models.Hotel
 import com.tdc.nhom6.roomio.models.RoomType
 import kotlinx.coroutines.Dispatchers
@@ -341,15 +341,22 @@ class FirebaseRepository {
     }
 
 //    fun getDeals(callback: (List<Deal>) -> Unit) {
+//        Log.d("Firebase", "getDeals called")
 //        try {
 //            // 1) Load discounts
-//            db.collection("discounts")
+//            db.collectionGroup("discounts")
 //                .get()
 //                .addOnSuccessListener { discountResult ->
-//                    val discounts = mutableListOf<Discount>()
+//                    val discounts = mutableListOf<DiscountHotel>()
 //                    for (document in discountResult) {
 //                        try {
-//                            val discount: Discount = document.toObject<Discount>()
+//                            var discount: DiscountHotel = document.toObject<DiscountHotel>()
+//                            if (discount.hotelId.isEmpty()) {
+//                                val parentId = document.reference.parent.parent?.id
+//                                if (!parentId.isNullOrEmpty()) {
+//                                    discount = discount.copy(hotelId = parentId)
+//                                }
+//                            }
 //                            discounts.add(discount)
 //                        } catch (e: Exception) {
 //                            Log.e("Firebase", "Error converting discount ${document.id}: ${e.message}")
@@ -413,7 +420,11 @@ class FirebaseRepository {
 //                                        val startMs = toMillisHeuristic(d.startDate)
 //                                        val endMs = toMillisHeuristic(d.endDate)
 //                                        val withinDate = now in startMs..endMs
+//
+//                                        Log.d("Firebase", "Checking deal ${d.discountId}: hotel=${hotel.hotelName}, active=${d.isActive}, dates=$withinDate ($startMs..$endMs vs $now)")
+//
 //                                        if (!(d.isActive && withinDate)) {
+//                                            Log.w("Firebase", "Deal ignored: Not active or out of date")
 //                                            return@mapNotNull null
 //                                        }
 //
@@ -424,7 +435,7 @@ class FirebaseRepository {
 //                                        }
 //
 //                                        Deal(
-//                                            dealId = d.discountHotelId,
+//                                            dealId = d.discountId,
 //                                            hotelName = hotel.hotelName,
 //                                            hotelLocation = hotel.hotelAddress,
 //                                            description = if (d.description.isNotBlank()) d.description else d.title,
@@ -466,13 +477,11 @@ class FirebaseRepository {
 //            callback(emptyList())
 //        }
 //    }
-
-    /**
-     * Realtime: observe discounts and map to deals by joining hotels + roomTypes
-     */
+//
 //    fun observeDeals(callback: (List<Deal>) -> Unit): ListenerRegistration {
+//        Log.d("Firebase", "observeDeals called")
 //        // Cache for discounts, hotels, and room types
-//        val discountsCache = mutableListOf<Discount>()
+//        val discountsCache = mutableListOf<DiscountHotel>()
 //        val hotelMapCache = mutableMapOf<String, Hotel>()
 //        val roomTypeMapCache = mutableMapOf<String, RoomType>()
 //        val hotelIdToRoomTypesCache = mutableMapOf<String, MutableList<RoomType>>()
@@ -505,7 +514,7 @@ class FirebaseRepository {
 //                    else -> 0.0
 //                }
 //                Deal(
-//                    dealId = d.discountHotelId,
+//                    dealId = d.discountId,
 //                    hotelName = hotel.hotelName,
 //                    hotelLocation = hotel.hotelAddress,
 //                    description = if (d.description.isNotBlank()) d.description else d.title,
@@ -540,7 +549,13 @@ class FirebaseRepository {
 //                if (discountResult != null) {
 //                    for (document in discountResult) {
 //                        try {
-//                            val discount: DiscountHotel = document.toObject<DiscountHotel>()
+//                            var discount: DiscountHotel = document.toObject<DiscountHotel>()
+//                            if (discount.hotelId.isEmpty()) {
+//                                val parentId = document.reference.parent.parent?.id
+//                                if (!parentId.isNullOrEmpty()) {
+//                                    discount = discount.copy(hotelId = parentId)
+//                                }
+//                            }
 //                            discountsCache.add(discount)
 //                        } catch (e: Exception) {
 //                            Log.e("Firebase", "Error converting discount ${document.id}: ${e.message}")
@@ -642,7 +657,7 @@ class FirebaseRepository {
 //                    else -> 0.0
 //                }
 //                Deal(
-//                    dealId = d.discountHotelId,
+//                    dealId = d.discountId,
 //                    hotelName = hotel.hotelName,
 //                    hotelLocation = hotel.hotelAddress,
 //                    description = if (d.description.isNotBlank()) d.description else d.title,
@@ -677,7 +692,13 @@ class FirebaseRepository {
 //                if (discountResult != null) {
 //                    for (document in discountResult) {
 //                        try {
-//                            val discount: DiscountHotel = document.toObject<DiscountHotel>()
+//                            var discount: DiscountHotel = document.toObject<DiscountHotel>()
+//                            if (discount.hotelId.isEmpty()) {
+//                                val parentId = document.reference.parent.parent?.id
+//                                if (!parentId.isNullOrEmpty()) {
+//                                    discount = discount.copy(hotelId = parentId)
+//                                }
+//                            }
 //                            discountsCache.add(discount)
 //                        } catch (e: Exception) {
 //                            Log.e("Firebase", "Error converting discount ${document.id}: ${e.message}")
@@ -743,7 +764,7 @@ class FirebaseRepository {
 //            }
 //        }
 //    }
-//
+
 
 
 }

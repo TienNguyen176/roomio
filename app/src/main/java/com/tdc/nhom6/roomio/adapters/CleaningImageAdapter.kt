@@ -39,10 +39,10 @@ class CleaningImageAdapter(
             android.util.Log.e("CleaningImageAdapter", "Position $position out of bounds (size: ${images.size})")
             return
         }
-        
+
         val item = images[position]
         android.util.Log.d("CleaningImageAdapter", "Binding position $position: uri=${item.uri}, url=${item.url}")
-        
+
         // Load image - use Glide for both URI and URL for better compatibility
         when {
             item.url != null -> {
@@ -67,10 +67,10 @@ class CleaningImageAdapter(
                 holder.imageView.setImageResource(R.drawable.ic_service_roomsvc)
             }
         }
-        
+
         // Show/hide progress
         holder.progressView.visibility = if (item.isUploading) View.VISIBLE else View.GONE
-        
+
         // Remove button
         holder.btnRemove.setOnClickListener {
             onRemove(position)

@@ -12,9 +12,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
-
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.ServiceFeeAdapter
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
@@ -107,7 +107,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
         val hotelId = intent.getStringExtra("HOTEL_ID")?.takeIf { it.isNotBlank() }
         val bookingId = intent.getStringExtra("BOOKING_ID")?.takeIf { it.isNotBlank() }
-        
+
         // Load paid amount from invoices and cleaning fee from Firebase booking document
         if (bookingId != null) {
             observeInvoices(bookingId, resId)
@@ -172,7 +172,6 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
     private fun updateExtraTotal(total: Double) {
         extraTotal = total
-        tvExtraFee.text = "Total additional charges: ${formatCurrency(extraTotal)}"
         refreshPriceSummary()
     }
 
@@ -182,15 +181,17 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
     private fun refreshPriceSummary() {
         lastExtraTotal = extraTotal
-        val grandTotal = max(0.0, reservationAmount + extraTotal  - paidAmount)
+        val totalAdditional = cleaningFee // cleaningFee already includes lost/broken/minibar fees
+        tvExtraFee.text = "Total additional charges: ${formatCurrency(totalAdditional)}"
+        val grandTotal = max(0.0, reservationAmount + totalAdditional - paidAmount)
         tvGrandTotal.text = "Total amount: ${formatCurrency(grandTotal)}"
     }
-    
+
     private fun observeInvoices(bookingId: String, reservationId: String) {
         invoiceListener?.remove()
         val queries = InvoiceQueryUtils.createInvoiceQueries(firestore, bookingId, reservationId)
         var listenerSet = false
-        
+
         // Try each query until one returns results
         for (query in queries) {
             try {
@@ -212,7 +213,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
                 android.util.Log.e("ServiceExtraFee", "Error trying invoice query", e)
             }
         }
-        
+
         // If no query worked, try a general query and filter in memory
         if (!listenerSet) {
             invoiceListener = firestore.collection("invoices")
@@ -238,20 +239,20 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
                 }
         }
     }
-    
+
     private fun updatePaidAmountFromDocs(docs: List<com.google.firebase.firestore.DocumentSnapshot>) {
         paidAmount = docs.sumOf { InvoiceQueryUtils.extractTotalAmount(it) }
         tvPaidAmount.text = "Paid amount: ${formatCurrency(paidAmount)}"
         refreshPriceSummary()
     }
-    
+
     private fun observeCleaningFee(bookingId: String) {
         cleaningFeeListener?.remove()
         // Listen to cleaner subcollection instead of booking document
         cleaningFeeListener = firestore.collection("bookings")
             .document(bookingId)
             .collection("cleaner")
-            .orderBy("cleaningCompletedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .orderBy("updatedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
             .limit(1)
             .addSnapshotListener { snapshots, error ->
                 if (error != null) {
@@ -272,7 +273,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
                     // Reload room fees from cleaner document
                     lifecycleScope.launch {
                         val roomFees = withContext(Dispatchers.IO) {
-                            runCatching { 
+                            runCatching {
                                 val roomFeesMap = cleanerDoc.get("roomFees") as? Map<*, *>
                                 if (roomFeesMap != null) {
                                     buildRoomFeeItems(roomFeesMap)
@@ -322,7 +323,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
     }
 
     private suspend fun fetchServiceRates(hotelId: String): List<ServiceFeeAdapter.ServiceItem> {
-        val docs = mutableListOf<com.google.firebase.firestore.DocumentSnapshot>()
+        val docs = mutableListOf<DocumentSnapshot>()
         android.util.Log.d("ServiceExtraFee", "Fetching serviceRates for hotelId=$hotelId")
         val collection = firestore.collection("serviceRates")
         val serviceRef = firestore.collection("services")
@@ -372,11 +373,11 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
     }
 //
 
-    private fun computeNights(checkInMillis: Long, checkOutMillis: Long): Int = 
+    private fun computeNights(checkInMillis: Long, checkOutMillis: Long): Int =
         FormatUtils.computeNights(checkInMillis, checkOutMillis)
 
     private fun extractServiceId(
-        doc: com.google.firebase.firestore.DocumentSnapshot,
+        doc: DocumentSnapshot,
         serviceRef: DocumentReference?
     ): String? {
         return doc.getString("service_id")
@@ -421,11 +422,11 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             }
             android.util.Log.d("ServiceExtraFee", "Loaded ${roomFees.size} room fees")
             applyRoomFees(roomFees)
-            
+
             // Then load services
             try {
                 val serviceItems = withContext(Dispatchers.IO) {
-                     fetchServiceRates(hotelId)
+                    fetchServiceRates(hotelId)
                 }
                 android.util.Log.d("ServiceExtraFee", "Loaded ${serviceItems.size} service items")
                 val currentSelections = serviceAdapter.getServiceItems()
@@ -446,7 +447,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
                 runCatching { fetchRoomFees(bookingId) }.getOrElse { emptyList() }
             }
             applyRoomFees(roomFees)
-            
+
             // Then resolve hotel and load services
             val hotelId = withContext(Dispatchers.IO) {
                 runCatching { fetchHotelIdFromBooking(bookingId) }.getOrNull()
@@ -473,18 +474,21 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
 
     private suspend fun fetchRoomFees(bookingId: String): List<ServiceFeeAdapter.ServiceItem> {
         val invoiceDoc = findInvoiceDocument(bookingId)
-        val roomFees = when {
-            invoiceDoc != null && invoiceDoc.get("roomFees") is Map<*, *> -> {
-                android.util.Log.d("ServiceExtraFee", "Found roomFees in invoice ${invoiceDoc.id}")
-                invoiceDoc.get("roomFees") as Map<*, *>
-            }
-            else -> {
-                android.util.Log.d("ServiceExtraFee", "No roomFees found in invoice for bookingId=$bookingId")
-                emptyMap<Any, Any>()
-            }
+        val invoiceFees = if (invoiceDoc != null && invoiceDoc.get("roomFees") is Map<*, *>) {
+            android.util.Log.d("ServiceExtraFee", "Found roomFees in invoice ${invoiceDoc.id}")
+            invoiceDoc.get("roomFees") as Map<*, *>
+        } else {
+            emptyMap<Any, Any>()
         }
 
-        return buildRoomFeeItems(roomFees)
+        val sourceMap = if (invoiceFees.isNotEmpty()) {
+            invoiceFees
+        } else {
+            android.util.Log.d("ServiceExtraFee", "Invoice missing roomFees; using cleaner data for bookingId=$bookingId")
+            fetchRoomFeesFromCleaner(bookingId)
+        }
+
+        return buildRoomFeeItems(sourceMap)
     }
 
     private suspend fun findInvoiceDocument(bookingId: String): com.google.firebase.firestore.DocumentSnapshot? {
@@ -493,6 +497,18 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
         if (direct.exists()) return direct
         val query = invoices.whereEqualTo("bookingId", bookingId).limit(1).get().await()
         return query.documents.firstOrNull()
+    }
+
+    private suspend fun fetchRoomFeesFromCleaner(bookingId: String): Map<*, *> {
+        val snapshot = firestore.collection("bookings")
+            .document(bookingId)
+            .collection("cleaner")
+            .orderBy("updatedAt", Query.Direction.DESCENDING)
+            .limit(1)
+            .get()
+            .await()
+        val cleanerDoc = snapshot.documents.firstOrNull()
+        return cleanerDoc?.get("roomFees") as? Map<*, *> ?: emptyMap<Any, Any>()
     }
 
     private fun buildRoomFeeItems(roomFees: Map<*, *>): List<ServiceFeeAdapter.ServiceItem> {
@@ -580,7 +596,7 @@ class ServiceExtraFeeActivity : AppCompatActivity() {
             if (!hotelId.isNullOrBlank()) {
                 try {
                     val serviceItems = withContext(Dispatchers.IO) {
-                       fetchServiceRates(hotelId)
+                        fetchServiceRates(hotelId)
                     }
                     val currentSelections = serviceAdapter.getServiceItems()
                     val mergedServices = mergeServiceSelections(serviceItems, currentSelections)
