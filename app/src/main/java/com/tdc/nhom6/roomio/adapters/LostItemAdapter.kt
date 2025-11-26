@@ -8,12 +8,19 @@ import android.widget.CheckBox
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.models.LostItem
 
 class LostItemAdapter(
     private val items: MutableList<LostItem>,
     private val onChange: () -> Unit
 ) : RecyclerView.Adapter<LostItemAdapter.VH>() {
+
+    data class LostItem(
+        val name: String,
+        val pricePerItem: Double,
+        var checked: Boolean = false,
+        var quantity: Int = 0,
+        val facilityId: String = "" // Store facilityId for saving to facilitiesUsed
+    )
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val v = LayoutInflater.from(parent.context).inflate(R.layout.item_lost_item, parent, false)

@@ -20,15 +20,15 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.firestore
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.receptionist.ServiceExtraFeeActivity
+import com.tdc.nhom6.roomio.activities.ServiceExtraFeeActivity
 import com.tdc.nhom6.roomio.adapters.ReservationAdapter
-import com.tdc.nhom6.roomio.repositories.CleanerTaskRepository
+import com.tdc.nhom6.roomio.data.CleanerTaskRepository
+import com.tdc.nhom6.roomio.fragments.CleanerTask
+import com.tdc.nhom6.roomio.fragments.TaskStatus
 import com.tdc.nhom6.roomio.models.Booking
-import com.tdc.nhom6.roomio.models.CleanerTask
 import com.tdc.nhom6.roomio.models.HeaderColor
 import com.tdc.nhom6.roomio.models.ReservationStatus
 import com.tdc.nhom6.roomio.models.ReservationUi
-import com.tdc.nhom6.roomio.models.TaskStatus
 import com.tdc.nhom6.roomio.utils.RecyclerViewUtils
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -307,7 +307,7 @@ class ReceptionFragment : Fragment() {
 
     private fun shouldIncludeBooking(doc: DocumentSnapshot): Boolean {
         val paymentStatus = doc.getString("status")?.lowercase(Locale.getDefault()) ?: return true
-        return paymentStatus == "confirmed" || paymentStatus == "checked_in" || paymentStatus == "checked_out"
+        return paymentStatus == "confirm" || paymentStatus == "checked_in" || paymentStatus == "checked_out"
     }
 
 

@@ -7,15 +7,16 @@ import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.databinding.ItemImageLayoutBinding
 
 class ImageListAdapter(
-    val images: MutableList<String>,
-    private val onDelete: (String) -> Unit
+    private val images: MutableList<String>,
+    private val onDelete: (Int) -> Unit
 ) : RecyclerView.Adapter<ImageListAdapter.ImageViewHolder>() {
 
-    inner class ImageViewHolder(val binding: ItemImageLayoutBinding) :
-        RecyclerView.ViewHolder(binding.root)
-
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ImageViewHolder {
-        val binding = ItemImageLayoutBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = ItemImageLayoutBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
         return ImageViewHolder(binding)
     }
 
@@ -23,8 +24,11 @@ class ImageListAdapter(
         val url = images[position]
         Glide.with(holder.itemView.context).load(url).into(holder.binding.imgPreview)
 
-        holder.binding.btnDelete.setOnClickListener { onDelete(url) }
+        holder.binding.btnDelete.setOnClickListener { onDelete(position) }
     }
 
     override fun getItemCount() = images.size
+
+    inner class ImageViewHolder(val binding: ItemImageLayoutBinding) :
+        RecyclerView.ViewHolder(binding.root)
 }

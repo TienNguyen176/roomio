@@ -16,7 +16,6 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter.Format
 import com.tdc.nhom6.roomio.databinding.ItemPaymentMethodBinding
-import com.tdc.nhom6.roomio.models.Discount
 import com.tdc.nhom6.roomio.models.DiscountPaymentMethod
 import com.tdc.nhom6.roomio.models.PaymentMethod
 

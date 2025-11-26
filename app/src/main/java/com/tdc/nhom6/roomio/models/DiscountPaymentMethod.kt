@@ -10,3 +10,4 @@ data class DiscountPaymentMethod(
     val discountPercent: Double? = null,
     val discountAmount: Double? = null,
 )
+

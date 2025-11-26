@@ -1,6 +1,6 @@
 package com.tdc.nhom6.roomio.utils
 
-import com.tdc.nhom6.roomio.models.TaskStatus
+import com.tdc.nhom6.roomio.fragments.TaskStatus
 import java.util.Locale
 
 object CleanerStatusUtils {

@@ -12,7 +12,8 @@ import com.tdc.nhom6.roomio.models.RoomType
 import androidx.core.content.ContextCompat
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.tdc.nhom6.roomio.activities.booking.BookingDetailActivity
+import com.tdc.nhom6.roomio.activities.BookingDetailActivity
+import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter.Format
 import com.tdc.nhom6.roomio.models.HotelModel
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -57,9 +58,8 @@ class MyBookingAdapter : RecyclerView.Adapter<MyBookingAdapter.BookingViewHolder
             hotelListener?.remove()
 
             binding.apply {
-                textPrice.text = "VND ${booking.totalFinal.toLong()}"
-                textStatusTag.text = booking.status
-                setStatusTagBackground(booking.status)
+                textPrice.text = "${Format.formatCurrency(booking.totalFinal)}"
+                setStatusTag(booking.status)
 
                 val checkInStr = booking.checkInDate?.let { dateFormatter.format(it.toDate()) } ?: "N/A"
                 val checkOutStr = booking.checkOutDate?.let { dateFormatter.format(it.toDate()) } ?: "N/A"
@@ -120,16 +120,38 @@ class MyBookingAdapter : RecyclerView.Adapter<MyBookingAdapter.BookingViewHolder
                 }
         }
 
-        private fun setStatusTagBackground(status: String) {
-            val drawableId = when (status) {
-                "pending" -> R.drawable.shape_rounded_pending
-                "confirmed" -> R.drawable.shape_rounded_confirmed
-                "cancelled" -> R.drawable.shape_rounded_canceled
-                "completed" -> R.drawable.shape_rounded_completed
-                "expired" -> R.drawable.shape_rounded_completed
-                else -> R.drawable.shape_rounded_active
+        private fun setStatusTag(status: String) {
+            val displayStatus: String
+            val drawableId: Int
+
+            when (status) {
+                "pending" -> {
+                    displayStatus = "Pending"
+                    drawableId = R.drawable.shape_rounded_pending
+                }
+                "confirmed" -> {
+                    displayStatus = "Confirmed"
+                    drawableId = R.drawable.shape_rounded_confirmed
+                }
+                "cancelled" -> {
+                    displayStatus = "Cancelled"
+                    drawableId = R.drawable.shape_rounded_canceled
+                }
+                "completed" -> {
+                    displayStatus = "Completed"
+                    drawableId = R.drawable.shape_rounded_completed
+                }
+                "expired" -> {
+                    displayStatus = "Expired"
+                    drawableId = R.drawable.shape_rounded_completed
+                }
+                else -> {
+                    displayStatus = "Active"
+                    drawableId = R.drawable.shape_rounded_active
+                }
             }
 
+            binding.textStatusTag.text = displayStatus
             val drawable = ContextCompat.getDrawable(binding.root.context, drawableId)
             binding.textStatusTag.background = drawable
         }

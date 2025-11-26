@@ -103,30 +103,22 @@ class ReviewAdapter(
 
         val user = FirebaseAuth.getInstance().currentUser ?: return
 
+        val reply = Reply(
+            userId = user.uid,
+            userName = user.displayName ?: "Người dùng",
+            message = message,
+            createdAt = Timestamp.now()
+        )
+
         db.collection("hotels")
             .document(hotelId)
-            .get()
-            .addOnSuccessListener { doc ->
-                val hotelName = doc.getString("hotelName") ?: "Hotel"
-
-                val reply = Reply(
-                    userId = user.uid,
-                    userName = hotelName,
-                    message = message,
-                    createdAt = Timestamp.now()
-                )
-
-                db.collection("hotels")
-                    .document(hotelId)
-                    .collection("reviews")
-                    .document(review.reviewId!!)
-                    .collection("replies")
-                    .add(reply)
-                    .addOnSuccessListener {
-                        binding.edtReply.setText("")
-                        loadReplies(review, binding)
-                    }
+            .collection("reviews")
+            .document(review.reviewId!!)
+            .collection("replies")
+            .add(reply)
+            .addOnSuccessListener {
+                binding.edtReply.setText("")
+                loadReplies(review, binding)
             }
     }
-
 }

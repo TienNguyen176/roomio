@@ -1,22 +1,26 @@
 package com.tdc.nhom6.roomio.adapters
 
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.activities.HotelDetailActivity
 import com.tdc.nhom6.roomio.models.DealItem
+import com.tdc.nhom6.roomio.models.Hotel
 
 
 class DealsAdapter(
-    private var hotelDeals: List<DealItem>
+    private var hotelDeals: List<Hotel>
 ) : RecyclerView.Adapter<DealsAdapter.DealsViewHolder>() {
 
     override fun getItemId(position: Int): Long {
         // Use title hash as stable ID to prevent swap behavior issues
-        return hotelDeals[position].title.hashCode().toLong()
+        return hotelDeals[position].hotelId.hashCode().toLong()
     }
 
 
@@ -27,10 +31,6 @@ class DealsAdapter(
         return DealsViewHolder(view)
     }
 
-    /**
-     * Binds data to a view holder
-     * This is called when RecyclerView wants to show data in an item
-     */
     override fun onBindViewHolder(holder: DealsViewHolder, position: Int) {
         // Get the hotel deal at this position
         val hotelDeal = hotelDeals[position]
@@ -39,50 +39,37 @@ class DealsAdapter(
         holder.bind(hotelDeal)
     }
 
-    /**
-     * Returns the number of items in the list
-     */
     override fun getItemCount(): Int = hotelDeals.size
 
-    /**
-     * Updates the data and refreshes the display
-     * Call this when you have new data to show
-     */
-    fun updateData(newDeals: List<DealItem>) {
-        // Simple update without DiffUtil to prevent swap behavior issues
+    fun updateData(newDeals: List<Hotel>) {
         hotelDeals = newDeals
-        // Use notifyDataSetChanged() for stable updates
         notifyDataSetChanged()
     }
 
-    /**
-     * ViewHolder - Holds references to the views in each item
-     * This makes scrolling faster because we don't have to find views every time
-     */
     class DealsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         
-        // Find the views in the layout
         private val dealImage: ImageView = itemView.findViewById(R.id.img)
         private val dealTitle: TextView = itemView.findViewById(R.id.tvTitle)
         private val dealSubtitle: TextView = itemView.findViewById(R.id.tvSubtitle)
 
-        /**
-         * Binds hotel deal data to the views
-         * This is where we put the actual data into the UI elements
-         */
-        fun bind(hotelDeal: DealItem) {
-            try {
-                dealImage.setImageResource(hotelDeal.imageRes)
-            } catch (_: Exception) {
-                // As a safety, keep a placeholder
-                dealImage.setImageResource(R.drawable.ic_not_image)
-            }
 
+        fun bind(hotelDeal: Hotel) {
+            if (hotelDeal.images.isNotEmpty()) {
+                Glide.with(itemView.context).load(hotelDeal.images[0]).into(dealImage)
+            } else {
+                dealImage.setImageResource(R.drawable.caption)
+            }
             // Set the hotel name
-            dealTitle.text = hotelDeal.title
+            dealTitle.text = hotelDeal.hotelName
             
             // Set the location
-            dealSubtitle.text = hotelDeal.subtitle
+            dealSubtitle.text = hotelDeal.hotelAddress
+
+            itemView.setOnClickListener(View.OnClickListener {
+                val intent = Intent(itemView.context, HotelDetailActivity::class.java)
+                intent.putExtra("HOTEL_ID",hotelDeal.hotelId)
+                itemView.context.startActivity(intent)
+            })
         }
     }
 }

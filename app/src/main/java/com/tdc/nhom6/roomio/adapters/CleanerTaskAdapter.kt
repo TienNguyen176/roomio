@@ -7,8 +7,8 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.models.CleanerTask
-import com.tdc.nhom6.roomio.models.TaskStatus
+import com.tdc.nhom6.roomio.fragments.CleanerTask
+import com.tdc.nhom6.roomio.fragments.TaskStatus
 import com.tdc.nhom6.roomio.utils.CleanerStatusUtils
 
 class CleanerTaskAdapter(

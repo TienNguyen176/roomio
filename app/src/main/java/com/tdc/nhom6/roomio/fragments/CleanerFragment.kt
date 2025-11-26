@@ -11,14 +11,12 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.CleanerTaskAdapter
-import com.tdc.nhom6.roomio.repositories.CleanerTaskRepository
+import com.tdc.nhom6.roomio.data.CleanerTaskRepository
+import com.tdc.nhom6.roomio.activities.CleaningInspectionActivity
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.tdc.nhom6.roomio.activities.cleaner.CleaningInspectionActivity
-import com.tdc.nhom6.roomio.models.CleanerTask
-import com.tdc.nhom6.roomio.models.TaskStatus
 import com.tdc.nhom6.roomio.utils.CleanerStatusUtils
 
 class CleanerFragment : Fragment() {
@@ -42,8 +40,8 @@ class CleanerFragment : Fragment() {
         
         // Setup back button
         view.findViewById<android.widget.ImageView>(R.id.btnBack).setOnClickListener {
-            requireActivity().onBackPressedDispatcher.onBackPressed()
-            //parentFragmentManager.popBackStack()
+//            requireActivity().onBackPressedDispatcher.onBackPressed()
+            parentFragmentManager.popBackStack()
         }
         
         // Initialize data (seed once for demo if empty)
@@ -267,5 +265,20 @@ class CleanerFragment : Fragment() {
             setupSummaryCards(view)
         }
     }
+
+}
+
+data class CleanerTask(
+    val id: String,
+    val roomId: String,
+    val status: TaskStatus,
+    val timestamp: String,
+    val bookingDocId: String? = null,
+    val roomTypeId: String? = null,
+    val hotelId: String? = null
+)
+
+enum class TaskStatus {
+    ALL, DIRTY, IN_PROGRESS, CLEAN
 }
 

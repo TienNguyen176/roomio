@@ -31,7 +31,7 @@ object ReservationColorHelper {
         
         return when {
             // Fully paid (100% or more)
-            paymentPercentage >= 100.0 -> HeaderColor.GREEN
+            paymentPercentage >= 100.0 -> HeaderColor.PURPLE
             
             // Deposit paid (10% or more, but less than 100%)
             paymentPercentage >= 10.0 -> HeaderColor.BLUE

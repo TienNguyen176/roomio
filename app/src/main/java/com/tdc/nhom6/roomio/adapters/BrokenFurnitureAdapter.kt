@@ -8,12 +8,19 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputLayout
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.models.BrokenItem
 
 class BrokenFurnitureAdapter(
     private val items: MutableList<BrokenItem>,
     private val onChange: () -> Unit
 ) : RecyclerView.Adapter<BrokenFurnitureAdapter.VH>() {
+
+    data class BrokenItem(
+        val name: String,
+        val pricePerItem: Double,
+        var checked: Boolean = false,
+        var description: String = "",
+        val facilityId: String = "" // Store facilityId for saving to facilitiesUsed
+    )
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val v = LayoutInflater.from(parent.context).inflate(R.layout.item_broken_furniture, parent, false)

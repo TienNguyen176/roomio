@@ -9,8 +9,9 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity
+import com.tdc.nhom6.roomio.activities.HotelDetailActivity
 import com.tdc.nhom6.roomio.models.Hotel
+import com.tdc.nhom6.roomio.utils.FormatUtils
 
 
 class HotReviewAdapter(
@@ -58,27 +59,6 @@ class HotReviewAdapter(
     }
 
 
-    /**
-     * Formats price with dots as thousands separators (Vietnamese format)
-     * Example: 1300000 -> "1.300.000"
-     */
-    private fun formatPriceWithDots(price: Double): String {
-        val priceLong = price.toLong()
-        return String.format("%,d", priceLong).replace(',', '.')
-    }
-
-    /**
-     * Formats price range: lowest - highest
-     * If highest is null or same as lowest, shows only lowest price
-     */
-    private fun formatPriceRange(lowestPrice: Double, highestPrice: Double?): String {
-        val lowestFormatted = formatPriceWithDots(lowestPrice)
-        return if (highestPrice != null && highestPrice > lowestPrice) {
-            "$lowestFormatted - ${formatPriceWithDots(highestPrice)}"
-        } else {
-            lowestFormatted
-        }
-    }
 
     inner class HotReviewViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
@@ -94,7 +74,7 @@ class HotReviewAdapter(
             if (hotel.images.isNotEmpty()) {
                 Glide.with(hotelImage.context).load(hotel.images[0]).into(hotelImage)
             } else {
-                hotelImage.setImageResource(R.drawable.ic_not_image)
+                hotelImage.setImageResource(R.drawable.caption)
             }
 
             // Set the hotel name
@@ -104,12 +84,12 @@ class HotReviewAdapter(
             hotelRating.text = "${hotel.averageRating} (${hotel.totalReviews})"
 
             // Set the price range (e.g., "1.300.000 - 2.000.000")
-            hotelPrice.text = formatPriceRange(
+            hotelPrice.text = FormatUtils.formatPriceRange(
                 hotel.lowestPricePerNight ?: hotel.pricePerNight,
                 hotel.highestPricePerNight
             )
             itemView.setOnClickListener(View.OnClickListener {
-                val intent = Intent(itemView.context, HotelDetailActivity::class.java)
+                val intent = Intent(itemView.context,HotelDetailActivity::class.java)
                 intent.putExtra("HOTEL_ID",hotel.hotelId)
                 itemView.context.startActivity(intent)
             })

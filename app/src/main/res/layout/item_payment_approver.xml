@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    xmlns:tools="http://schemas.android.com/tools">
+    android:layout_height="wrap_content">
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cardPayment"
@@ -24,71 +24,42 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="8dp">
+            android:padding="10dp">
 
-            <!-- Booking ID + Edit button -->
-            <LinearLayout
-                android:layout_width="match_parent"
+            <!-- Booking ID -->
+            <TextView
+                android:id="@+id/tvBookingId"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:id="@+id/tvBookingId"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:text="ID: 1005"
-                    android:textStyle="bold"
-                    android:textSize="16sp"
-                    android:textColor="#000"/>
-
-                <ImageView
-                    android:id="@+id/btnEdit"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
-                    android:src="@drawable/ic_edit_24"
-                    android:backgroundTint="#FF9800"
-                    android:layout_marginEnd="8dp"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintBottom_toBottomOf="parent" />
-            </LinearLayout>
+                android:text="ID: 1005"
+                android:textStyle="bold"
+                android:textSize="16sp"/>
 
             <!-- CheckIn -->
             <TextView
                 android:id="@+id/tvCheckInDay"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="CheckIn: 17 Jun 11:00"
+                android:text="CheckIn: 17 Jun > 11.AM"
                 android:textSize="14sp"
                 android:textColor="#444"
-                android:layout_marginTop="6dp"/>
+                android:layout_marginTop="4dp"/>
 
             <!-- CheckOut -->
             <TextView
                 android:id="@+id/tvCheckOutDay"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="CheckOut: 17 Jun 11:00"
+                android:text="CheckOut: 17 Jun > 11.AM"
                 android:textSize="14sp"
                 android:textColor="#444"
                 android:layout_marginTop="2dp"/>
 
             <TextView
-                android:id="@+id/tvNgayThanhToan"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Ngày thanh toán: 17/06/2025 10:30"
-                android:textSize="14sp"
-                android:textColor="#444"
-                android:layout_marginTop="4dp"/>
-
-            <TextView
                 android:id="@+id/tvTotalPaidAmount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Số tiền đã thanh toán: 1.000.000"
+                android:text="Số tiền đã thanh toán: "
                 android:textSize="14sp"
                 android:textColor="#444"
                 android:layout_marginTop="2dp"/>
@@ -97,7 +68,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="4dp"
                 android:gravity="end">
 
                 <TextView
@@ -105,10 +76,10 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:background="@drawable/bg_payment_status_default"
-                    android:paddingStart="10dp"
-                    android:paddingTop="4dp"
-                    android:paddingEnd="10dp"
-                    android:paddingBottom="4dp"
+                    android:paddingStart="8dp"
+                    android:paddingTop="3dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="3dp"
                     android:text="Pending"
                     android:textColor="@color/black"
                     android:textSize="13sp"/>

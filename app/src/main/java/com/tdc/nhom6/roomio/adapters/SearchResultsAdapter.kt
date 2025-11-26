@@ -119,7 +119,7 @@ class SearchResultsAdapter(var items: List<SearchResultItem>) :
 
         private fun loadImage(nameOrUrl: String, target: ImageView) {
             if (nameOrUrl.isBlank()) {
-                target.setImageResource(R.drawable.ic_not_image)
+                target.setImageResource(R.drawable.caption)
                 return
             }
 
@@ -127,12 +127,12 @@ class SearchResultsAdapter(var items: List<SearchResultItem>) :
             if (nameOrUrl.startsWith("http", true) || nameOrUrl.contains("/")) {
                 Glide.with(target.context)
                     .load(nameOrUrl)
-                    .placeholder(R.drawable.ic_not_image)
-                    .error(R.drawable.ic_not_image)
+                    .placeholder(R.drawable.caption)
+                    .error(R.drawable.caption)
                     .into(target)
             } else {
                 // Fallback to default placeholder for non-URL image names
-                target.setImageResource(R.drawable.ic_not_image)
+                target.setImageResource(R.drawable.caption)
             }
         }
     }

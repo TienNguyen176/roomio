@@ -19,11 +19,12 @@ import com.google.android.material.datepicker.DateValidatorPointForward
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.booking.GuestDetailActivity
-import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity
+import com.tdc.nhom6.roomio.activities.GuestDetailActivity
+import com.tdc.nhom6.roomio.activities.HotelDetailActivity
 import com.tdc.nhom6.roomio.databinding.ItemRoomTypeBinding
 import com.tdc.nhom6.roomio.models.Booking
 import com.tdc.nhom6.roomio.models.Facility
+import com.tdc.nhom6.roomio.models.FacilityHotelAdapter
 import com.tdc.nhom6.roomio.models.FacilityPriceRateModel
 import com.tdc.nhom6.roomio.models.RoomImage
 import com.tdc.nhom6.roomio.models.Scene
@@ -57,6 +58,7 @@ class RoomTypeAdapter(
         var facilityRatesListener: ListenerRegistration? = null
         var viewListener: ListenerRegistration? = null
         var facilityDetailsListener: ListenerRegistration? = null
+        var roomCountListener: ListenerRegistration? = null
 
         init {
             binding.layoutDetail.gridFacilitiesDetail.layoutManager = GridLayoutManager(context, 2)
@@ -67,6 +69,7 @@ class RoomTypeAdapter(
             facilityRatesListener?.remove()
             viewListener?.remove()
             facilityDetailsListener?.remove()
+            roomCountListener?.remove()
         }
     }
 
@@ -117,7 +120,7 @@ class RoomTypeAdapter(
 
         holder.facilitiesList.clear()
         loadFacilityRatesRealtime(roomType.roomTypeId, holder.facilitiesList, holder.facilityAdapter, holder)
-
+        
 
         binding.layoutDetail.cardImgRoom.setOnClickListener {
             roomType.roomImages?.let { images ->
@@ -129,8 +132,7 @@ class RoomTypeAdapter(
             showDateRangePickerDialog(roomType)
         }
 
-        getAvailableRoomCount(roomType.roomTypeId) { count ->
-
+        holder.roomCountListener = startAvailableRoomCountListener(roomType.roomTypeId) { count ->
             binding.layoutDetail.tvAvailableRoomCount.text =
                 if (count > 0) {
                     context.getString(R.string.available_rooms_format, count)
@@ -146,29 +148,34 @@ class RoomTypeAdapter(
                 binding.layoutDetail.btnReverve.alpha = 0.5f
                 binding.layoutDetail.btnReverve.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(context,R.color.red))
                 binding.layoutDetail.btnReverve.setTextColor(ContextCompat.getColor(context, R.color.red))
-                binding.layoutDetail.btnReverve.text = "Room is out"
+                binding.layoutDetail.btnReverve.text = "Fully booked"
             }
         }
     }
 
-    private fun getAvailableRoomCount(roomTypeId: String, onCountResult: (Int) -> Unit) {
+    private fun startAvailableRoomCountListener(roomTypeId: String, onCountResult: (Int) -> Unit): ListenerRegistration? {
         val hotelId = (context as? HotelDetailActivity)?.currentHotel?.hotelId
         if (hotelId == null) {
             onCountResult(0)
-            return
+            return null
         }
 
-        HotelDetailActivity.db.collection("hotels").document(hotelId)
+        return HotelDetailActivity.db.collection("hotels").document(hotelId)
             .collection("rooms")
             .whereEqualTo("room_type_id", roomTypeId)
             .whereEqualTo("status_id", "room_available")
-            .get()
-            .addOnSuccessListener { querySnapshot ->
-                onCountResult(querySnapshot.size())
-            }
-            .addOnFailureListener { e ->
-                Log.e("Firestore", "Lỗi đếm phòng trống: ${e.message}")
-                onCountResult(0)
+            .addSnapshotListener { querySnapshot, e ->
+                if (e != null) {
+                    Log.e("Firestore", "Lỗi lắng nghe phòng trống: ${e.message}")
+                    onCountResult(0)
+                    return@addSnapshotListener
+                }
+
+                if (querySnapshot != null) {
+                    onCountResult(querySnapshot.size())
+                } else {
+                    onCountResult(0)
+                }
             }
     }
 
@@ -187,7 +194,7 @@ class RoomTypeAdapter(
         }
 
         recyclerImage.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-        recyclerImage.adapter = RoomImageListAdapter(images, nextItemClickListener)
+         recyclerImage.adapter = RoomImageListAdapter(images, nextItemClickListener)
 
         val dialog = AlertDialog.Builder(context)
             .setView(view)

@@ -9,5 +9,5 @@
         layout="@layout/layout_room_type_detail"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        />
+      />
 </LinearLayout>

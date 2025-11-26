@@ -14,11 +14,11 @@ import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.firestore
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.receptionist.ServiceExtraFeeActivity
+import com.tdc.nhom6.roomio.activities.ServiceExtraFeeActivity
+import com.tdc.nhom6.roomio.data.CleanerTaskRepository
 import com.tdc.nhom6.roomio.models.HeaderColor
 import com.tdc.nhom6.roomio.models.ReservationStatus
 import com.tdc.nhom6.roomio.models.ReservationUi
-import com.tdc.nhom6.roomio.repositories.CleanerTaskRepository
 
 class ReservationAdapter(private val items: MutableList<ReservationUi>) :
     RecyclerView.Adapter<ReservationViewHolder>() {
@@ -157,7 +157,7 @@ class ReservationAdapter(private val items: MutableList<ReservationUi>) :
         val btnConfirm = dialogView.findViewById<android.widget.Button>(R.id.btnConfirm)
         val btnCancel = dialogView.findViewById<android.widget.Button>(R.id.btnCancel)
 
-        val actualCheckOutTime = System.currentTimeMillis()
+        val actualCheckOutTime = Timestamp.now()
 
         val alert = AlertDialog.Builder(context)
             .setView(dialogView)

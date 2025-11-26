@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white"
-    tools:context=".activities.booking.PaymentActivity">
+    tools:context=".activities.PaymentActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarLayout"
@@ -301,13 +301,13 @@
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
             </androidx.cardview.widget.CardView>            <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Please pay within 24 hours or the order will be automatically canceled."
-            android:gravity="center"
-            android:textSize="14sp"
-            android:textColor="@android:color/holo_red_dark"
-            android:layout_marginBottom="16dp" />
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Please pay within 24 hours or the order will be automatically canceled."
+                android:gravity="center"
+                android:textSize="14sp"
+                android:textColor="@android:color/holo_red_dark"
+                android:layout_marginBottom="16dp" />
 
         </LinearLayout>
     </ScrollView>

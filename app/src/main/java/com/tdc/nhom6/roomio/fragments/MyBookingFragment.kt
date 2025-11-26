@@ -13,7 +13,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
-import com.tdc.nhom6.roomio.activities.auth.LoginActivity
+import com.tdc.nhom6.roomio.activities.LoginActivity
 import com.tdc.nhom6.roomio.adapters.MyBookingAdapter
 import com.tdc.nhom6.roomio.databinding.FragmentMyBookingBinding
 import com.tdc.nhom6.roomio.models.Booking

@@ -37,7 +37,7 @@
                 android:textStyle="bold"
                 android:textSize="16sp" />
 
-            <!-- Rating chỉ cho người đánh giá -->
+            <!-- ⭐⭐⭐⭐⭐ Rating chỉ cho người đánh giá -->
             <RatingBar
                 android:id="@+id/ratingBar"
                 android:layout_width="wrap_content"

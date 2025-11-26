@@ -13,3 +13,4 @@ enum class HeaderColor {
 enum class ReservationStatus {
     ALL, UNCOMPLETED, PENDING, COMPLETED, CANCELED, PAID
 }
+
