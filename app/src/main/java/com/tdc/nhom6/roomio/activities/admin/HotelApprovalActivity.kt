@@ -10,22 +10,19 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.apis.RetrofitClient
 import com.tdc.nhom6.roomio.databinding.HotelApprovalLayoutBinding
 import com.tdc.nhom6.roomio.models.HotelModel
 import com.tdc.nhom6.roomio.models.RoomModel
+import com.tdc.nhom6.roomio.repositories.FCMRepository
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
-
-import okhttp3.*
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
-import java.io.IOException
 
 class HotelApprovalActivity : AppCompatActivity() {
 
@@ -34,6 +31,8 @@ class HotelApprovalActivity : AppCompatActivity() {
 
     private lateinit var userId: String
     private lateinit var documentId: String
+
+    private lateinit var fcmRepo: FCMRepository
 
     companion object {
         const val REQUEST_APPROVED = "hotel_request_approved"
@@ -49,6 +48,8 @@ class HotelApprovalActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = HotelApprovalLayoutBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        fcmRepo = FCMRepository(this)
 
         setSupportActionBar(binding.appbar.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -141,42 +142,6 @@ class HotelApprovalActivity : AppCompatActivity() {
             }
     }
 
-    fun notifyUserOnServer(
-        userId: String,
-        title: String,
-        message: String,
-        data: Map<String, String> = emptyMap()
-    ) {
-        val url = "http://192.168.0.107/fcm_roomio_server/send_notification.php" // đổi thành URL server thật
-
-        val json = JSONObject().apply {
-            put("user_id", userId)
-            put("title", title)
-            put("message", message)
-            put("data", JSONObject(data))
-        }
-
-        val client = OkHttpClient()
-        val mediaType = "application/json; charset=utf-8".toMediaType()
-        val requestBody = json.toString().toRequestBody(mediaType)
-
-        val request = Request.Builder()
-            .url(url)
-            .post(requestBody)
-            .build()
-
-        client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                Log.e("AdminNotify", "Failed: ${e.message}")
-            }
-
-            override fun onResponse(call: Call, response: Response) {
-                val body = response.body?.string()
-                Log.d("AdminNotify", "Success: $body")
-            }
-        })
-    }
-
     @SuppressLint("SetTextI18n")
     private fun handleStatusUI(status: String, data: Map<String, Any>) {
         val updatedAt = formatDate(data["updated_at"])
@@ -207,39 +172,50 @@ class HotelApprovalActivity : AppCompatActivity() {
     }
 
     private fun showApproveDialog() {
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Xác nhận duyệt đơn")
             .setMessage("Bạn có chắc chắn muốn duyệt đơn đăng ký này không?")
             .setPositiveButton("Đồng ý", null)
-            .setNegativeButton("Hủy", null)
+            .setNegativeButton("Hủy") { d, _ -> d.dismiss() }
             .create()
-            .apply {
-                setOnShowListener {
-                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                        val progress = Dialog(this@HotelApprovalActivity)
-                        progress.setContentView(R.layout.dialog_loading)
-                        progress.setCancelable(false)
-                        progress.show()
 
-                        approveRequest {
-                            notifyUserOnServer(
-                                userId = userId,
-                                title = "Đơn đã được duyệt",
-                                message = "Admin đã duyệt đơn đăng ký của bạn",
-                                data = mapOf(
-                                    "type" to "navigate",
-                                    "screen" to "BookingDetail",
-                                    "actionType" to ""
-                                )
+        dialog.setOnShowListener {
+            val btnPositive = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            btnPositive.setOnClickListener {
+                val progress = Dialog(this@HotelApprovalActivity)
+                progress.setContentView(R.layout.dialog_loading)
+                progress.setCancelable(false)
+                progress.show()
+
+                approveRequest {
+                    lifecycleScope.launch {
+                        val success = fcmRepo.notifyUserViaFCM(
+                            fcmApi = RetrofitClient.createFCMClient(),
+                            userId = userId,
+                            title = "Đơn đã được duyệt",
+                            message = "Admin đã duyệt đơn đăng ký của bạn",
+                            data = mapOf(
+                                "type" to "navigate",
+                                "screen" to "BookingDetail",
+                                "actionType" to ""
                             )
-                            Toast.makeText(this@HotelApprovalActivity, "Đã duyệt & gửi thông báo!", Toast.LENGTH_LONG).show()
-                            progress.dismiss()
-                            dismiss()
-                        }
+                        )
+
+                        Toast.makeText(
+                            this@HotelApprovalActivity,
+                            if (success) "Đã duyệt & gửi thông báo!"
+                            else "Đã duyệt nhưng gửi thông báo thất bại!",
+                            Toast.LENGTH_LONG
+                        ).show()
+
+                        progress.dismiss()
+                        dialog.dismiss()
                     }
-                    getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener { dismiss() }
                 }
-            }.show()
+            }
+        }
+
+        dialog.show()
     }
 
     private fun approveRequest(onComplete: () -> Unit) {
@@ -394,16 +370,22 @@ class HotelApprovalActivity : AppCompatActivity() {
                         progress.show()
 
                         rejectRequest(reason) {
-                            notifyUserOnServer(
-                                userId = userId,
-                                title = "Đơn đã bị từ chối",
-                                message = "Admin đã từ chối đơn của bạn với lý do \n$reason",
-                                data = mapOf(
-                                    "type" to "navigate",
-                                    "screen" to "BookingDetail",
-                                    "actionType" to ""
+                            lifecycleScope.launch {
+                                val success = fcmRepo.notifyUserViaFCM(
+                                    fcmApi = RetrofitClient.createFCMClient(),
+                                    userId = userId,
+                                    title = "Đơn đã bị từ chối",
+                                    message = "Admin đã từ chối đơn của bạn với lý do \n$reason",
+                                    data = mapOf(
+                                        "type" to "navigate",
+                                        "screen" to "BookingDetail",
+                                        "actionType" to ""
+                                    )
                                 )
-                            )
+                                if (!success) {
+                                    Toast.makeText(this@HotelApprovalActivity, "Gửi thông báo thất bại!", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                             progress.dismiss()
                             dismiss()
                         }
@@ -436,6 +418,7 @@ class HotelApprovalActivity : AppCompatActivity() {
             }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun loadHotelTypeName(hotelTypeId: String) {
         if (hotelTypeId.isEmpty()) {
             binding.tvLoaiHinhHotel.text = "Không xác định"

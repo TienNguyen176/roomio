@@ -1,7 +1,10 @@
 package com.tdc.nhom6.roomio.repositories
 
 import android.content.Context
+import android.util.Log
+import com.tdc.nhom6.roomio.apis.FCMApi
 import com.tdc.nhom6.roomio.apis.RetrofitClient
+import com.tdc.nhom6.roomio.models.FCMNotification
 import com.tdc.nhom6.roomio.models.FCMResponseModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,21 +25,32 @@ class FCMRepository(context: Context) {
             response.isSuccessful
         }
 
-    // Gửi notification tới 1 token
-    suspend fun sendNotification(
-        token: String,
+    suspend fun notifyUserViaFCM(
+        fcmApi: FCMApi,
+        userId: String,
         title: String,
-        body: String,
+        message: String,
         data: Map<String, String> = emptyMap()
-    ): FCMResponseModel? =
-        withContext(Dispatchers.IO) {
-            val payload = mutableMapOf<String, Any>(
-                "token" to token,
+    ): Boolean {
+        return try {
+            val body = mapOf(
+                "user_id" to userId,
                 "title" to title,
-                "body" to body,
+                "message" to message,
                 "data" to data
             )
-            val response = api.sendNotification(payload)
-            if (response.isSuccessful) response.body() else null
+
+            val response = fcmApi.sendNotification(FCMNotification(userId, title, message, data))
+            if (response.isSuccessful) {
+                Log.d("NotifyServer", "Success: ${response.body()}")
+                true
+            } else {
+                Log.e("NotifyServer", "Error: ${response.code()} ${response.message()}")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("NotifyServer", "Exception: ${e.message}")
+            false
         }
+    }
 }

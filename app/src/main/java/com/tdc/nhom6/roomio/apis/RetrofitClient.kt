@@ -32,7 +32,7 @@ object RetrofitClient {
             .build()
 
         return Retrofit.Builder()
-            .baseUrl("http://192.168.0.107/fcm_roomio_server/") // URL VPS Windows
+            .baseUrl("http://langlasky.ddns.net/fcm_roomio_server/") // URL VPS Windows
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
