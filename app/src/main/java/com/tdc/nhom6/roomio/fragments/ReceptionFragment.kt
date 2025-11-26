@@ -307,7 +307,7 @@ class ReceptionFragment : Fragment() {
 
     private fun shouldIncludeBooking(doc: DocumentSnapshot): Boolean {
         val paymentStatus = doc.getString("status")?.lowercase(Locale.getDefault()) ?: return true
-        return paymentStatus == "confirm" || paymentStatus == "checked_in" || paymentStatus == "checked_out"
+        return paymentStatus == "confirmed" || paymentStatus == "checked_in" || paymentStatus == "checked_out"
     }
 
 
