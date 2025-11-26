@@ -126,6 +126,10 @@
             android:exported="false" />
 
         <activity
+            android:name=".activities.notification.NotificationsActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".activities.booking.PaymentActivity"
             android:exported="false" />
         <activity

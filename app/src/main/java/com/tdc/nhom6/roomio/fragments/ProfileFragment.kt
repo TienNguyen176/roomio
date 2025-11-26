@@ -18,6 +18,7 @@ import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.activities.admin.AdminHomeActivity
 import com.tdc.nhom6.roomio.activities.auth.LoginActivity
 import com.tdc.nhom6.roomio.activities.cleaner.CleanerActivity
+import com.tdc.nhom6.roomio.activities.notification.NotificationsActivity
 import com.tdc.nhom6.roomio.activities.owner.AdminHotelActivity
 import com.tdc.nhom6.roomio.activities.owner.BusinessRegistrationActivity
 import com.tdc.nhom6.roomio.activities.profile.EditProfileActivity
@@ -222,6 +223,10 @@ class ProfileFragment : Fragment() {
 
         binding.showProfile.setOnClickListener {
             startActivity(Intent(requireContext(), EditProfileActivity::class.java))
+        }
+
+        binding.showThongBao.setOnClickListener {
+            startActivity(Intent(requireContext(), NotificationsActivity::class.java))
         }
 
         binding.btnSignOut.setOnClickListener {

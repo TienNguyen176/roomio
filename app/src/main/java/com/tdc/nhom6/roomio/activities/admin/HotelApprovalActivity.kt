@@ -21,6 +21,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.io.IOException
+
 class HotelApprovalActivity : AppCompatActivity() {
 
     private lateinit var binding: HotelApprovalLayoutBinding
@@ -135,6 +141,42 @@ class HotelApprovalActivity : AppCompatActivity() {
             }
     }
 
+    fun notifyUserOnServer(
+        userId: String,
+        title: String,
+        message: String,
+        data: Map<String, String> = emptyMap()
+    ) {
+        val url = "http://192.168.0.107/fcm_roomio_server/send_notification.php" // đổi thành URL server thật
+
+        val json = JSONObject().apply {
+            put("user_id", userId)
+            put("title", title)
+            put("message", message)
+            put("data", JSONObject(data))
+        }
+
+        val client = OkHttpClient()
+        val mediaType = "application/json; charset=utf-8".toMediaType()
+        val requestBody = json.toString().toRequestBody(mediaType)
+
+        val request = Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e("AdminNotify", "Failed: ${e.message}")
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                val body = response.body?.string()
+                Log.d("AdminNotify", "Success: $body")
+            }
+        })
+    }
+
     @SuppressLint("SetTextI18n")
     private fun handleStatusUI(status: String, data: Map<String, Any>) {
         val updatedAt = formatDate(data["updated_at"])
@@ -180,6 +222,17 @@ class HotelApprovalActivity : AppCompatActivity() {
                         progress.show()
 
                         approveRequest {
+                            notifyUserOnServer(
+                                userId = userId,
+                                title = "Đơn đã được duyệt",
+                                message = "Admin đã duyệt đơn đăng ký của bạn",
+                                data = mapOf(
+                                    "type" to "navigate",
+                                    "screen" to "BookingDetail",
+                                    "actionType" to ""
+                                )
+                            )
+                            Toast.makeText(this@HotelApprovalActivity, "Đã duyệt & gửi thông báo!", Toast.LENGTH_LONG).show()
                             progress.dismiss()
                             dismiss()
                         }
@@ -341,6 +394,16 @@ class HotelApprovalActivity : AppCompatActivity() {
                         progress.show()
 
                         rejectRequest(reason) {
+                            notifyUserOnServer(
+                                userId = userId,
+                                title = "Đơn đã bị từ chối",
+                                message = "Admin đã từ chối đơn của bạn với lý do \n$reason",
+                                data = mapOf(
+                                    "type" to "navigate",
+                                    "screen" to "BookingDetail",
+                                    "actionType" to ""
+                                )
+                            )
                             progress.dismiss()
                             dismiss()
                         }
