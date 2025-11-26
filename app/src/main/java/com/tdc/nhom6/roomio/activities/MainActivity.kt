@@ -38,12 +38,12 @@ class MainActivity : AppCompatActivity() {
             app?.let {
                 Log.d("Firebase", "Firebase app name: ${it.name}")
             } ?: Log.w("Firebase", "Firebase app is null")
-            
+
             // Check if google-services.json matches and test Firestore connection
             try {
                 val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                 Log.d("Firebase", "Firestore instance created successfully")
-                
+
                 // Test Firestore connection with a simple read
                 firestore.collection("hotels").limit(1).get()
                     .addOnSuccessListener { snapshot ->
