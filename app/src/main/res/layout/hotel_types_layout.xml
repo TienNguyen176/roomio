@@ -136,9 +136,9 @@
 
         <!-- Danh sách các hotelType -->
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvListHotelTypes"
+            android:id="@+id/rvListTypes"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:padding="12dp"
             android:clipToPadding="false"
             android:nestedScrollingEnabled="false"

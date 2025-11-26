@@ -243,7 +243,7 @@ class BusinessRegistrationActivity : AppCompatActivity() {
             .addOnSuccessListener { result ->
                 hotelTypes.clear()
                 for (doc in result) {
-                    hotelTypes.add(HotelTypeModel(doc.id, doc.getString("type_name") ?: "Không tên"))
+                    hotelTypes.add(HotelTypeModel(doc.id, doc.getString("typeName") ?: "Không tên"))
                 }
                 binding.tvLoaiHinhKhachSan.setOnClickListener { showHotelTypeDialog() }
             }
@@ -255,14 +255,14 @@ class BusinessRegistrationActivity : AppCompatActivity() {
     private fun showHotelTypeDialog() {
         if (hotelTypes.isEmpty()) return Toast.makeText(this, "Chưa có dữ liệu loại hình khách sạn!", Toast.LENGTH_SHORT).show()
 
-        val sortedList = hotelTypes.sortedBy { it.type_name.lowercase() }
+        val sortedList = hotelTypes.sortedBy { it.typeName.lowercase() }
         val adapter = HotelTypeDialogAdapter(this, sortedList)
 
         android.app.AlertDialog.Builder(this)
             .setTitle(HOTEL_SELECTED_TEXT)
             .setAdapter(adapter) { dialog, which ->
-                selectedHotelTypeId = sortedList[which].type_id
-                binding.tvLoaiHinhKhachSan.text = sortedList[which].type_name
+                selectedHotelTypeId = sortedList[which].id
+                binding.tvLoaiHinhKhachSan.text = sortedList[which].typeName
                 dialog.dismiss()
             }
             .setNegativeButton("Hủy", null)

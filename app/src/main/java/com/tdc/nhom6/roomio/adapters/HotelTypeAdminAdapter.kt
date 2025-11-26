@@ -10,26 +10,22 @@ import com.tdc.nhom6.roomio.models.HotelTypeModel
 class HotelTypeAdminAdapter(
     private val items: MutableList<HotelTypeModel>,
     private val onItemClick: (HotelTypeModel, Int) -> Unit
-) : RecyclerView.Adapter<HotelTypeAdminAdapter.HotelTypeAdminViewHolder>() {
+) : RecyclerView.Adapter<HotelTypeAdminAdapter.TypeViewHolder>() {
 
-    inner class HotelTypeAdminViewHolder(val binding: ItemHotelTypesAdminBinding) :
-        RecyclerView.ViewHolder(binding.root) {
-        fun bind(hotelType: HotelTypeModel, position: Int) {
-            binding.tvHotelTypeName.text = hotelType.type_name
-            binding.tvHotelTypeDesc.text = hotelType.description
-
-            binding.root.setOnClickListener {
-                onItemClick(hotelType, position)
-            }
+    inner class TypeViewHolder(val binding: ItemHotelTypesAdminBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(type: HotelTypeModel, position: Int) {
+            binding.tvHotelTypeName.text = type.typeName
+            binding.tvHotelTypeDesc.text = type.description
+            binding.root.setOnClickListener { onItemClick(type, position) }
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HotelTypeAdminViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TypeViewHolder {
         val binding = ItemHotelTypesAdminBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return HotelTypeAdminViewHolder(binding)
+        return TypeViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: HotelTypeAdminViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: TypeViewHolder, position: Int) {
         holder.bind(items[position], position)
     }
 

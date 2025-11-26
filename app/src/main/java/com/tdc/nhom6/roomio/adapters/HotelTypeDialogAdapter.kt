@@ -31,7 +31,7 @@ class HotelTypeDialogAdapter(
 
         val item = hotelTypes[position]
         binding.tvIndex.text = "${position + 1}."
-        binding.tvHotelTypeName.text = item.type_name
+        binding.tvHotelTypeName.text = item.typeName
 
         return binding.root
     }

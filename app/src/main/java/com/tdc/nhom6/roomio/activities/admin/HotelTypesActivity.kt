@@ -18,14 +18,14 @@ import com.tdc.nhom6.roomio.models.HotelTypeModel
 class HotelTypesActivity : AppCompatActivity() {
     private lateinit var binding: HotelTypesLayoutBinding
 
-    private lateinit var adapter: HotelTypeAdminAdapter
+    private lateinit var hotelTypeAdapter: HotelTypeAdminAdapter
     private val typeList = mutableListOf<HotelTypeModel>()
     private var selectedIndex: Int? = null
     private val db = FirebaseFirestore.getInstance()
     private var listener: ListenerRegistration? = null
 
     companion object {
-        const val TYPE_NAME = "type_name"
+        const val TYPE_NAME = "typeName"
         const val DESCRIPTION = "description"
     }
 
@@ -44,14 +44,14 @@ class HotelTypesActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView() {
-        adapter = HotelTypeAdminAdapter(typeList) { type, position ->
-            selectedIndex = position
-            binding.edtHotelTypeName.setText(type.type_name)
+        hotelTypeAdapter = HotelTypeAdminAdapter(typeList) { type, pos ->
+            selectedIndex = pos
+            binding.edtHotelTypeName.setText(type.typeName)
             binding.edtHotelTypeDesc.setText(type.description)
         }
 
-        binding.rvListHotelTypes.layoutManager = LinearLayoutManager(this)
-        binding.rvListHotelTypes.adapter = adapter
+        binding.rvListTypes.layoutManager = LinearLayoutManager(this)
+        binding.rvListTypes.adapter = hotelTypeAdapter
     }
 
     private fun setEvent() {
@@ -70,12 +70,10 @@ class HotelTypesActivity : AppCompatActivity() {
                     return@addSnapshotListener
                 }
                 val list = snapshot?.toObjects(HotelTypeModel::class.java) ?: emptyList()
-                Log.d("Firestore", "Mapped list: $list")
-                Log.d("RecyclerView", "Adapter item count: ${adapter.itemCount}")
 
                 typeList.clear()
                 typeList.addAll(list)
-                adapter.updateList(typeList)
+                hotelTypeAdapter.updateList(list)
             }
     }
 
@@ -166,7 +164,7 @@ class HotelTypesActivity : AppCompatActivity() {
             return
         }
 
-        type.type_id?.let {
+        type.id?.let {
             db.collection("hotelTypes").document(it)
                 .update(mapOf(TYPE_NAME to name, DESCRIPTION to desc))
                 .addOnSuccessListener {
@@ -188,7 +186,7 @@ class HotelTypesActivity : AppCompatActivity() {
             return
         }
         val type = typeList[index]
-        type.type_id?.let {
+        type.id?.let {
             db.collection("hotelTypes").document(it)
                 .delete()
                 .addOnSuccessListener {
