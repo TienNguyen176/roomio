@@ -12,6 +12,7 @@ import com.google.firebase.firestore.Query
 import com.tdc.nhom6.roomio.adapters.PaymentApproverAdapter
 import com.tdc.nhom6.roomio.databinding.ApproverPaymentLayoutBinding
 import com.tdc.nhom6.roomio.models.PaymentItemModel
+import java.util.*
 
 class ApproverPaymentActivity : AppCompatActivity() {
 
@@ -31,13 +32,14 @@ class ApproverPaymentActivity : AppCompatActivity() {
         supportActionBar?.title = "Danh sách đơn hàng"
 
         setupRecyclerView()
-        loadInvoicesRealtime()
+        loadStatusMap {
+            loadInvoicesRealtime()
+        }
         setupSearch()
     }
 
     private fun setupRecyclerView() {
         paymentAdapter = PaymentApproverAdapter(paymentList) { item ->
-            //Toast.makeText(this, "Clicked: ${item.invoiceId}", Toast.LENGTH_SHORT).show()
             showStatusDialog(item)
         }
         binding.rcvPayments.adapter = paymentAdapter
@@ -46,84 +48,96 @@ class ApproverPaymentActivity : AppCompatActivity() {
 
     private fun setupSearch() {
         binding.edtSearch.addTextChangedListener { editable ->
-            val query = editable.toString().lowercase()
-            val filtered = if (query.isEmpty()) {
-                fullPaymentList
-            } else {
-                fullPaymentList.filter {
-                    it.invoiceId?.lowercase()?.contains(query) == true ||
-                            it.status?.lowercase()?.contains(query) == true
-                }
+            val query = editable.toString().lowercase(Locale.getDefault())
+            val filtered = if (query.isEmpty()) fullPaymentList else fullPaymentList.filter {
+                it.invoiceId?.lowercase(Locale.getDefault())?.contains(query) == true ||
+                        it.status?.lowercase(Locale.getDefault())?.contains(query) == true
             }
             paymentAdapter.setData(filtered)
         }
     }
 
     private fun showStatusDialog(item: PaymentItemModel) {
-        val statuses = arrayOf("paid", "cancelled")
-        val selectedIndex = statuses.indexOf(item.status)
+        val allowedStatusIds = listOf("pending_payment", "paid", "cancelled")
 
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Cập nhật trạng thái hóa đơn")
-            .setSingleChoiceItems(statuses, selectedIndex) { dialog, which ->
-                val newStatus = statuses[which]
-                dialog.dismiss()
+        db.collection("status")
+            .whereIn(FieldPath.documentId(), allowedStatusIds)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                if (snapshot.isEmpty) return@addOnSuccessListener
 
-                // Hỏi người dùng có muốn cập nhật không
+                val statuses = snapshot.documents.map { doc ->
+                    val id = doc.id
+                    val name = doc.getString("status_name") ?: id
+                    id to name
+                }
+
+                val statusNames = statuses.map { it.second }.toTypedArray()
+                val currentIndex = statuses.indexOfFirst { it.first == item.status }
+
                 androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("Xác nhận cập nhật")
-                    .setMessage(
-                        "Bạn có chắc muốn đổi trạng thái hóa đơn:\n" +
-                                "• Mã hóa đơn: ${item.invoiceId}\n" +
-                                "• Trạng thái mới: $newStatus"
-                    )
-                    .setPositiveButton("Cập nhật") { _, _ ->
-                        updateInvoiceStatus(item.invoiceId!!, item.bookingId!!, newStatus)
+                    .setTitle("Cập nhật trạng thái hóa đơn")
+                    .setSingleChoiceItems(statusNames, currentIndex) { dialog, which ->
+                        val newStatusId = statuses[which].first
+                        val newStatusName = statuses[which].second
+                        dialog.dismiss()
+
+                        // Xác nhận update
+                        androidx.appcompat.app.AlertDialog.Builder(this)
+                            .setTitle("Xác nhận cập nhật")
+                            .setMessage(
+                                "Bạn có chắc muốn đổi trạng thái hóa đơn:\n" +
+                                        "• Mã hóa đơn: ${item.invoiceId}\n" +
+                                        "• Trạng thái mới: $newStatusName"
+                            )
+                            .setPositiveButton("Cập nhật") { _, _ ->
+                                updateInvoiceStatus(item.invoiceId!!, item.bookingId!!, newStatusId)
+                            }
+                            .setNegativeButton("Hủy", null)
+                            .show()
                     }
                     .setNegativeButton("Hủy", null)
                     .show()
             }
-            .setNegativeButton("Hủy", null)
-            .show()
+            .addOnFailureListener {
+                Toast.makeText(this, "Không tải được trạng thái!", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun updateInvoiceStatus(invoiceId: String, bookingId: String, newStatus: String) {
-
-        val invoiceUpdates = hashMapOf<String, Any>(
-            "paymentStatus" to newStatus
-        )
-
-        // Update invoices
-        db.collection("invoices")
-            .document(invoiceId)
+        val invoiceUpdates = hashMapOf<String, Any>("paymentStatus" to newStatus)
+        db.collection("invoices").document(invoiceId)
             .update(invoiceUpdates)
             .addOnSuccessListener {
-
-                // Xác định trạng thái booking tương ứng
                 val bookingStatus = when (newStatus) {
-                    "paid" -> "confirm"
+                    "paid" -> "confirmed"
                     "cancelled" -> "cancelled"
                     else -> "pending"
                 }
-
-                // Update bookings
-                db.collection("bookings")
-                    .document(bookingId)
+                db.collection("bookings").document(bookingId)
                     .update("status", bookingStatus)
                     .addOnSuccessListener {
-                        Toast.makeText(
-                            this,
-                            "Đã cập nhật hóa đơn & trạng thái booking!",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        Toast.makeText(this, "Đã cập nhật hóa đơn & booking!", Toast.LENGTH_SHORT).show()
+                        loadInvoicesRealtime()
                     }
-                    .addOnFailureListener {
-                        Toast.makeText(this, "Lỗi cập nhật booking!", Toast.LENGTH_SHORT).show()
-                    }
+                    .addOnFailureListener { Toast.makeText(this, "Lỗi cập nhật booking!", Toast.LENGTH_SHORT).show() }
+            }
+            .addOnFailureListener { Toast.makeText(this, "Lỗi cập nhật hóa đơn!", Toast.LENGTH_SHORT).show() }
+    }
 
+    private fun loadStatusMap(onComplete: () -> Unit) {
+        db.collection("status")
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val map = mutableMapOf<String, String>()
+                for (doc in snapshot.documents) {
+                    map[doc.id] = doc.getString("status_name") ?: doc.id
+                }
+                paymentAdapter.statusNameMap = map
+                onComplete()
             }
             .addOnFailureListener {
-                Toast.makeText(this, "Lỗi cập nhật hóa đơn!", Toast.LENGTH_SHORT).show()
+                onComplete()
             }
     }
 
@@ -136,14 +150,11 @@ class ApproverPaymentActivity : AppCompatActivity() {
                     Toast.makeText(this, "Failed to load invoices: ${e.message}", Toast.LENGTH_SHORT).show()
                     return@addSnapshotListener
                 }
-
                 if (snapshot == null) return@addSnapshotListener
 
                 fullPaymentList.clear()
-
                 val invoiceDocs = snapshot.documents
                 val bookingIds = invoiceDocs.mapNotNull { it.getString("bookingId") }.distinct()
-
                 if (bookingIds.isEmpty()) {
                     paymentAdapter.setData(fullPaymentList)
                     return@addSnapshotListener
@@ -153,31 +164,28 @@ class ApproverPaymentActivity : AppCompatActivity() {
                     .whereIn(FieldPath.documentId(), bookingIds)
                     .get()
                     .addOnSuccessListener { bookingSnapshots ->
-
                         val bookingMap = bookingSnapshots.documents.associateBy({ it.id }, { it })
-
                         for (invoiceDoc in invoiceDocs) {
                             val invoiceId = invoiceDoc.id
                             val bookingId = invoiceDoc.getString("bookingId") ?: ""
                             val totalAmount = (invoiceDoc.get("totalAmount") as? Number)?.toDouble() ?: 0.0
-                            val status = invoiceDoc.getString("paymentStatus") ?: "unknown"
+                            val status = invoiceDoc.getString("paymentStatus") ?: "pending"
                             val createdAt = invoiceDoc.getTimestamp("createdAt")
-
                             val bookingDoc = bookingMap[bookingId]
                             val checkInDate = bookingDoc?.getTimestamp("checkInDate")
                             val checkOutDate = bookingDoc?.getTimestamp("checkOutDate")
 
-                            val item = PaymentItemModel(
-                                bookingId = bookingId,
-                                invoiceId = invoiceId,
-                                checkInDate = checkInDate,
-                                checkOutDay = checkOutDate,
-                                totalPaidAmount = totalAmount,
-                                createdAt = createdAt,
-                                status = status
+                            fullPaymentList.add(
+                                PaymentItemModel(
+                                    bookingId = bookingId,
+                                    invoiceId = invoiceId,
+                                    checkInDate = checkInDate,
+                                    checkOutDay = checkOutDate,
+                                    totalPaidAmount = totalAmount,
+                                    createdAt = createdAt,
+                                    status = status
+                                )
                             )
-
-                            fullPaymentList.add(item)
                         }
                         paymentAdapter.setData(fullPaymentList)
                     }

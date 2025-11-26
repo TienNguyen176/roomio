@@ -19,6 +19,7 @@ import com.tdc.nhom6.roomio.activities.admin.AdminHomeActivity
 import com.tdc.nhom6.roomio.activities.auth.LoginActivity
 import com.tdc.nhom6.roomio.activities.cleaner.CleanerActivity
 import com.tdc.nhom6.roomio.activities.notification.NotificationsActivity
+import com.tdc.nhom6.roomio.activities.order.ApproverPaymentActivity
 import com.tdc.nhom6.roomio.activities.owner.AdminHotelActivity
 import com.tdc.nhom6.roomio.activities.owner.BusinessRegistrationActivity
 import com.tdc.nhom6.roomio.activities.profile.EditProfileActivity
@@ -243,7 +244,7 @@ class ProfileFragment : Fragment() {
                 R.id.navChuKS -> startActivity(Intent(requireContext(), AdminHotelActivity::class.java))
                 R.id.navLeTan -> startActivity(Intent(requireContext(), ReceptionActivity::class.java))
                 R.id.navDonPhong -> startActivity(Intent(requireContext(), CleanerActivity::class.java))
-                //R.id.navXuLy -> startActivity(Intent(requireContext(), AdminHotelActivity::class.java))
+                R.id.navXuLy -> startActivity(Intent(requireContext(), ApproverPaymentActivity::class.java))
             }
             true
         }
