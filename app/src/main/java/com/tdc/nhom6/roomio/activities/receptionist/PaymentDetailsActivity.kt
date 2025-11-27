@@ -411,7 +411,6 @@ class PaymentDetailsActivity : AppCompatActivity() {
                         }
                     }
 
-                    // Fallback: listen to all invoices and filter
                     if (!listenerSet) {
                         invoiceListener = invoices.addSnapshotListener { snapshots, error ->
                             if (error != null) {
@@ -599,7 +598,7 @@ class PaymentDetailsActivity : AppCompatActivity() {
             invoiceDocId = invoiceId
             val intent = Intent(this, PaymentActivity::class.java).apply {
                 putExtra("BOOKING_ID", bookingId)
-                putExtra("INVOICE_ID", bookingId)
+                putExtra("INVOICE_ID", invoiceId)
             }
             startActivity(intent)
         }
