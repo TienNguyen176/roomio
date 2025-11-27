@@ -124,46 +124,69 @@ class PaymentActivity : AppCompatActivity() {
             }
 
             binding.btnDone.setOnClickListener {
-                val docId = bookingDocId?.takeIf { it.isNotBlank() }
-                    ?: intent.getStringExtra("RESERVATION_ID")?.takeIf { it.isNotBlank() }
+                val docId = if (bookingId.isNotBlank() && bookingId != "null") {
+                    bookingId
+                } else {
+                    bookingDocId?.takeIf { it.isNotBlank() }
+                        ?: intent.getStringExtra("RESERVATION_ID")?.takeIf { it.isNotBlank() }
+                }
 
-                if (docId.isNullOrBlank()) {
+                if (docId.isNullOrBlank() || docId == "null") {
                     Toast.makeText(this, "Missing booking reference", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
-                firestore.collection("invoices")
-                    .whereEqualTo("bookingId", docId)
+
+                firestore.collection("bookings").document(docId)
                     .get()
-                    .addOnSuccessListener { invoiceSnapshots ->
-                        val invoiceCount = invoiceSnapshots.size()
+                    .addOnSuccessListener { bookingDoc ->
+                        if (!bookingDoc.exists()) {
+                            Toast.makeText(this, "Booking not found", Toast.LENGTH_SHORT).show()
+                            return@addOnSuccessListener
+                        }
 
-                        firestore.collection("bookings").document(docId)
-                            .update("status", "completed")
-                            .addOnSuccessListener {
+                        firestore.collection("invoices")
+                            .whereEqualTo("bookingId", docId)
+                            .get()
+                            .addOnSuccessListener { invoiceSnapshots ->
+                                val invoiceCount = invoiceSnapshots.size()
 
-                                invoiceSnapshots.documents.forEach {
-                                    it.reference.update("paymentStatus", "paid")
-                                }
+                                firestore.collection("bookings").document(docId)
+                                    .update("status", "completed")
+                                    .addOnSuccessListener {
 
-                                // Navigate based on invoice count
-                                val intent = if (invoiceCount > 1) {
-                                    Intent(this, ReceptionActivity::class.java).apply {
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                        firestore.collection("bookings").document(docId)
+                                            .get()
+                                            .addOnSuccessListener { updatedDoc ->
+                                                val newStatus = updatedDoc.getString("status")
+                                                Log.d("PaymentActivity", "Verified: booking status is now: $newStatus")
+                                            }
+
+                                        invoiceSnapshots.documents.forEach {
+                                            it.reference.update("paymentStatus", "paid")
+                                        }
+
+                                        val intent = if (invoiceCount > 1) {
+                                            Intent(this, ReceptionActivity::class.java).apply {
+                                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                            }
+                                        } else {
+                                            Intent(this, BookingDetailActivity::class.java).apply {
+                                                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                                putExtra("BOOKING_ID", docId)
+                                            }
+                                        }
+                                        startActivity(intent)
                                     }
-                                } else {
-                                    Intent(this, BookingDetailActivity::class.java).apply {
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                                        putExtra("BOOKING_ID", docId)
+                                    .addOnFailureListener { e ->
+                                        Toast.makeText(this, "Failed to update: ${e.message}", Toast.LENGTH_LONG).show()
                                     }
-                                }
-                                startActivity(intent)
                             }
-                            .addOnFailureListener {
-                                Toast.makeText(this, "Failed to update booking status", Toast.LENGTH_LONG).show()
+                            .addOnFailureListener { e ->
+                                Toast.makeText(this, "Failed to check invoices: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
                     }
-                    .addOnFailureListener {
-                        Toast.makeText(this, "Failed to check invoices", Toast.LENGTH_SHORT).show()
+                    .addOnFailureListener { e ->
+                        Toast.makeText(this, "Error checking booking: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
             }
 //            findViewById<MaterialButton>(R.id.btnDone)?.setOnClickListener {
