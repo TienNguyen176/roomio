@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.CleanerTaskAdapter
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
-import com.tdc.nhom6.roomio.activities.CleaningInspectionActivity
+import com.tdc.nhom6.roomio.activities.cleaner.CleaningInspectionActivity
 import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
@@ -74,7 +74,7 @@ class CleanerFragment : Fragment() {
 
     private fun startListeningForCheckoutBookings() {
         checkoutListener?.remove()
-        val statuses = listOf("pending_payment", "checked_out", "checked out")
+        val statuses = listOf("pending_payment", "checked_out")
         checkoutListener = firestore.collection("bookings")
             .whereIn("status", statuses)
             .addSnapshotListener { snapshot, error ->
@@ -86,7 +86,7 @@ class CleanerFragment : Fragment() {
                     val doc = change.document
                     val bookingId = doc.id
                     val status = doc.getString("status")?.lowercase()?.trim() ?: ""
-                    val isCheckoutStatus = status == "pending_payment" || status == "checked_out" || status == "checked out"
+                    val isCheckoutStatus = status == "pending_payment" || status == "checked_out"
 
                     if (!isCheckoutStatus || change.type == DocumentChange.Type.REMOVED) {
                         trackedBookingIds.remove(bookingId)
@@ -138,17 +138,18 @@ class CleanerFragment : Fragment() {
         val tvCompleted = view.findViewById<android.widget.TextView>(R.id.tvCompleted)
         val tvInProgressCard = view.findViewById<android.widget.TextView>(R.id.tvPending)
 
-        val totalRooms = currentTasks.size
+//        val totalRooms = currentTasks.size
         val completed = currentTasks.count { it.status == TaskStatus.CLEAN }
         val inProgress = currentTasks.count { it.status == TaskStatus.IN_PROGRESS }
         val pending = currentTasks.count { it.status == TaskStatus.DIRTY }
+        val roomsToClean = pending + inProgress
 
-        tvRoomsToClean.text = totalRooms.toString()
+        tvRoomsToClean.text = roomsToClean.toString()
         tvCompleted.text = completed.toString()
         tvInProgressCard.text = inProgress.toString()
 
         // Optional: update content description for accessibility with detailed counts
-        tvRoomsToClean.contentDescription = "Total rooms: $totalRooms"
+        tvRoomsToClean.contentDescription = "Total rooms: $roomsToClean"
         tvCompleted.contentDescription = "Completed rooms: $completed"
         tvInProgressCard.contentDescription = "In progress rooms: $inProgress"
     }
@@ -222,29 +223,30 @@ class CleanerFragment : Fragment() {
     private fun handleTaskAction(position: Int, task: CleanerTask) {
         when (task.status) {
             TaskStatus.DIRTY -> {
-                // Change to In Progress - this will be saved to Firebase by CleanerTaskRepository
                 val updated = task.copy(status = TaskStatus.IN_PROGRESS)
                 CleanerTaskRepository.updateTask(updated)
                 android.util.Log.d("CleanerFragment", "Status changed to IN_PROGRESS for room: ${task.roomId}")
-                // Navigate to inspection screen
-                try {
-                    val intent = Intent(requireContext(), CleaningInspectionActivity::class.java)
-                    intent.putExtra("ROOM_ID", task.roomId)
-                    intent.putExtra("BOOKING_ID", task.bookingDocId ?: task.roomId)
-                    intent.putExtra("ROOM_TYPE_ID", task.roomTypeId ?: "")
-                    intent.putExtra("HOTEL_ID", task.hotelId ?: "")
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    android.util.Log.e("CleanerFragment", "Error navigating to inspection: ${e.message}", e)
-                }
+                startCleaningInspection(task)
             }
             TaskStatus.IN_PROGRESS -> {
-                // Change to Clean - this will be saved to Firebase by CleanerTaskRepository
-                val updated = task.copy(status = TaskStatus.CLEAN)
-                CleanerTaskRepository.updateTask(updated)
-                android.util.Log.d("CleanerFragment", "Status changed to CLEAN for room: ${task.roomId}")
+                startCleaningInspection(task)
             }
-            else -> { /* No action for completed tasks */ }
+            else -> { /* Completed: nothing to do */ }
+        }
+    }
+
+    private fun startCleaningInspection(task: CleanerTask) {
+        try {
+            val intent = Intent(requireContext(), CleaningInspectionActivity::class.java).apply {
+                putExtra("ROOM_ID", task.roomId)
+                putExtra("RESERVATION_ID", task.reservationId)
+                putExtra("BOOKING_ID", task.bookingDocId ?: task.roomId)
+                putExtra("ROOM_TYPE_ID", task.roomTypeId ?: "")
+                putExtra("HOTEL_ID", task.hotelId ?: "")
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            android.util.Log.e("CleanerFragment", "Error navigating to inspection: ${e.message}", e)
         }
     }
 
@@ -271,6 +273,7 @@ class CleanerFragment : Fragment() {
 data class CleanerTask(
     val id: String,
     val roomId: String,
+    val reservationId: String,
     val status: TaskStatus,
     val timestamp: String,
     val bookingDocId: String? = null,

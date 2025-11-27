@@ -7,7 +7,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.HotelDetailActivity.Companion.db
+import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity.Companion.db
 import com.tdc.nhom6.roomio.databinding.ItemReviewReplyBinding // Đảm bảo import đúng binding
 import com.tdc.nhom6.roomio.models.Reply // Đảm bảo import đúng model
 import java.text.SimpleDateFormat

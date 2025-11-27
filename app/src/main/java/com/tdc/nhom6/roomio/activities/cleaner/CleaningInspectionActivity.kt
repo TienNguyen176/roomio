@@ -13,15 +13,12 @@ import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.BrokenFurnitureAdapter
 import com.tdc.nhom6.roomio.adapters.LostItemAdapter
 import com.tdc.nhom6.roomio.adapters.MiniBarAdapter
-import com.tdc.nhom6.roomio.repositories.CleanerTaskRepository
+import com.tdc.nhom6.roomio.data.CleanerTaskRepository
+import com.tdc.nhom6.roomio.fragments.TaskStatus
 import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
-import com.tdc.nhom6.roomio.models.BrokenItem
-import com.tdc.nhom6.roomio.models.LostItem
-import com.tdc.nhom6.roomio.models.MiniItem
-import com.tdc.nhom6.roomio.models.TaskStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -89,7 +86,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                         // Prepare invoice reference; will update after computing room fees
                         val invoiceRef = resolveInvoiceDocument(bookingId)
 
-                        // Save room fees to subcollections (NOT to invoices)
+                        // Save room fees to subcollections
                         // 1. Save lost items and broken furniture to facilitiesUsed
                         val checkedLostItems = lostAdapter.getCheckedItems()
                         val checkedBrokenItems = brokenAdapter.getCheckedItems()
@@ -213,19 +210,6 @@ class CleaningInspectionActivity : AppCompatActivity() {
                         if (roomFeesPayload.isNotEmpty()) {
                             cleanerData["roomFees"] = roomFeesPayload
                         }
-
-                        // Save cleaning fee + room fees to invoice for receptionist view
-                        val invoiceData = mutableMapOf<String, Any>(
-                            "cleaningCompletedAt" to cleaningTimestamp,
-                            "cleaningFee" to fee
-                        )
-                        if (roomFeesPayload.isNotEmpty()) {
-                            invoiceData["roomFees"] = roomFeesPayload
-                        }
-                        invoiceRef.set(invoiceData, SetOptions.merge())
-                            .addOnFailureListener { e ->
-                                android.util.Log.e("CleaningInspection", "Failed to update invoice with cleaning data", e)
-                            }
 
                         val cleanerDocRef = firestore.collection("bookings")
                             .document(bookingId)
@@ -467,7 +451,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun fetchMinibarItems(hotelId: String): List<MiniItem> {
+    private suspend fun fetchMinibarItems(hotelId: String): List<MiniBarAdapter.MiniItem> {
         try {
             android.util.Log.d("CleaningInspection", "Fetching minibar items for hotelId: $hotelId")
             val snapshot = firestore.collection("hotels")
@@ -505,7 +489,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                         val minibarId = doc.id
                         minibarIdLookup[name] = minibarId
                         android.util.Log.d("CleaningInspection", "Found minibar item (fallback): id=$minibarId, name=$name, price=$price")
-                        MiniItem(name, price, checked = false, quantity = 0)
+                        MiniBarAdapter.MiniItem(name, price, checked = false, quantity = 0)
                     } else {
                         android.util.Log.w("CleaningInspection", "Skipping minibar item with invalid price: name=$name")
                         null
@@ -526,7 +510,7 @@ class CleaningInspectionActivity : AppCompatActivity() {
                 if (price > 0) {
                     minibarIdLookup[name] = minibarId
                     android.util.Log.d("CleaningInspection", "Found minibar item: id=$minibarId, name=$name, price=$price")
-                    MiniItem(name, price, checked = false, quantity = 0)
+                    MiniBarAdapter.MiniItem(name, price, checked = false, quantity = 0)
                 } else {
                     android.util.Log.w("CleaningInspection", "Skipping minibar item with invalid price: name=$name")
                     null
@@ -578,8 +562,8 @@ class CleaningInspectionActivity : AppCompatActivity() {
     }
 
     private data class DamageRateResult(
-        val lostItems: List<LostItem>,
-        val brokenItems: List<BrokenItem>
+        val lostItems: List<LostItemAdapter.LostItem>,
+        val brokenItems: List<BrokenFurnitureAdapter.BrokenItem>
     )
 
     private suspend fun fetchDamageRates(roomTypeId: String): DamageRateResult {
@@ -636,13 +620,13 @@ class CleaningInspectionActivity : AppCompatActivity() {
             return DamageRateResult(emptyList(), emptyList())
         }
 
-        val lost = mutableListOf<LostItem>()
-        val broken = mutableListOf<BrokenItem>()
+        val lost = mutableListOf<LostItemAdapter.LostItem>()
+        val broken = mutableListOf<BrokenFurnitureAdapter.BrokenItem>()
         entries.forEach { entry ->
             if (entry.statusId == "1") {
-                lost += LostItem(entry.facilityName, entry.price, checked = false, quantity = 0, facilityId = entry.facilityId)
+                lost += LostItemAdapter.LostItem(entry.facilityName, entry.price, checked = false, quantity = 0, facilityId = entry.facilityId)
             } else {
-                broken += BrokenItem(entry.facilityName, entry.price, facilityId = entry.facilityId)
+                broken += BrokenFurnitureAdapter.BrokenItem(entry.facilityName, entry.price, facilityId = entry.facilityId)
             }
         }
 

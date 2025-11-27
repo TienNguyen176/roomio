@@ -6,15 +6,19 @@ import android.content.res.ColorStateList
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.text.HtmlCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.home.HomeActivity
 import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity
+import com.tdc.nhom6.roomio.activities.MainActivity
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter.Format
 import com.tdc.nhom6.roomio.databinding.ActivityBookingDetailBinding
@@ -49,8 +53,14 @@ class BookingDetailActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         binding = ActivityBookingDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
 
         initial()
 
@@ -61,7 +71,7 @@ class BookingDetailActivity : AppCompatActivity() {
         supportActionBar?.title = "Booking details"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         binding.toolbar.setNavigationOnClickListener {
-            val intent = Intent(this, HomeActivity::class.java).apply {
+            val intent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
 
                 putExtra("NAVIGATE_TO_BOOKING", true)
@@ -84,12 +94,51 @@ class BookingDetailActivity : AppCompatActivity() {
                 binding.tvAddress.text=currentHotel?.hotelAddress
                 binding.ratingBar.rating = (currentHotel?.averageRating ?: 0).toFloat()
                 binding.tvReviews.text = "${currentHotel?.totalReviews} reviews"
+                binding.tvSpecialRequest.text=loadedBooking.note
 
                 binding.tvBookingDetail.text =  currentRoomType?.typeName
                 binding.tvNumberGuest.text= "Guest: ${loadedBooking.numberGuest} people"
 
                 binding.tvCheckInDate.text= currentBooking?.checkInDate?.let { convertTimestampToString(it) }
                 binding.tvCheckOutDate.text= currentBooking?.checkOutDate?.let { convertTimestampToString(it) }
+
+                val ownerId = currentHotel?.ownerId
+
+                if (ownerId != null) {
+                    db.collection("users").document(ownerId).get()
+                        .addOnSuccessListener { document ->
+                            if (document.exists()) {
+                                val ownerName = document.getString("username")
+                                val ownerPhone = document.getString("phone")
+
+                                binding.tvOwnerName.text = ownerName ?: "N/A"
+
+                                binding.tvOwnerPhone.text = ownerPhone ?: "Contact not available"
+                            } else {
+                                binding.tvOwnerName.text = "Owner not found"
+                                binding.tvOwnerPhone.text = "N/A"
+                            }
+                        }
+                        .addOnFailureListener { exception ->
+                            Log.e("BookingDetail", "Error fetching owner details", exception)
+                            binding.tvOwnerName.text = "Error loading data"
+                            binding.tvOwnerPhone.text = "N/A"
+                        }
+                }
+
+                binding.tvCancelPolicy.setOnClickListener {
+                    val hotelId = currentHotel?.hotelId
+
+                    if (hotelId != null) {
+                        showCancellationPolicyDialog(hotelId)
+                    } else {
+                        AlertDialog.Builder(this)
+                            .setTitle("Notice")
+                            .setMessage("Unable to load cancellation policy information at this time.")
+                            .setPositiveButton("OK", null)
+                            .show()
+                    }
+                }
 
                 updateTotalAmount(loadedBooking)
 
@@ -128,12 +177,61 @@ class BookingDetailActivity : AppCompatActivity() {
                     }
 
                     "completed"-> {
-                        binding.tvBookingStatus.text = "Reservation is completed"
-                        binding.tvBookingStatus.setBackgroundColor(getColor(R.color.blue))
-                        binding.btnAction.text="Booking review"
-                        binding.btnAction.setTextColor(getColor(R.color.yellow))
-                        binding.btnAction.background=getDrawable(R.drawable.shape_foreground_radius)
-                        binding.btnAction.backgroundTintList = ColorStateList.valueOf(getColor(R.color.yellow))
+//                        binding.tvBookingStatus.text = "Reservation is completed"
+//                        binding.tvBookingStatus.setBackgroundColor(getColor(R.color.blue))
+//                        binding.btnAction.text="Booking review"
+//                        binding.btnAction.setTextColor(getColor(R.color.yellow))
+//                        binding.btnAction.background=getDrawable(R.drawable.shape_foreground_radius)
+//                        binding.btnAction.backgroundTintList = ColorStateList.valueOf(getColor(R.color.yellow))
+//                        currentHotel?.let { db.collection("hotels").document(it.hotelId).collection("reviews").whereEqualTo("bookingId",loadedBooking.bookingId).addSnapshotListener{documentSnapshot,excepion - >
+//
+//                        } }
+//                        binding.btnAction.setOnClickListener {
+//                            val intent = Intent(this, ReviewActivity::class.java)
+//                            intent.putExtra("HOTEL_ID", currentRoomType?.hotelId)
+//                            intent.putExtra("BOOKING_ID", bookingId)
+//                            startActivity(intent)
+//                        }
+
+                        currentHotel?.let { hotel ->
+                            db.collection("hotels")
+                                .document(hotel.hotelId)
+                                .collection("reviews")
+                                .whereEqualTo("bookingId", loadedBooking.bookingId)
+                                .addSnapshotListener { querySnapshot, exception ->
+
+                                    if (exception != null) {
+                                        Log.e("TAG", "Lỗi lắng nghe Reviews: ", exception)
+                                        updateActionButton(isReviewed = false, bookingId)
+                                        return@addSnapshotListener
+                                    }
+
+                                    if (querySnapshot != null) {
+                                        val isReviewed = !querySnapshot.isEmpty
+
+                                        if (isReviewed) {
+                                            Log.d(
+                                                "TAG",
+                                                "Review found for booking ${loadedBooking.bookingId}"
+                                            )
+                                            updateActionButton(
+                                                isReviewed = true,
+                                                loadedBooking.bookingId
+                                            )
+                                        } else {
+                                            Log.d(
+                                                "TAG",
+                                                "No review found for booking ${loadedBooking.bookingId}"
+                                            )
+                                            updateActionButton(
+                                                isReviewed = false,
+                                                loadedBooking.bookingId
+                                            )
+                                        }
+                                    }
+                                }
+                        }
+
                     }
                     "expired"-> {
                         binding.tvBookingStatus.text = "Since you have paid 100% deposit for the booking value, you will be refunded 50% of the amount paid."
@@ -158,8 +256,13 @@ class BookingDetailActivity : AppCompatActivity() {
                         }
                     }
                     else -> {
-                        Log.e("PaymentError", "Unhandled status or status is null: ${loadedBooking?.status}")
-                        binding.tvBookingStatus.text = "Status Unknown"
+                        binding.tvBookingStatus.text = "Reservation is active"
+                        binding.tvBookingStatus.setBackgroundColor(getColor(R.color.blue))
+                        binding.btnAction.text="Cancellation and refund"
+                        binding.btnAction.setTextColor(getColor(R.color.gray_700))
+                        binding.btnAction.background=getDrawable(R.drawable.shape_foreground_radius)
+                        binding.btnAction.backgroundTintList = ColorStateList.valueOf(getColor(R.color.gray_700))
+                        binding.btnAction.isEnabled = false
                     }
                 }
 
@@ -195,6 +298,46 @@ class BookingDetailActivity : AppCompatActivity() {
                 } else {
                     Log.w("PaymentActivity", "No invoices found for Booking ID: $bookingId.")
                     binding.tvFundAmount.text = "N/A"
+                }
+            }
+        }
+    }
+
+    private fun updateActionButton(isReviewed: Boolean, bookingId: String?) {
+        val TAG = "ReviewUpdate"
+
+        val ACTIVE_BG_COLOR = getColor(R.color.yellow)
+
+        if (isReviewed) {
+            binding.btnAction.text = "Reviewed"
+            binding.btnAction.isEnabled = false
+
+            binding.btnAction.alpha = 0.5f
+
+            binding.btnAction.setTextColor(ACTIVE_BG_COLOR)
+            binding.btnAction.backgroundTintList = ColorStateList.valueOf(ACTIVE_BG_COLOR)
+
+            binding.btnAction.setOnClickListener(null)
+            Log.d(TAG, "Nút được đặt thành Reviewed và Disabled (alpha=0.5).")
+
+        } else {
+            binding.btnAction.text = "Booking review"
+            binding.btnAction.isEnabled = true
+
+            binding.btnAction.alpha = 1.0f
+
+            binding.btnAction.setTextColor(getColor(R.color.white))
+            binding.btnAction.background = getDrawable(R.drawable.shape_foreground_radius)
+            binding.btnAction.backgroundTintList = ColorStateList.valueOf(ACTIVE_BG_COLOR)
+
+            binding.btnAction.setOnClickListener {
+                if (bookingId != null && currentRoomType != null) {
+                    val intent = Intent(this, ReviewActivity::class.java)
+                    intent.putExtra("HOTEL_ID", currentRoomType!!.hotelId)
+                    intent.putExtra("BOOKING_ID", bookingId)
+                    startActivity(intent)
+                } else {
+                    Log.e(TAG, "Không thể mở ReviewActivity: bookingId hoặc hotelId bị thiếu.")
                 }
             }
         }
@@ -259,8 +402,14 @@ class BookingDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun cancelTransaction(customerId: String, ownerId: String) {
-        val amount = invoices.first().totalAmount
+    private fun cancelTransaction(customerId: String, ownerId: String, amountToRefund: Double) {
+        if (amountToRefund <= 0) {
+            Log.w("Payment", "Transaction skipped: Refund amount is zero or less.")
+            updateBookingStatusToCancelled()
+            return
+        }
+
+        val amount = amountToRefund
 
         db.runTransaction { transaction ->
             val userRef = db.collection("users").document(customerId)
@@ -286,27 +435,74 @@ class BookingDetailActivity : AppCompatActivity() {
 
             transaction.update(userRef, "walletBalance", newCustomerBalance)
             transaction.update(ownerRef, "walletBalance", newOwnerBalance)
-            transaction.update(bookingRef, "status", "cancelled")
-
             null
         }
             .addOnSuccessListener {
-                binding.progressBar.visibility = View.GONE
-                Log.d("Payment", "Transaction success: Refund processed and booking cancelled.")
+                updateBookingStatusToCancelled()
             }.addOnFailureListener { e ->
                 Log.w("Payment", "Transaction failure.", e)
             }
     }
 
-    private fun openDialogCancelConfirm(customerId: String, ownerId: String) {
+    private fun updateBookingStatusToCancelled() {
+        val roomId = currentBooking?.roomId
+        val hotelId = currentHotel?.hotelId
 
+        if (roomId.isNullOrEmpty() || hotelId.isNullOrEmpty()) {
+            Log.e("Payment", "Cannot cancel: Missing Room ID or Hotel ID.")
+            binding.progressBar.visibility = View.GONE
+            return
+        }
+
+        val batch = db.batch()
+
+        val bookingRef = db.collection("bookings").document(bookingId)
+        val roomRef = db.collection("hotels").document(hotelId).collection("rooms").document(roomId)
+
+        batch.update(bookingRef, "status", "cancelled")
+
+        batch.update(roomRef, "status_id", "room_available")
+
+        batch.commit()
+            .addOnSuccessListener {
+                Log.d("Payment", "Booking cancelled and Room is available.")
+            }
+            .addOnFailureListener { e ->
+                Log.w("Payment", "Data is consistent", e)
+            }
+            .addOnCompleteListener {
+                binding.progressBar.visibility = View.GONE
+            }
+    }
+
+    private fun calculateRefundAmount(): Double {
+        val booking = currentBooking ?: return 0.0
+        val totalPaid = invoices.firstOrNull()?.totalAmount ?: 0.0
+        val checkInTime = booking.checkInDate?.toDate()?.time
+        val currentTime = System.currentTimeMillis()
+
+        val timeDifference = checkInTime?.minus(currentTime)
+        val twentyFourHoursInMillis = 24 * 60 * 60 * 1000L
+
+        if (timeDifference != null) {
+            return if (timeDifference > twentyFourHoursInMillis) {
+                totalPaid
+            } else {
+                0.0
+            }
+        }
+        return 0.0
+    }
+
+    private fun openDialogCancelConfirm(customerId: String, ownerId: String) {
+        val refundAmount = calculateRefundAmount()
         AlertDialog.Builder(this)
             .setTitle(title)
             .setMessage("Are you sure you want to cancel your reservation?")
 
             .setPositiveButton("sure") { dialog, which ->
                 dialog.dismiss()
-                cancelTransaction(customerId,ownerId)
+                cancelTransaction(customerId,ownerId,refundAmount)
             }
 
             .setNegativeButton("cancel") { dialog, which ->
@@ -382,9 +578,38 @@ class BookingDetailActivity : AppCompatActivity() {
                             Log.e("Firebase", "Lỗi chuyển đổi dữ liệu cho Invoice: ${document.id}", ex)
                         }
                     }
+                    val shouldShowExtraFields = invoices.size > 1
+
+                    binding.layoutExtraFeeContainer.isVisible = shouldShowExtraFields
+                    binding.layoutTotalPaidContainer.isVisible = shouldShowExtraFields
+
+                    if (shouldShowExtraFields) {
+                        updateExtraFeeAndTotalPaid()
+                    }
                     onComplete()
                 }
             }
+
+    }
+
+    private fun updateExtraFeeAndTotalPaid() {
+        val booking = currentBooking ?: return
+
+        var totalPaidAmount = 0.0
+        for (invoice in invoices) {
+            if (invoice.paymentStatus == "paid") {
+                totalPaidAmount += invoice.totalAmount
+            }
+        }
+
+        val fundAmount = invoices.firstOrNull()?.totalAmount ?: 0.0
+
+        val totalAfterDiscount = booking.totalFinal
+
+        val extraFee = totalPaidAmount + fundAmount - totalAfterDiscount
+
+        binding.tvExtraFee.text = Format.formatCurrency(extraFee)
+        binding.tvTotalPaidAmount.text = Format.formatCurrency(totalPaidAmount)
     }
 
     private fun loadRoomType(roomTypeId: String, onComplete: () -> Unit) {
@@ -536,10 +761,37 @@ class BookingDetailActivity : AppCompatActivity() {
             }
     }
 
+    private fun showCancellationPolicyDialog(hotelId: String) {
+        val htmlPolicyText = """        
+        <br><br>
+        1. Cancellation <b>more than 24 hours</b> before Check-in: 
+        <b><font color="#388E3C">100% refund of deposit.</font></b>
+        
+        <br><br>
+        2. Cancellation <b>within 24 hours</b> before Check-in: 
+        <b><font color="#D32F2F">No deposit refund (0%).</font></b>
+        
+        <br><br>
+        3. <b>No-Show</b> (Not arriving): 
+        <b><font color="#D32F2F">No deposit refund (0%).</font></b>
+        
+        <br><br>
+        <font color="#808080">Please contact support if you require further details.</font>
+    """.trimIndent()
+
+        val formattedText = HtmlCompat.fromHtml(htmlPolicyText, HtmlCompat.FROM_HTML_MODE_LEGACY)
+
+        AlertDialog.Builder(this)
+            .setTitle("Cancellation Policy")
+            .setMessage(formattedText)
+            .setPositiveButton("I Understand", null)
+            .show()
+    }
+
     fun convertTimestampToString(timestamp: Timestamp): String {
         val date: Date = timestamp.toDate()
 
-        val dateFormatter = SimpleDateFormat("dd MMM", Locale.getDefault())
+        val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
 
         return dateFormatter.format(date)
     }

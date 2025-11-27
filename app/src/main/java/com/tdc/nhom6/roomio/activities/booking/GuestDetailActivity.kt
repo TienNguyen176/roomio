@@ -7,12 +7,16 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.adapters.PaymentMethodAdapter
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter.Format
@@ -66,12 +70,19 @@ class GuestDetailActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityGuestDetailBinding.inflate(layoutInflater)
+        enableEdgeToEdge()
         setContentView(binding.root)
-
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
         setSupportActionBar(binding.toolbar)
         supportActionBar?.title = "Guest Detail"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-
+        binding.toolbar.setNavigationOnClickListener {
+            finish()
+        }
         booking?.let { safeBooking ->
             startDataLoading(safeBooking)
             initial()
@@ -189,11 +200,6 @@ class GuestDetailActivity : AppCompatActivity() {
                 return@let
             }
 
-            if (newBookingId != null) {
-                handleNextPaymentStep(newBookingId!!, safePaymentMethod)
-                return@let
-            }
-
             binding.progressBar.visibility = View.VISIBLE
 
             updateRoomForBooking(bookingData,
@@ -201,37 +207,56 @@ class GuestDetailActivity : AppCompatActivity() {
 
                     updatedBooking.status = "pending"
                     updatedBooking.discountId= currentDiscount?.id
-
                     updatedBooking.discountPaymentMethodId= currentDiscountPM?.discountId
-                    val hotelDiscountId = updatedBooking.discountId
-                    if (hotelDiscountId != null && currentHotel != null) {
-                        db.collection("hotels")
-                            .document(currentHotel!!.hotelId)
-                            .collection("discounts")
-                            .document(hotelDiscountId)
-                            .update("availableCount", FieldValue.increment(-1))
-                            .addOnSuccessListener {
-                                Log.d("Firestore", "Discount count decremented successfully.")
+                    updatedBooking.note=binding.tvRequest.text.toString().trim()
+
+                    db.runTransaction { transaction ->
+                        val newBookingRef = db.collection("bookings").document()
+                        val hotelDiscountId = updatedBooking.discountId
+
+                        if (hotelDiscountId != null && currentHotel != null) {
+                            val discountRef = db.collection("hotels")
+                                .document(currentHotel!!.hotelId)
+                                .collection("discounts")
+                                .document(hotelDiscountId)
+
+                            val discountSnapshot = transaction.get(discountRef)
+                            val currentCount = discountSnapshot.getLong("availableCount") ?: 0L
+
+                            if (currentCount > 0) {
+                                transaction.update(discountRef, "availableCount", FieldValue.increment(-1))
+                            } else {
+                                throw FirebaseFirestoreException(
+                                    "Discount is no longer available.",
+                                    FirebaseFirestoreException.Code.ABORTED
+                                )
                             }
-                            .addOnFailureListener { e ->
-                                // It is still crucial to log this failure
-                                Log.e("Firestore", "ERROR: Failed to decrement discount count.", e)
-                            }
+                        }
+
+                        transaction.set(newBookingRef, updatedBooking)
+                        newBookingRef.id
                     }
-                    db.collection("bookings")
-                        .add(updatedBooking)
-                        .addOnSuccessListener { documentReference ->
-                            newBookingId = documentReference.id
-                            Log.d("Firebase", "Thêm booking thành công. ID: $newBookingId")
+                        .addOnSuccessListener { bookingId ->
+                            newBookingId = bookingId
+                            Log.d("Firebase", "Giao dịch ĐẶT PHÒNG/DISCOUNT thành công. ID: $bookingId")
+
                             updateRoomStatus(updatedBooking.roomId)
-                            addInvoice(updatedBooking, documentReference.id, false)
-
-                            handleNextPaymentStep(documentReference.id, safePaymentMethod)
-
+                            addInvoice(updatedBooking,newBookingId!!, false, safePaymentMethod) { invoiceId ->
+                                if (invoiceId != null) {
+                                    handleNextPaymentStep(bookingId, invoiceId, safePaymentMethod)
+                                } else {
+                                    binding.progressBar.visibility = View.GONE
+                                    Log.e("Firebase", "Lỗi: Invoice không được tạo thành công.")
+                                }
+                            }
                         }
                         .addOnFailureListener { e ->
                             binding.progressBar.visibility = View.GONE
-                            Log.e("Firebase", "Lỗi khi thêm booking", e)
+                            if (e is FirebaseFirestoreException && e.code == FirebaseFirestoreException.Code.ABORTED) {
+                                Log.e("Firebase", "Lỗi: Giao dịch bị hủy do discount đã hết hoặc lỗi khác.", e)
+                            } else {
+                                Log.e("Firebase", "Lỗi khi thực hiện giao dịch ĐẶT PHÒNG/DISCOUNT", e)
+                            }
                         }
                 },
                 onFailure = { exception ->
@@ -249,9 +274,9 @@ class GuestDetailActivity : AppCompatActivity() {
                     .document(hotel.hotelId)
                     .collection("rooms")
                     .document(id)
-                    .update("status_id", "room_occupied")
+                    .update("status_id", "room_pending")
                     .addOnSuccessListener {
-                        Log.d("Firestore", "Cập nhật trạng thái phòng $id thành công: room_occupied")
+                        Log.d("Firestore", "Cập nhật trạng thái phòng $id thành công: room_pending")
                     }
                     .addOnFailureListener { e ->
                         Log.e("Firestore", "LỖI: Không thể cập nhật trạng thái phòng $id", e)
@@ -260,49 +285,53 @@ class GuestDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun handleNextPaymentStep(bookingId: String, safePaymentMethod: PaymentMethod) {
+    private fun handleNextPaymentStep(bookingId: String,invoiceId:String, safePaymentMethod: PaymentMethod) {
+        binding.progressBar.visibility = View.GONE
+
         if (safePaymentMethod.paymentMethodName == "Travel wallet") {
             currentHotel?.let { it1 ->
                 booking?.let {
-                    binding.progressBar.visibility = View.GONE
                     openDialogPaymentConfirm(it.customerId, it1.ownerId, bookingId)
+                } ?: run {
+                    Log.e("Payment", "Lỗi: Không thể xác nhận thanh toán Travel Wallet vì booking rỗng")
                 }
             }
         } else {
-            binding.progressBar.visibility = View.GONE
             val intent = Intent(this, PaymentActivity::class.java)
             intent.putExtra("BOOKING_ID", bookingId)
+            intent.putExtra("INVOICE_ID", invoiceId)
             startActivity(intent)
         }
     }
-
-    private fun addInvoice(booking: Booking, bookingId: String, isConfirmedPayment: Boolean) {
+    private fun addInvoice(booking: Booking,bookingId: String, isConfirmedPayment: Boolean, paymentMethod: PaymentMethod, onInvoiceAdded: (String?) -> Unit) {
         val totalAmountValue = getAmountPayment()
-        val safePaymentMethod = selectedMethod!!
+        val safePaymentMethod = paymentMethod
 
         val paymentStatus = if (isConfirmedPayment) "paid" else "payment_pending"
 
         val invoice = Invoice(
-            bookingId = bookingId,
-            totalAmount = totalAmountValue,
-            paymentMethodId = safePaymentMethod.paymentMethodId!!,
-            paymentStatus = paymentStatus
-        )
+                bookingId = bookingId,
+                totalAmount = totalAmountValue,
+                paymentMethodId = safePaymentMethod.paymentMethodId!!,
+                paymentStatus = paymentStatus)
 
         db.collection("invoices")
             .add(invoice)
             .addOnSuccessListener { invoiceDocumentReference ->
-                Log.d("Firebase", "Thêm invoice thành công. ID: ${invoiceDocumentReference.id}")
+                val newInvoiceId = invoiceDocumentReference.id
+                Log.d("Firebase", "Thêm invoice thành công. ID: $newInvoiceId")
                 binding.progressBar.visibility = View.GONE
-
+                onInvoiceAdded(newInvoiceId)
                 if (isConfirmedPayment) {
-                    openDialogPaymentSuccess(invoice.totalAmount, bookingId)
+                    openDialogPaymentSuccess(invoice.totalAmount, booking.bookingId)
                 }
             }
             .addOnFailureListener { e ->
                 binding.progressBar.visibility = View.GONE
+                onInvoiceAdded(null)
                 Log.e("Firebase", "Lỗi khi thêm invoice", e)
             }
+
     }
 
     private fun getAmountPayment(): Double {
@@ -421,7 +450,7 @@ class GuestDetailActivity : AppCompatActivity() {
         }
         dialog.setOnCancelListener{
             dialog.dismiss()
-            val intent=Intent(this,BookingDetailActivity::class.java).apply {
+            val intent=Intent(this, BookingDetailActivity::class.java).apply {
                 flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
             intent.putExtra("BOOKING_ID",bookingId)
@@ -524,7 +553,7 @@ class GuestDetailActivity : AppCompatActivity() {
                         loadFinalDiscountAndRefreshUI(targetDiscountId)
                     } else {
                         db.collection("invoices")
-                            .whereEqualTo("paymentMethodId", "Travel wallet")
+                            .whereEqualTo("paymentMethodId", getPaymentMethodIdByName("Travel wallet"))
                             .limit(1)
                             .get()
                             .addOnSuccessListener { invoicesResult ->
@@ -535,11 +564,16 @@ class GuestDetailActivity : AppCompatActivity() {
                             }
                             .addOnFailureListener { Log.e("Firestore", "Lỗi kiểm tra Invoices", it) }
                     }
+
                 }
                 .addOnFailureListener { Log.e("Firestore", "Lỗi kiểm tra Bookings", it) }
         } else {
             loadFinalDiscountAndRefreshUI(targetDiscountId)
         }
+    }
+
+    private fun getPaymentMethodIdByName(name: String): String? {
+        return listPaymentMethod.find { it.paymentMethodName == name }?.paymentMethodId
     }
 
     private fun loadFinalDiscountAndRefreshUI(discountPaymentMethodId: String?) {

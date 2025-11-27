@@ -5,7 +5,7 @@ import com.google.firebase.Timestamp
 data class ReservationUi(
     val documentId: String,
     val reservationId: String,
-    val displayReservationCode: String,
+//    val displayReservationCode: String,
     val badge: String,
     val line1: String,
     val line2: String,

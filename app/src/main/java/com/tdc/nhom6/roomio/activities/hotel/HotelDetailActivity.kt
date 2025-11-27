@@ -18,11 +18,14 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.PhotoGridAdapter
+import com.tdc.nhom6.roomio.adapters.ReviewHotelAdapter
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter
 import com.tdc.nhom6.roomio.databinding.ActivityHotelDetailBinding
 import com.tdc.nhom6.roomio.models.HotelModel
+import com.tdc.nhom6.roomio.models.Review
 import com.tdc.nhom6.roomio.models.RoomType
 import com.tdc.nhom6.roomio.models.Service
 import com.tdc.nhom6.roomio.models.ServiceHotelAdapter
@@ -42,7 +45,9 @@ class HotelDetailActivity: AppCompatActivity() {
     private var hotelListener: ListenerRegistration? = null
     private var servicesListener: ListenerRegistration? = null
     private var roomTypesListener: ListenerRegistration? = null
-
+    private lateinit var reviewAdapter: ReviewHotelAdapter
+    private var listReviews: MutableList<Review> = mutableListOf()
+    private var reviewsListener: ListenerRegistration? = null
 
 
     companion object {
@@ -79,10 +84,10 @@ class HotelDetailActivity: AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Dừng lắng nghe khi Activity bị hủy
         hotelListener?.remove()
         servicesListener?.remove()
         roomTypesListener?.remove()
+        reviewsListener?.remove()
     }
 
 
@@ -106,9 +111,15 @@ class HotelDetailActivity: AppCompatActivity() {
         binding.gridPhotos.layoutManager = GridLayoutManager(this, 3)
         binding.gridPhotos.adapter = photoGridAdapter
 
+        reviewAdapter = ReviewHotelAdapter(this, listReviews)
+        binding.listReview.layoutManager = LinearLayoutManager(this)
+        binding.listReview.adapter = reviewAdapter
+        binding.listReview.isNestedScrollingEnabled = false
+
         loadHotel()
         loadRoomTypes()
         loadServices()
+        loadReviews()
     }
 
     private fun setupToolbarScrollEffect() {
@@ -151,6 +162,37 @@ class HotelDetailActivity: AppCompatActivity() {
         )
     }
 
+    private fun loadReviews() {
+        reviewsListener?.remove()
+
+        reviewsListener = db.collection("hotels").document(HOTEL_ID).collection("reviews")
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .addSnapshotListener { querySnapshot, exception ->
+                if (exception != null) {
+                    Log.e("Firestore", "Error listening to Reviews: ", exception)
+                    return@addSnapshotListener
+                }
+
+                if (querySnapshot != null) {
+                    listReviews.clear()
+                    for (document in querySnapshot.documents) {
+                        try {
+                            val review = document.toObject(Review::class.java)
+                            if (review != null) {
+                                listReviews.add(review)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("Firestore", "Lỗi chuyển đổi dữ liệu cho Review: ${document.id}", e)
+                        }
+                    }
+
+                    reviewAdapter.notifyDataSetChanged()
+
+                    binding.tvReviewsCount.text = "(${listReviews.size})"
+                }
+            }
+    }
+
     private fun loadHotel() {
         hotelListener?.remove()
 
@@ -169,7 +211,16 @@ class HotelDetailActivity: AppCompatActivity() {
                         if (hotel != null) {
                             currentHotel = hotel
 
-                            Glide.with(this).load(currentHotel.images?.get(0)).into(binding.imgHotel)
+                            val imagesList = currentHotel.images
+
+                            if (imagesList != null && imagesList.isNotEmpty()) {
+                                Glide.with(this)
+                                    .load(imagesList[0])
+                                    .into(binding.imgHotel)
+                            } else {
+                                binding.imgHotel.setImageResource(R.drawable.hotel_64260231_1)
+                            }
+
                             binding.tvAddress.text = currentHotel.hotelAddress
                             binding.ratingBar.rating = currentHotel.averageRating.toFloat()
                             binding.tvReviews.text = "(${currentHotel.totalReviews})"
@@ -241,7 +292,7 @@ class HotelDetailActivity: AppCompatActivity() {
 
         val collectionPath = "roomTypes"
         roomTypesListener = db.collection(collectionPath)
-            .whereEqualTo("hotelId",HOTEL_ID)
+            .whereEqualTo("hotelId", HOTEL_ID)
             .addSnapshotListener { result, exception ->
                 if (exception != null) {
                     Log.e("Firestore", "Error listening to RoomTypes: ", exception)

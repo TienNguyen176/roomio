@@ -12,7 +12,7 @@ import com.tdc.nhom6.roomio.models.RoomType
 import androidx.core.content.ContextCompat
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.tdc.nhom6.roomio.activities.BookingDetailActivity
+import com.tdc.nhom6.roomio.activities.booking.BookingDetailActivity
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter.Format
 import com.tdc.nhom6.roomio.models.HotelModel
 import java.text.SimpleDateFormat
@@ -68,7 +68,7 @@ class MyBookingAdapter : RecyclerView.Adapter<MyBookingAdapter.BookingViewHolder
                 textHotelName.text = "Đang tải..."
                 textLocation.text = "Đang tải..."
                 itemView.setOnClickListener{
-                    val intent=Intent(itemView.context,BookingDetailActivity::class.java)
+                    val intent=Intent(itemView.context, BookingDetailActivity::class.java)
                     intent.putExtra("BOOKING_ID",booking.bookingId)
                     itemView.context.startActivity(intent)
                 }

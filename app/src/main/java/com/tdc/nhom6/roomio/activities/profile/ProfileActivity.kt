@@ -1,4 +1,4 @@
-package com.tdc.nhom6.roomio.activities
+package com.tdc.nhom6.roomio.activities.profile
 
 import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
@@ -18,6 +18,11 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.activities.LoginActivity
+import com.tdc.nhom6.roomio.activities.ManageBanksActivity
+import com.tdc.nhom6.roomio.activities.receptionist.ReceptionActivity
+import com.tdc.nhom6.roomio.activities.cleaner.CleanerActivity
+import com.tdc.nhom6.roomio.activities.owner.AdminHotelActivity
 import com.tdc.nhom6.roomio.databinding.ProfileLayoutBinding
 import com.tdc.nhom6.roomio.models.User
 

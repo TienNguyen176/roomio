@@ -34,6 +34,14 @@
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:textColor="@android:color/black" />
+                <TextView
+                    android:id="@+id/tvReservationId"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="RIO-005"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/black" />
 
                 <TextView
                     android:id="@+id/tvStatus"
@@ -43,6 +51,7 @@
                     android:textSize="14sp"
                     android:textColor="#757575"
                     android:layout_marginTop="4dp" />
+
 
                 <TextView
                     android:id="@+id/tvTimestamp"

@@ -16,14 +16,14 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.CleaningImageAdapter
-import com.tdc.nhom6.roomio.models.CleanerTask
-import com.tdc.nhom6.roomio.models.TaskStatus
-import com.tdc.nhom6.roomio.repositories.CleanerTaskRepository
-import com.tdc.nhom6.roomio.repositories.CloudinaryRepository
+import com.tdc.nhom6.roomio.apis.CloudinaryRepository
+import com.tdc.nhom6.roomio.data.CleanerTaskRepository
+import com.tdc.nhom6.roomio.fragments.TaskStatus
 import com.tdc.nhom6.roomio.utils.CleanerStatusUtils
 import java.io.File
 import java.io.FileOutputStream
@@ -150,13 +150,11 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
 
         // If status is DIRTY, change to IN_PROGRESS when opening this screen
         if (status == TaskStatus.DIRTY && bookingId.isNotEmpty()) {
-            android.util.Log.d("CleanerTaskDetail", "Changing status from DIRTY to IN_PROGRESS")
             status = TaskStatus.IN_PROGRESS
             task?.let { currentTask ->
                 val updated = currentTask.copy(status = TaskStatus.IN_PROGRESS)
                 CleanerTaskRepository.updateTask(updated)
                 task = updated
-                // Save to Firebase
                 updateStatusInFirebase(TaskStatus.IN_PROGRESS)
             }
         }
@@ -405,7 +403,7 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun uploadImagesAndMarkAsClean(roomId: String, task: CleanerTask?) {
+    private fun uploadImagesAndMarkAsClean(roomId: String, task: com.tdc.nhom6.roomio.fragments.CleanerTask?) {
         val btnMarkAsClean = findViewById<MaterialButton>(R.id.btnStartCleaning)
         btnMarkAsClean.isEnabled = false
         btnMarkAsClean.text = "Uploading..."
@@ -477,7 +475,7 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         }
     }
 
-    private fun markTaskAsClean(roomId: String, task: CleanerTask?, imageUrls: List<String>) {
+    private fun markTaskAsClean(roomId: String, task: com.tdc.nhom6.roomio.fragments.CleanerTask?, imageUrls: List<String>) {
         android.util.Log.d("CleanerTaskDetail", "markTaskAsClean called with ${imageUrls.size} images, bookingId: $bookingId")
 
         // Update task status to CLEAN (completed) in local repository first
@@ -534,8 +532,7 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
         val updates = mapOf(
             "images" to imageUrls,
             "status" to statusValue,
-            "cleaningCompletedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
-            "updatedAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+            "updatedAt" to FieldValue.serverTimestamp()
         )
 
         android.util.Log.d("CleanerTaskDetail", "Saving cleaner data to document: ${cleanerDocRef.id}")
@@ -560,8 +557,7 @@ class CleanerTaskDetailActivity : AppCompatActivity() {
                     firestore.collection("bookings").document(bookingId)
                         .update(
                             "cleanerStatusLatest", statusValue,
-                            "cleanerStatusUpdatedAt", com.google.firebase.firestore.FieldValue.serverTimestamp(),
-                            "cleaningCompletedAt", com.google.firebase.firestore.FieldValue.serverTimestamp()
+                            "cleanerStatusUpdatedAt", FieldValue.serverTimestamp()
                         )
                         .addOnSuccessListener {
                             android.util.Log.d("CleanerTaskDetail", "✓ Updated booking cleanerStatusLatest to: $statusValue")

@@ -20,11 +20,9 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.firestore
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.ServiceExtraFeeActivity
+import com.tdc.nhom6.roomio.activities.receptionist.ServiceExtraFeeActivity
 import com.tdc.nhom6.roomio.adapters.ReservationAdapter
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
-import com.tdc.nhom6.roomio.fragments.CleanerTask
-import com.tdc.nhom6.roomio.fragments.TaskStatus
 import com.tdc.nhom6.roomio.models.Booking
 import com.tdc.nhom6.roomio.models.HeaderColor
 import com.tdc.nhom6.roomio.models.ReservationStatus
@@ -49,7 +47,7 @@ class ReceptionFragment : Fragment() {
     private val activeJobs = mutableListOf<Job>()
     private val reservationMeta = mutableMapOf<String, ReservationMeta>()
     private val invoiceDocuments = mutableMapOf<String, InvoiceDocInfo>()
-    private val reservationDisplayCodes = mutableMapOf<String, String>()
+//    private val reservationDisplayCodes = mutableMapOf<String, String>()
     private val cleaningStatusByBooking = mutableMapOf<String, TaskStatus>()
 
     override fun onCreateView(
@@ -101,7 +99,7 @@ class ReceptionFragment : Fragment() {
         activeJobs.forEach { it.cancel() }
         activeJobs.clear()
         reservationMeta.clear()
-        reservationDisplayCodes.clear()
+//        reservationDisplayCodes.clear()
     }
 
     private fun startListeningBookings() {
@@ -143,7 +141,7 @@ class ReceptionFragment : Fragment() {
 
         val currentDocIds = updatedReservations.map { it.documentId }.toSet()
         reservationMeta.keys.retainAll(currentDocIds)
-        reservationDisplayCodes.keys.retainAll(currentDocIds)
+//        reservationDisplayCodes.keys.retainAll(currentDocIds)
 
         allReservations.clear()
         allReservations.addAll(updatedReservations)
@@ -208,8 +206,11 @@ class ReceptionFragment : Fragment() {
         val hasCheckedIn = doc.get("checkInDateActual") != null
         val hasCheckedOut = doc.get("checkOutDateActual") != null
 
-        val totalOrigin = (doc.get("totalOrigin") as? Number)?.toDouble() ?: 0.0
-        val totalFinal = (doc.get("totalFinal") as? Number)?.toDouble() ?: totalOrigin
+
+        val totalFinal = (doc.get("totalFinal") as? Number)?.toDouble()
+            ?: (doc.get("finalAmount") as? Number)?.toDouble()
+            ?: (doc.get("total_amount") as? Number)?.toDouble()
+            ?: 0.0
         val numberGuest = (doc.get("numberGuest") as? Number)?.toInt()
             ?: (doc.get("number_guest") as? Number)?.toInt()
             ?: (doc.get("guests") as? Number)?.toInt()
@@ -255,7 +256,7 @@ class ReceptionFragment : Fragment() {
         val ui = ReservationUi(
             documentId = documentId,
             reservationId = reservationId,
-            displayReservationCode = getOrCreateDisplayCode(documentId),
+//            displayReservationCode = getOrCreateDisplayCode(documentId),
             badge = badgeInitial,
             line1 = line1,
             line2 = "",
@@ -307,7 +308,7 @@ class ReceptionFragment : Fragment() {
 
     private fun shouldIncludeBooking(doc: DocumentSnapshot): Boolean {
         val paymentStatus = doc.getString("status")?.lowercase(Locale.getDefault()) ?: return true
-        return paymentStatus == "confirm" || paymentStatus == "checked_in" || paymentStatus == "checked_out"
+        return paymentStatus == "confirmed" || paymentStatus == "checked_in" || paymentStatus == "checked_out"|| paymentStatus == "pending_payment" || paymentStatus == "completed"
     }
 
 
@@ -807,15 +808,15 @@ class ReceptionFragment : Fragment() {
         return dateFormatter.format(date)
     }
 
-    private fun getOrCreateDisplayCode(documentId: String): String {
-        return reservationDisplayCodes.getOrPut(documentId) {
-            formatReservationCode(reservationDisplayCodes.size + 1)
-        }
-    }
-
-    private fun formatReservationCode(number: Int): String {
-        return String.format(Locale.US, "RIO-%03d", number.coerceAtLeast(1))
-    }
+//    private fun getOrCreateDisplayCode(documentId: String): String {
+//        return reservationDisplayCodes.getOrPut(documentId) {
+//            formatReservationCode(reservationDisplayCodes.size + 1)
+//        }
+//    }
+//
+//    private fun formatReservationCode(number: Int): String {
+//        return String.format(Locale.US, "RIO-%03d", number.coerceAtLeast(1))
+//    }
 
     private fun firstNonBlank(vararg values: String?): String? =
         values.firstOrNull { !it.isNullOrBlank() }
@@ -894,7 +895,7 @@ class ReceptionFragment : Fragment() {
                 val lowerQuery = query
                 val textMatches = listOf(
                     reservation.reservationId,
-                    reservation.displayReservationCode,
+//                    reservation.displayReservationCode,
                     reservation.line1,
                     reservation.line2,
                     reservation.line3,

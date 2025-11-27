@@ -14,7 +14,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.firestore
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.ServiceExtraFeeActivity
+import com.tdc.nhom6.roomio.activities.receptionist.ServiceExtraFeeActivity
 import com.tdc.nhom6.roomio.data.CleanerTaskRepository
 import com.tdc.nhom6.roomio.models.HeaderColor
 import com.tdc.nhom6.roomio.models.ReservationStatus
@@ -273,7 +273,8 @@ class ReservationViewHolder(view: View, private val onActionClick: (Int) -> Unit
     private val btnAction: android.widget.TextView = view.findViewById(R.id.btnAction)
 
     fun bind(item: ReservationUi) {
-        tvReservationId.text = "Reservation ID: ${item.displayReservationCode}"
+//        tvReservationId.text = "Reservation ID: ${item.displayReservationCode}"
+        tvReservationId.text = "Reservation ID: ${item.reservationId}"
         tvStatusBadge.text = item.badge
         tvLine1.text = item.line1
         tvLine3.text = item.line3

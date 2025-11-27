@@ -9,7 +9,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.HotelDetailActivity
+import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity
 import com.tdc.nhom6.roomio.models.Hotel
 import com.tdc.nhom6.roomio.utils.FormatUtils
 
@@ -89,7 +89,7 @@ class HotReviewAdapter(
                 hotel.highestPricePerNight
             )
             itemView.setOnClickListener(View.OnClickListener {
-                val intent = Intent(itemView.context,HotelDetailActivity::class.java)
+                val intent = Intent(itemView.context, HotelDetailActivity::class.java)
                 intent.putExtra("HOTEL_ID",hotel.hotelId)
                 itemView.context.startActivity(intent)
             })

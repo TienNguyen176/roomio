@@ -106,7 +106,7 @@
             android:exported="false" />
 
         <activity
-            android:name=".activities.auth.LoginActivity"
+            android:name=".activities.MainActivity"
             android:exported="false" />
         <activity
             android:name=".activities.auth.ProfileSignUpActivity"
@@ -143,9 +143,7 @@
             android:name=".activities.order.ApproverPaymentActivity"
             android:exported="true" />
 
-        <activity
-            android:name=".activities.cleaner.CleanerActivity"
-            android:exported="false" />
+
         <activity
             android:name=".activities.cleaner.CleanerTaskDetailActivity"
             android:exported="false" />
@@ -176,9 +174,14 @@
         <activity
             android:name=".activities.profile.LinkBankActivity"
             android:exported="false" />
-
         <activity
-            android:name=".activities.MainActivity"
+            android:name=".activities.home.SearchActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.cleaner.CleanerActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activities.auth.LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

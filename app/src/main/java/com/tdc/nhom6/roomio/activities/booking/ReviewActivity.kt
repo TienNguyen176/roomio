@@ -1,4 +1,4 @@
-package com.tdc.nhom6.roomio.activities
+package com.tdc.nhom6.roomio.activities.booking
 
 import android.os.Bundle
 import android.widget.Toast

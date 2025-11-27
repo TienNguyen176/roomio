@@ -15,12 +15,12 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity
 import com.tdc.nhom6.roomio.adapters.SearchResultsAdapter
 import com.tdc.nhom6.roomio.databinding.FragmentSearchResultsLayoutBinding
 import com.tdc.nhom6.roomio.models.*
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await

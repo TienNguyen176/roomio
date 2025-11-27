@@ -9,7 +9,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.tdc.nhom6.roomio.R
-import com.tdc.nhom6.roomio.activities.HotelDetailActivity
+import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity
 import com.tdc.nhom6.roomio.models.DealItem
 import com.tdc.nhom6.roomio.models.Hotel
 

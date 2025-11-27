@@ -20,6 +20,9 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
 import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.activities.auth.ForgotPasswordActivity
+import com.tdc.nhom6.roomio.activities.auth.ProfileSignUpActivity
+import com.tdc.nhom6.roomio.activities.profile.EditProfileActivity
 import com.tdc.nhom6.roomio.apis.FCMRepository
 import com.tdc.nhom6.roomio.databinding.LoginLayoutBinding
 import kotlinx.coroutines.launch

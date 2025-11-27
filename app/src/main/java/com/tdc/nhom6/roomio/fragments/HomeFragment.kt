@@ -16,6 +16,7 @@ import com.tdc.nhom6.roomio.adapters.HotReviewAdapter
 import com.tdc.nhom6.roomio.models.Hotel
 import com.tdc.nhom6.roomio.repository.FirebaseRepository
 import com.google.firebase.firestore.ListenerRegistration
+import com.tdc.nhom6.roomio.activities.home.SearchActivity
 
 class HomeFragment : Fragment() {
 
@@ -158,9 +159,9 @@ class HomeFragment : Fragment() {
 
     private fun navigateToSearchResults(query: String) {
         try {
-            val intent = android.content.Intent(requireContext(), com.tdc.nhom6.roomio.activities.SearchActivity::class.java)
-            intent.putExtra(com.tdc.nhom6.roomio.activities.SearchActivity.EXTRA_SEARCH_QUERY, query)
-            intent.putExtra(com.tdc.nhom6.roomio.activities.SearchActivity.EXTRA_LOCATION, "")
+            val intent = android.content.Intent(requireContext(), SearchActivity::class.java)
+            intent.putExtra(SearchActivity.EXTRA_SEARCH_QUERY, query)
+            intent.putExtra(SearchActivity.EXTRA_LOCATION, "")
             startActivity(intent)
 
         } catch (e: Exception) {
@@ -169,7 +170,7 @@ class HomeFragment : Fragment() {
                 "Error opening search: ${e.message}",
                 android.widget.Toast.LENGTH_LONG
             ).show()
-            println("Search navigation error: ${e.message}")
+            Log.e("Error","Search navigation error: ${e.message}")
         }
     }
 }

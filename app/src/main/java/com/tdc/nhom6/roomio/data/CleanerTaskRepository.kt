@@ -59,6 +59,7 @@ object CleanerTaskRepository {
         val task = CleanerTask(
             id = UUID.randomUUID().toString(),
             roomId = roomId,
+            reservationId = bookingDocId ?: "N/A",
             status = initialStatus,
             timestamp = displayTime,
             bookingDocId = bookingDocId,

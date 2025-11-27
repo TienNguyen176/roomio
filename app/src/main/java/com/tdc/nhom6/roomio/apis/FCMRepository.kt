@@ -22,20 +22,20 @@ class FCMRepository(context: Context) {
         }
 
     // Gửi notification tới 1 token
-    suspend fun sendNotification(
-        token: String,
-        title: String,
-        body: String,
-        data: Map<String, String> = emptyMap()
-    ): FCMResponseModel? =
-        withContext(Dispatchers.IO) {
-            val payload = mutableMapOf<String, Any>(
-                "token" to token,
-                "title" to title,
-                "body" to body,
-                "data" to data
-            )
-            val response = api.sendNotification(payload)
-            if (response.isSuccessful) response.body() else null
-        }
+//    suspend fun sendNotification(
+//        token: String,
+//        title: String,
+//        body: String,
+//        data: Map<String, String> = emptyMap()
+//    ): FCMResponseModel? =
+//        withContext(Dispatchers.IO) {
+//            val payload = mutableMapOf<String, Any>(
+//                "token" to token,
+//                "title" to title,
+//                "body" to body,
+//                "data" to data
+//            )
+//            val response = api.sendNotification(payload)
+//            if (response.isSuccessful) response.body() else null
+//        }
 }

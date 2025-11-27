@@ -43,12 +43,14 @@ class CleanerTaskAdapter(
 
     class TaskViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvRoomId: TextView = itemView.findViewById(R.id.tvRoomId)
+        private val tvReservationId: TextView = itemView.findViewById(R.id.tvReservationId)
         private val tvStatus: TextView = itemView.findViewById(R.id.tvStatus)
         private val tvTimestamp: TextView = itemView.findViewById(R.id.tvTimestamp)
         private val btnAction: MaterialButton = itemView.findViewById(R.id.btnAction)
 
         fun bind(task: CleanerTask, onActionClick: (Int, CleanerTask) -> Unit) {
             tvRoomId.text = task.roomId
+            tvReservationId.text = task.reservationId
             tvTimestamp.text = task.timestamp
 
             // Set status text and color

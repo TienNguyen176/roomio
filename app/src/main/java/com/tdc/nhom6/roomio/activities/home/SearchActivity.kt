@@ -1,4 +1,4 @@
-package com.tdc.nhom6.roomio.activities
+package com.tdc.nhom6.roomio.activities.home
 
 import android.annotation.SuppressLint
 import android.os.Bundle
@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.toObject
+import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity
 import com.tdc.nhom6.roomio.adapters.SearchResultsAdapter
 import com.tdc.nhom6.roomio.databinding.FragmentSearchResultsBinding
 import com.tdc.nhom6.roomio.models.Hotel

@@ -17,7 +17,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.adapters.ServiceFeeAdapter
-import com.tdc.nhom6.roomio.repositories.CleanerTaskRepository
+import com.tdc.nhom6.roomio.data.CleanerTaskRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
