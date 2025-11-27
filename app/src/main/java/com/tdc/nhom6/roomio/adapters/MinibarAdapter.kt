@@ -8,6 +8,7 @@ import android.widget.CheckBox
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.tdc.nhom6.roomio.R
+import com.tdc.nhom6.roomio.models.MiniItem
 
 class MiniBarAdapter(
     private val items: MutableList<MiniItem>,

@@ -11,7 +11,10 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
+import android.widget.Toast
+import com.google.android.material.button.MaterialButton
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.tdc.nhom6.roomio.activities.hotel.HotelDetailActivity.Companion.db
 import com.tdc.nhom6.roomio.adapters.RoomTypeAdapter
@@ -27,7 +30,9 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import com.google.firebase.firestore.Query
+import com.tdc.nhom6.roomio.R
 import com.tdc.nhom6.roomio.activities.MainActivity
+import com.tdc.nhom6.roomio.activities.receptionist.ReceptionActivity
 
 class PaymentActivity : AppCompatActivity() {
     private lateinit var binding: ActivityPaymentBinding
@@ -44,12 +49,16 @@ class PaymentActivity : AppCompatActivity() {
     private var invoiceDetailListener: ListenerRegistration? = null
     private var roomTypeListener: ListenerRegistration? = null
     private var hotelListener: ListenerRegistration? = null
+    private var bookingDocId: String? = null
+    private val firestore by lazy { FirebaseFirestore.getInstance() }
 
     private val DURATION_24_HOURS_MS = 86400000L
     private val INTERVAL_MS = 1000L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        bookingDocId = intent.getStringExtra("BOOKING_ID")?.takeIf { it.isNotBlank() }
+            ?: intent.getStringExtra("RESERVATION_ID")?.takeIf { it.isNotBlank() }
         binding=ActivityPaymentBinding.inflate(layoutInflater)
         enableEdgeToEdge()
         setContentView(binding.root)
@@ -57,6 +66,7 @@ class PaymentActivity : AppCompatActivity() {
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
+
         }
 
         initial()
@@ -113,13 +123,98 @@ class PaymentActivity : AppCompatActivity() {
                 }
             }
 
-            binding.btnDone.setOnClickListener{
-                val intent= Intent(this, BookingDetailActivity::class.java).apply {
-                    flags=Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            binding.btnDone.setOnClickListener {
+                val docId = bookingDocId?.takeIf { it.isNotBlank() }
+                    ?: intent.getStringExtra("RESERVATION_ID")?.takeIf { it.isNotBlank() }
+
+                if (docId.isNullOrBlank()) {
+                    Toast.makeText(this, "Missing booking reference", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
                 }
-                intent.putExtra("BOOKING_ID",bookingId)
-                startActivity(intent)
+                firestore.collection("invoices")
+                    .whereEqualTo("bookingId", docId)
+                    .get()
+                    .addOnSuccessListener { invoiceSnapshots ->
+                        val invoiceCount = invoiceSnapshots.size()
+
+                        firestore.collection("bookings").document(docId)
+                            .update("status", "completed")
+                            .addOnSuccessListener {
+
+                                invoiceSnapshots.documents.forEach {
+                                    it.reference.update("paymentStatus", "paid")
+                                }
+
+                                // Navigate based on invoice count
+                                val intent = if (invoiceCount > 1) {
+                                    Intent(this, ReceptionActivity::class.java).apply {
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                    }
+                                } else {
+                                    Intent(this, BookingDetailActivity::class.java).apply {
+                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                        putExtra("BOOKING_ID", docId)
+                                    }
+                                }
+                                startActivity(intent)
+                            }
+                            .addOnFailureListener {
+                                Toast.makeText(this, "Failed to update booking status", Toast.LENGTH_LONG).show()
+                            }
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(this, "Failed to check invoices", Toast.LENGTH_SHORT).show()
+                    }
             }
+//            findViewById<MaterialButton>(R.id.btnDone)?.setOnClickListener {
+//
+//                val docId = bookingDocId?.takeIf { it.isNotBlank() }
+//                    ?: intent.getStringExtra("RESERVATION_ID")?.takeIf { it.isNotBlank() }
+//
+//                if (docId.isNullOrBlank()) {
+//                    Toast.makeText(this, "Missing booking reference", Toast.LENGTH_SHORT).show()
+//                    return@setOnClickListener
+//                }
+//
+//
+//                firestore.collection("invoices")
+//                    .whereEqualTo("bookingId", docId)
+//                    .get()
+//                    .addOnSuccessListener { invoiceSnapshots ->
+//                        val invoiceCount = invoiceSnapshots.size()
+//
+//
+//                        firestore.collection("bookings").document(docId)
+//                            .update("status", "completed")
+//                            .addOnSuccessListener {
+//
+//                                invoiceSnapshots.documents.forEach {
+//                                    it.reference.update("paymentStatus", "paid")
+//                                }
+//
+//
+//                                val intent = if (invoiceCount > 1) {
+//                                    Intent(this, ReceptionActivity::class.java).apply {
+//                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+//                                    }
+//                                } else {
+//                                    Intent(this, BookingDetailActivity::class.java).apply {
+//                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+//                                        putExtra("BOOKING_ID", docId)
+//                                    }
+//                                }
+//                                startActivity(intent)
+//                            }
+//                            .addOnFailureListener { e ->
+//                                Toast.makeText(this, "Failed to update booking status: ${e.message}", Toast.LENGTH_LONG).show()
+//                                Log.e("PaymentDetails", "Failed to update booking status", e)
+//                            }
+//                    }
+//                    .addOnFailureListener { e ->
+//                        Toast.makeText(this, "Failed to check invoices: ${e.message}", Toast.LENGTH_SHORT).show()
+//                        Log.e("PaymentDetails", "Failed to check invoices", e)
+//                    }
+//            }
         }
     }
 
